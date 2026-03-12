@@ -13,11 +13,14 @@ import Dashboard from "./pages/Dashboard";
 import CampaignDetail from "./pages/CampaignDetail";
 import SubmitEvidence from "./pages/SubmitEvidence";
 import UserProfile from "./pages/UserProfile";
+import UserParticipations from "./pages/UserParticipations";
+import UserNotifications from "./pages/UserNotifications";
 import Winners from "./pages/Winners";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminCreateCampaign from "./pages/admin/AdminCreateCampaign";
 import AdminParticipations from "./pages/admin/AdminParticipations";
+import AdminReports from "./pages/admin/AdminReports";
 import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import NotFound from "./pages/NotFound";
@@ -44,6 +47,8 @@ const App = () => (
             <Route path="/campanhas" element={<Dashboard />} />
             <Route path="/campanha/:id" element={<CampaignDetail />} />
             <Route path="/campanha/:id/participar" element={<SubmitEvidence />} />
+            <Route path="/participacoes" element={<UserParticipations />} />
+            <Route path="/notificacoes" element={<UserNotifications />} />
             <Route path="/perfil" element={<UserProfile />} />
             <Route path="/ganhadores" element={<Winners />} />
           </Route>
@@ -54,6 +59,7 @@ const App = () => (
             <Route path="/admin/usuarios" element={<AdminUsers />} />
             <Route path="/admin/campanhas" element={<AdminCreateCampaign />} />
             <Route path="/admin/participacoes" element={<AdminParticipations />} />
+            <Route path="/admin/relatorios" element={<AdminReports />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
