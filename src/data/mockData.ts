@@ -18,11 +18,16 @@ export interface Campaign {
   description: string;
   winnersCount: number;
   prize: string;
+  plan?: 'Freemium' | 'Premium' | 'Ambos';
+  instagramOptional?: boolean;
+  instagramHashtags?: string;
+  status?: 'Em curso' | 'Terminado';
 }
 
 export interface User {
   id: string;
   name: string;
+  email?: string;
   city: string;
   country: string;
   sport: string;
@@ -32,6 +37,7 @@ export interface User {
   campaignsWon: number;
   status: 'Pendente' | 'Aprovado';
   photos: string[];
+  registeredAt?: string;
 }
 
 export interface Winner {
@@ -44,6 +50,7 @@ export interface Winner {
 }
 
 export interface Participation {
+  id: string;
   userId: string;
   campaignId: string;
   status: 'Em avaliação' | 'Ganhador de patrocínio' | 'Participação registrada';
@@ -52,6 +59,17 @@ export interface Participation {
   comment?: string;
   instagram: boolean;
   timestamp: string;
+  concluded?: boolean;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  campaignId: string;
+  message: string;
+  type: 'status_change' | 'winner' | 'approved';
+  timestamp: string;
+  read: boolean;
 }
 
 export const campaigns: Campaign[] = [
@@ -66,6 +84,10 @@ export const campaigns: Campaign[] = [
     description: 'Mostre sua melhor corrida e ganhe tênis novos',
     winnersCount: 3,
     prize: 'Tênis Nike Air Zoom — R$350',
+    plan: 'Ambos',
+    instagramOptional: true,
+    instagramHashtags: '#3bukchallenge #3bukrun',
+    status: 'Em curso',
   },
   {
     id: 'camp-2',
@@ -78,6 +100,10 @@ export const campaigns: Campaign[] = [
     description: 'Foto do seu melhor WOD com atitude máxima',
     winnersCount: 2,
     prize: 'Camiseta Adidas — R$150',
+    plan: 'Premium',
+    instagramOptional: true,
+    instagramHashtags: '#3bukchallenge #3bukcrossfit',
+    status: 'Em curso',
   },
   {
     id: 'camp-3',
@@ -90,6 +116,9 @@ export const campaigns: Campaign[] = [
     description: 'Pedala e mostra! Melhor foto ganha',
     winnersCount: 1,
     prize: 'Kit Ciclismo Shimano — R$280',
+    plan: 'Freemium',
+    instagramOptional: false,
+    status: 'Terminado',
   },
 ];
 
@@ -97,6 +126,7 @@ export const users: User[] = [
   {
     id: 'user-1',
     name: 'Lucas Ferreira',
+    email: 'lucas@email.com',
     city: 'São Paulo',
     country: 'Brasil',
     sport: 'Corrida',
@@ -106,10 +136,12 @@ export const users: User[] = [
     campaignsWon: 0,
     status: 'Aprovado',
     photos: [winnerRunning, winnerCrossfit],
+    registeredAt: '10/01/2026',
   },
   {
     id: 'user-2',
     name: 'Ana Beatriz Costa',
+    email: 'ana@email.com',
     city: 'Belo Horizonte',
     country: 'Brasil',
     sport: 'Crossfit',
@@ -119,10 +151,12 @@ export const users: User[] = [
     campaignsWon: 1,
     status: 'Aprovado',
     photos: [winnerCrossfit, winnerRunning, winnerCycling],
+    registeredAt: '05/12/2025',
   },
   {
     id: 'user-3',
     name: 'Rafael Oliveira',
+    email: 'rafael@email.com',
     city: 'Curitiba',
     country: 'Brasil',
     sport: 'Ciclismo',
@@ -132,6 +166,7 @@ export const users: User[] = [
     campaignsWon: 0,
     status: 'Pendente',
     photos: [winnerCycling],
+    registeredAt: '20/02/2026',
   },
 ];
 
@@ -180,6 +215,7 @@ export const winners: Winner[] = [
 
 export const participations: Participation[] = [
   {
+    id: 'part-1',
     userId: 'user-1',
     campaignId: 'camp-1',
     status: 'Em avaliação',
@@ -188,8 +224,10 @@ export const participations: Participation[] = [
     comment: 'Melhor corrida da minha vida!',
     instagram: true,
     timestamp: '12/03/2026 08:45',
+    concluded: false,
   },
   {
+    id: 'part-2',
     userId: 'user-2',
     campaignId: 'camp-2',
     status: 'Ganhador de patrocínio',
@@ -198,8 +236,10 @@ export const participations: Participation[] = [
     comment: 'WOD insano hoje!',
     instagram: true,
     timestamp: '11/03/2026 17:30',
+    concluded: true,
   },
   {
+    id: 'part-3',
     userId: 'user-3',
     campaignId: 'camp-3',
     status: 'Participação registrada',
@@ -207,6 +247,37 @@ export const participations: Participation[] = [
     photo: winnerCycling,
     instagram: false,
     timestamp: '10/03/2026 14:20',
+    concluded: true,
+  },
+];
+
+export const notifications: Notification[] = [
+  {
+    id: 'notif-1',
+    userId: 'user-1',
+    campaignId: 'camp-1',
+    message: 'Sua participação na campanha "Mostre sua melhor corrida" está em avaliação.',
+    type: 'status_change',
+    timestamp: '12/03/2026 09:00',
+    read: false,
+  },
+  {
+    id: 'notif-2',
+    userId: 'user-1',
+    campaignId: 'camp-1',
+    message: 'Nova campanha disponível: Corrida — São Paulo. Participe agora!',
+    type: 'approved',
+    timestamp: '01/03/2026 08:00',
+    read: true,
+  },
+  {
+    id: 'notif-3',
+    userId: 'user-2',
+    campaignId: 'camp-2',
+    message: '🏆 Parabéns! Você foi selecionado como ganhador de patrocínio na campanha de Crossfit!',
+    type: 'winner',
+    timestamp: '11/03/2026 18:00',
+    read: false,
   },
 ];
 
