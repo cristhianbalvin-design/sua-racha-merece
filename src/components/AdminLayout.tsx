@@ -8,7 +8,10 @@ const AdminLayout = () => {
     { to: '/admin/usuarios', label: 'Usuários' },
     { to: '/admin/campanhas', label: 'Campanhas' },
     { to: '/admin/participacoes', label: 'Participações' },
-    { to: '/admin/relatorios', label: 'Relatório' },
+    { to: '/admin/qualificacao', label: 'Qualificação' },
+    { to: '/admin/ganhadores', label: 'Ganhadores' },
+    { to: '/admin/esportes', label: 'Esportes' },
+    { to: '/admin/regioes', label: 'Regiões' },
   ];
 
   return (
@@ -23,7 +26,7 @@ const AdminLayout = () => {
             ADMIN
           </span>
         </div>
-        <nav className="flex items-center gap-4 md:gap-8 overflow-x-auto">
+        <nav className="flex items-center gap-3 md:gap-6 overflow-x-auto">
           {links.map(({ to, label }) => {
             const active = location.pathname === to;
             return (

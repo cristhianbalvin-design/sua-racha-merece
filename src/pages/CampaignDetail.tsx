@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, Instagram } from 'lucide-react';
@@ -9,6 +10,7 @@ const CampaignDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const campaign = campaigns.find((c) => c.id === id);
+  const [participated, setParticipated] = useState(false);
 
   if (!campaign) {
     return (
@@ -19,6 +21,11 @@ const CampaignDetail = () => {
       </div>
     );
   }
+
+  const handleParticipate = () => {
+    setParticipated(true);
+    // In a real app, this would create a participation with status "Em curso"
+  };
 
   return (
     <div className="px-4 md:px-8 py-6 max-w-2xl mx-auto">
@@ -51,20 +58,23 @@ const CampaignDetail = () => {
       </div>
 
       {/* Instagram */}
-      <div className="bg-card rounded-2xl p-5 card-shadow mb-8">
-        <div className="flex items-start gap-3">
-          <Instagram size={20} className="text-secondary flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-foreground text-sm font-bold mb-1">Ganhe pontos extras!</p>
-            <p className="text-muted-foreground text-sm">
-              Publique no Instagram com a hashtag <span className="text-accent font-bold">#3bukchallenge</span> para ganhar pontos extras na avaliação
-            </p>
+      {campaign.instagramOptional && (
+        <div className="bg-card rounded-2xl p-5 card-shadow mb-8">
+          <div className="flex items-start gap-3">
+            <Instagram size={20} className="text-secondary flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-foreground text-sm font-bold mb-1">Ganhe pontos extras!</p>
+              <p className="text-muted-foreground text-sm">
+                Publique no Instagram com a hashtag <span className="text-accent font-bold">{campaign.instagramHashtags || '#3bukchallenge'}</span> para ganhar pontos extras na avaliação
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <Link to={`/campanha/${campaign.id}/participar`}>
+      {!participated ? (
         <motion.button
+          onClick={handleParticipate}
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           transition={spring}
@@ -72,7 +82,21 @@ const CampaignDetail = () => {
         >
           QUERO PARTICIPAR
         </motion.button>
-      </Link>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={spring}
+          className="text-center py-6"
+        >
+          <span className="text-5xl block mb-3">🔥</span>
+          <h3 className="font-bold italic text-lg text-foreground mb-2">Participação registrada!</h3>
+          <p className="text-muted-foreground text-sm mb-4">Sua participação está em curso. Envie suas evidências na aba Participações.</p>
+          <div className="inline-block bg-secondary/20 text-secondary text-sm font-bold px-4 py-2 rounded-full">
+            🟢 Em curso
+          </div>
+        </motion.div>
+      )}
 
       <p className="text-center text-muted-foreground text-xs mt-4">
         🏆 {campaign.winnersCount} ganhador{campaign.winnersCount > 1 ? 'es' : ''} · Prêmio: {campaign.prize}

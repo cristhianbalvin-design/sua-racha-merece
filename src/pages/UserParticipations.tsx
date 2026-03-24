@@ -1,14 +1,20 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import StatusBadge from '@/components/StatusBadge';
 import { participations, campaigns, currentUser } from '@/data/mockData';
 import { Upload, Check, Camera } from 'lucide-react';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
+const statusColor: Record<string, string> = {
+  'Em curso': 'bg-secondary/20 text-secondary',
+  'Concluído': 'bg-success/20 text-success',
+  'Não concluído': 'bg-destructive/20 text-destructive',
+  'Qualificado': 'bg-accent/20 text-accent',
+  'Ganhador': 'bg-warning/20 text-warning',
+};
+
 const UserParticipations = () => {
-  const [showRegisterModal, setShowRegisterModal] = useState<string | null>(null);
+  const [showEvidenceModal, setShowEvidenceModal] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const [instagram, setInstagram] = useState(false);
   const [photoSelected, setPhotoSelected] = useState(false);
@@ -21,16 +27,12 @@ const UserParticipations = () => {
       return { ...p, campaign };
     });
 
-  // Campaigns user hasn't joined yet
-  const joinedCampaignIds = participations.filter((p) => p.userId === currentUser.id).map((p) => p.campaignId);
-  const availableCampaigns = campaigns.filter((c) => !joinedCampaignIds.includes(c.id));
-
-  const handleSubmitParticipation = (e: React.FormEvent) => {
+  const handleSubmitEvidence = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitted(true);
     setTimeout(() => {
       setSubmitted(false);
-      setShowRegisterModal(null);
+      setShowEvidenceModal(null);
       setComment('');
       setInstagram(false);
       setPhotoSelected(false);
@@ -42,39 +44,8 @@ const UserParticipations = () => {
 
   return (
     <div className="px-4 md:px-8 py-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-bold italic text-xl text-foreground">MINHAS PARTICIPAÇÕES</h1>
-      </div>
+      <h1 className="font-bold italic text-xl text-foreground mb-6">MINHAS PARTICIPAÇÕES</h1>
 
-      {/* Available campaigns to register */}
-      {availableCampaigns.length > 0 && (
-        <div className="mb-8">
-          <h3 className="text-ui text-xs text-muted-foreground mb-3">CAMPANHAS DISPONÍVEIS PARA PARTICIPAR</h3>
-          <div className="space-y-3">
-            {availableCampaigns.map((campaign) => (
-              <div key={campaign.id} className="bg-card rounded-2xl p-4 card-shadow flex items-center gap-4">
-                <span className="text-2xl">{campaign.sportIcon}</span>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-foreground text-sm truncate">{campaign.description}</h4>
-                  <p className="text-xs text-muted-foreground">{campaign.sport} — {campaign.city}</p>
-                </div>
-                <motion.button
-                  onClick={() => setShowRegisterModal(campaign.id)}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  transition={spring}
-                  className="bg-primary text-primary-foreground text-ui text-xs px-4 py-2 rounded-xl btn-shadow flex items-center gap-1.5 flex-shrink-0"
-                >
-                  <Camera size={14} />
-                  REGISTRAR PARTICIPAÇÃO
-                </motion.button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* User participations list */}
       {userParticipations.length === 0 ? (
         <div className="text-center py-12">
           <span className="text-4xl block mb-3">🔥</span>
@@ -106,7 +77,23 @@ const UserParticipations = () => {
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">📅 {p.timestamp}</p>
                 </div>
-                <StatusBadge status={p.status} icon={p.statusIcon} />
+                <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full ${statusColor[p.participationStatus] || 'bg-muted text-muted-foreground'}`}>
+                    {p.participationStatus}
+                  </span>
+                  {p.participationStatus === 'Em curso' && (
+                    <motion.button
+                      onClick={() => setShowEvidenceModal(p.id)}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={spring}
+                      className="bg-primary text-primary-foreground text-ui text-xs px-3 py-1.5 rounded-xl btn-shadow flex items-center gap-1.5"
+                    >
+                      <Camera size={12} />
+                      REGISTRAR PARTICIPAÇÃO
+                    </motion.button>
+                  )}
+                </div>
               </div>
               {p.comment && (
                 <p className="text-sm text-muted-foreground italic mt-3 pl-20">"{p.comment}"</p>
@@ -119,9 +106,9 @@ const UserParticipations = () => {
         </div>
       )}
 
-      {/* Register Participation Modal */}
+      {/* Evidence submission modal */}
       <AnimatePresence>
-        {showRegisterModal && (
+        {showEvidenceModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -135,7 +122,7 @@ const UserParticipations = () => {
               className="bg-card rounded-2xl p-6 card-shadow max-w-md w-full max-h-[90vh] overflow-y-auto"
             >
               {!submitted ? (
-                <form onSubmit={handleSubmitParticipation}>
+                <form onSubmit={handleSubmitEvidence}>
                   <h3 className="font-bold italic text-lg text-foreground mb-4">REGISTRAR PARTICIPAÇÃO</h3>
 
                   {/* Photo upload */}
@@ -198,7 +185,7 @@ const UserParticipations = () => {
                     <motion.button
                       type="button"
                       onClick={() => {
-                        setShowRegisterModal(null);
+                        setShowEvidenceModal(null);
                         setPhotoSelected(false);
                         setComment('');
                         setInstagram(false);
@@ -226,9 +213,6 @@ const UserParticipations = () => {
                   <span className="text-5xl block mb-3">🔥</span>
                   <h3 className="font-bold italic text-lg text-foreground mb-2">Participação enviada!</h3>
                   <p className="text-muted-foreground text-sm">Agora é com o admin. Boa sorte!</p>
-                  <div className="inline-block bg-warning/20 text-warning text-sm font-bold px-4 py-2 rounded-full mt-4">
-                    🟡 Em avaliação
-                  </div>
                 </div>
               )}
             </motion.div>
