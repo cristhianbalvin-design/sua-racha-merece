@@ -30,6 +30,9 @@ const WinnerCard = ({ winner }: { winner: Winner }) => {
             <p className="text-xs text-muted-foreground">{winner.user.sport} — {winner.user.city}</p>
           </div>
         </div>
+        {winner.campaignMonth && (
+          <p className="text-xs text-secondary font-bold mb-2">📅 {winner.campaignMonth}</p>
+        )}
         <p className="text-sm text-accent font-bold mb-2">🎁 {winner.prize}</p>
         <p className="text-sm text-muted-foreground italic">"{winner.justification}"</p>
       </div>

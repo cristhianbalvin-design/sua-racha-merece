@@ -18,9 +18,12 @@ import UserNotifications from "./pages/UserNotifications";
 import Winners from "./pages/Winners";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminUsers from "./pages/admin/AdminUsers";
-import AdminCreateCampaign from "./pages/admin/AdminCreateCampaign";
+import AdminCampaigns from "./pages/admin/AdminCampaigns";
 import AdminParticipations from "./pages/admin/AdminParticipations";
-import AdminReports from "./pages/admin/AdminReports";
+import AdminQualification from "./pages/admin/AdminQualification";
+import AdminWinners from "./pages/admin/AdminWinners";
+import AdminSports from "./pages/admin/AdminSports";
+import AdminRegions from "./pages/admin/AdminRegions";
 import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import NotFound from "./pages/NotFound";
@@ -57,9 +60,12 @@ const App = () => (
           <Route path="/admin" element={<AdminLogin />} />
           <Route element={<AdminLayout />}>
             <Route path="/admin/usuarios" element={<AdminUsers />} />
-            <Route path="/admin/campanhas" element={<AdminCreateCampaign />} />
+            <Route path="/admin/campanhas" element={<AdminCampaigns />} />
             <Route path="/admin/participacoes" element={<AdminParticipations />} />
-            <Route path="/admin/relatorios" element={<AdminReports />} />
+            <Route path="/admin/qualificacao" element={<AdminQualification />} />
+            <Route path="/admin/ganhadores" element={<AdminWinners />} />
+            <Route path="/admin/esportes" element={<AdminSports />} />
+            <Route path="/admin/regioes" element={<AdminRegions />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

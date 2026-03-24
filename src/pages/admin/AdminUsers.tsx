@@ -2,15 +2,16 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import PlanBadge from '@/components/PlanBadge';
 import { users } from '@/data/mockData';
+import type { UserStatus } from '@/data/mockData';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const AdminUsers = () => {
   const [userList, setUserList] = useState(users.map((u) => ({ ...u })));
 
-  const handleApprove = (id: string) => {
+  const handleDisable = (id: string) => {
     setUserList((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, status: 'Aprovado' as const } : u))
+      prev.map((u) => (u.id === id ? { ...u, userStatus: 'Desabilitado' as UserStatus } : u))
     );
   };
 
@@ -43,22 +44,22 @@ const AdminUsers = () => {
               <div className="flex items-center gap-3 flex-shrink-0">
                 <span
                   className={`text-xs font-bold px-3 py-1 rounded-full ${
-                    user.status === 'Aprovado'
+                    user.userStatus === 'Ativo'
                       ? 'bg-success/20 text-success'
-                      : 'bg-warning/20 text-warning'
+                      : 'bg-destructive/20 text-destructive'
                   }`}
                 >
-                  {user.status}
+                  {user.userStatus}
                 </span>
-                {user.status === 'Pendente' && (
+                {user.userStatus === 'Ativo' && (
                   <motion.button
-                    onClick={() => handleApprove(user.id)}
+                    onClick={() => handleDisable(user.id)}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
                     transition={spring}
-                    className="bg-primary text-primary-foreground text-ui text-xs px-4 py-2 rounded-xl btn-shadow"
+                    className="bg-destructive text-destructive-foreground text-ui text-xs px-4 py-2 rounded-xl"
                   >
-                    APROVAR
+                    DESABILITAR
                   </motion.button>
                 )}
               </div>
