@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import Logo from '@/components/Logo';
+import { useAuth } from '@/contexts/AuthContext';
+import { OnboardingStepper } from '@/components/OnboardingStepper';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -10,14 +13,24 @@ const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { register } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/plano');
+    try {
+      await register(email, password);
+      toast.success('Conta criada com sucesso!');
+      navigate('/plano');
+    } catch (error: any) {
+      console.error("Erro no signUp:", error);
+      toast.error(`Erro ao criar conta: ${error.message || 'Tente novamente.'}`);
+    }
   };
 
   return (
-    <div className="min-h-svh bg-background flex flex-col items-center justify-center px-4">
+    <div className="min-h-svh bg-background flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
+        <OnboardingStepper currentStep={1} />
         <div className="text-center mb-8">
           <Logo size="lg" />
           <p className="text-muted-foreground mt-2">Crie sua conta e comece a competir</p>

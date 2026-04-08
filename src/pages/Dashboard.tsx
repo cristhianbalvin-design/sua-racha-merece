@@ -1,40 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import CampaignCard from '@/components/CampaignCard';
 import PlanBadge from '@/components/PlanBadge';
-import { campaigns, currentUser, sportsMaster, regionsMaster } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiGetCampaigns, apiGetSports, apiGetRegions, apiGetParticipations } from '@/lib/mockApi';
+import { Campaign, Participation } from '@/data/mockData';
 
 const fadeIn = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 } };
-const stagger = { animate: { transition: { staggerChildren: 0.06 } } };
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const [sportFilter, setSportFilter] = useState('Todos');
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [regionFilter, setRegionFilter] = useState('Todos');
+  
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [joinedCampaignIds, setJoinedCampaignIds] = useState<Set<string>>(new Set());
+  const [sportsMaster, setSportsMaster] = useState<string[]>([]);
+  const [regionsMaster, setRegionsMaster] = useState<string[]>([]);
+
+  useEffect(() => {
+    apiGetCampaigns().then(setCampaigns);
+    apiGetSports().then(setSportsMaster);
+    apiGetRegions().then(setRegionsMaster);
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      apiGetParticipations().then((parts: Participation[]) => {
+        const ids = new Set(parts.filter(p => p.userId === user.id).map(p => p.campaignId));
+        setJoinedCampaignIds(ids);
+      });
+    }
+  }, [user]);
+
+  if (!user) return null;
 
   const filteredCampaigns = campaigns.filter((c) => {
+    if (joinedCampaignIds.has(c.id)) return false; // Hide already joined
     if (sportFilter !== 'Todos' && c.sport !== sportFilter) return false;
     if (statusFilter !== 'Todos' && c.status !== statusFilter) return false;
     if (regionFilter !== 'Todos' && c.region !== regionFilter) return false;
     return true;
   });
 
-  const availableSports = ['Todos', ...new Set(campaigns.map((c) => c.sport))];
+  const availableSports = ['Todos', ...sportsMaster];
   const campaignStatuses = ['Todos', 'Aberto', 'Concluído'];
-  const availableRegions = ['Todos', ...new Set(campaigns.map((c) => c.region))];
+  const availableRegions = ['Todos', ...regionsMaster];
 
   return (
     <div className="px-4 md:px-8 py-6 max-w-4xl mx-auto">
       {/* Header mobile */}
       <div className="flex items-center justify-between mb-8 md:hidden">
         <div>
-          <h1 className="font-bold italic text-xl text-foreground">Olá, {currentUser.name.split(' ')[0]}!</h1>
-          <PlanBadge plan={currentUser.plan} />
+          <h1 className="font-bold italic text-xl text-foreground">Olá, {user.name.split(' ')[0]}!</h1>
+          <PlanBadge plan={user.plan} />
         </div>
         <img
-          src={currentUser.avatar}
-          alt={currentUser.name}
+          src={user.avatar}
+          alt={user.name}
           className="w-10 h-10 rounded-full object-cover img-outline"
         />
       </div>
@@ -86,25 +111,44 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* DEBUG: Temporary - shows raw data count */}
+        <div className="mb-2 text-xs text-muted-foreground bg-muted/50 rounded p-2">
+          🔍 Debug: {campaigns.length} campanha(s) carregada(s) da DB | {filteredCampaigns.length} após filtros
+        </div>
+
         {filteredCampaigns.length === 0 ? (
-          <div className="text-center py-12">
-            <span className="text-4xl block mb-3">🔍</span>
-            <h3 className="font-bold italic text-lg text-foreground mb-2">Nenhuma campanha encontrada.</h3>
-            <p className="text-sm text-muted-foreground">Tente outro filtro!</p>
-          </div>
-        ) : (
-          <motion.div
-            variants={stagger}
-            initial="initial"
-            animate="animate"
-            className="grid md:grid-cols-2 gap-6"
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-16 px-4 bg-card/30 rounded-3xl border border-dashed border-border/50 max-w-lg mx-auto mt-8"
           >
-            {filteredCampaigns.map((campaign) => (
-              <motion.div key={campaign.id} variants={fadeIn} transition={spring}>
+            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-4xl block">🔍</span>
+            </div>
+            <h3 className="font-bold italic text-xl text-foreground mb-3">NENHUMA CAMPANHA ENCONTRADA</h3>
+            <p className="text-muted-foreground mb-6">Não achamos nenhuma campanha com os filtros atuais. Que tal explorar outras opções?</p>
+            <motion.button
+              onClick={() => { setSportFilter('Todos'); setStatusFilter('Todos'); setRegionFilter('Todos'); }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="bg-primary/20 text-primary hover:bg-primary hover:text-primary-foreground text-ui px-6 py-2.5 rounded-full transition-colors"
+            >
+              LIMPAR FILTROS
+            </motion.button>
+          </motion.div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6">
+            {filteredCampaigns.map((campaign, i) => (
+              <motion.div
+                key={campaign.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...spring, delay: i * 0.06 }}
+              >
                 <CampaignCard campaign={campaign} />
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         )}
       </section>
     </div>

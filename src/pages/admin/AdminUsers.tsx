@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import PlanBadge from '@/components/PlanBadge';
-import { users } from '@/data/mockData';
-import type { UserStatus } from '@/data/mockData';
+import { apiGetUsers, apiToggleUserStatus } from '@/lib/mockApi';
+import { User } from '@/data/mockData';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const AdminUsers = () => {
-  const [userList, setUserList] = useState(users.map((u) => ({ ...u })));
+  const [userList, setUserList] = useState<User[]>([]);
 
-  const handleDisable = (id: string) => {
-    setUserList((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, userStatus: 'Desabilitado' as UserStatus } : u))
-    );
+  useEffect(() => {
+    apiGetUsers().then(setUserList);
+  }, []);
+
+  const handleDisable = async (id: string, currentStatus: string) => {
+    await apiToggleUserStatus(id, currentStatus);
+    setUserList(await apiGetUsers());
   };
 
   return (
@@ -39,7 +42,7 @@ const AdminUsers = () => {
                   <h3 className="font-bold text-foreground">{user.name}</h3>
                   <PlanBadge plan={user.plan} />
                 </div>
-                <p className="text-xs text-muted-foreground">{user.city} · {user.sport}</p>
+                <p className="text-xs text-muted-foreground">{user.city} · {user.country}</p>
               </div>
               <div className="flex items-center gap-3 flex-shrink-0">
                 <span
@@ -53,7 +56,7 @@ const AdminUsers = () => {
                 </span>
                 {user.userStatus === 'Ativo' && (
                   <motion.button
-                    onClick={() => handleDisable(user.id)}
+                    onClick={() => handleDisable(user.id, user.userStatus)}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
                     transition={spring}

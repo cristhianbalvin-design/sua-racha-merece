@@ -1,24 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash2 } from 'lucide-react';
-import { sportsMaster } from '@/data/mockData';
+import { apiGetSports, apiAddSport, apiRemoveSport } from '@/lib/mockApi';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const AdminSports = () => {
-  const [sportsList, setSportsList] = useState([...sportsMaster]);
+  const [sportsList, setSportsList] = useState<string[]>([]);
   const [newSport, setNewSport] = useState('');
 
-  const handleAdd = () => {
+  useEffect(() => {
+    apiGetSports().then(setSportsList);
+  }, []);
+
+  const handleAdd = async () => {
     const trimmed = newSport.trim();
     if (trimmed && !sportsList.includes(trimmed)) {
-      setSportsList((prev) => [...prev, trimmed]);
+      await apiAddSport(trimmed);
+      setSportsList(await apiGetSports());
       setNewSport('');
     }
   };
 
-  const handleRemove = (sport: string) => {
-    setSportsList((prev) => prev.filter((s) => s !== sport));
+  const handleRemove = async (sport: string) => {
+    await apiRemoveSport(sport);
+    setSportsList(await apiGetSports());
   };
 
   return (

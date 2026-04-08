@@ -1,8 +1,17 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { User as UserIcon, LogOut } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import Logo from './Logo';
 
 const AdminLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, isAdmin, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   const links = [
     { to: '/admin/usuarios', label: 'Usuários' },
@@ -42,6 +51,29 @@ const AdminLayout = () => {
             );
           })}
         </nav>
+        <div className="flex items-center gap-3 hidden md:flex">
+          <Link to="/admin/perfil" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <span className="text-sm font-bold text-foreground">{user?.name || (isAdmin ? 'Administrador' : 'Admin')}</span>
+          {user?.avatar ? (
+            <img
+              src={user.avatar}
+              alt={user.name}
+              className="w-8 h-8 rounded-full object-cover img-outline bg-muted"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center img-outline">
+              <UserIcon size={16} className="text-muted-foreground" />
+            </div>
+          )}
+          </Link>
+          <button
+            onClick={handleLogout}
+            title="Sair"
+            className="ml-2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
       </header>
       <main className="p-4 md:p-8">
         <Outlet />

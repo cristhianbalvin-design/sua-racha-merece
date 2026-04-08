@@ -1,10 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Trophy, User, Bell } from 'lucide-react';
-import { notifications, currentUser } from '@/data/mockData';
+import { notifications } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 
 const MobileNav = () => {
   const location = useLocation();
-  const unreadCount = notifications.filter((n) => n.userId === currentUser.id && !n.read).length;
+  const { user } = useAuth();
+  
+  const unreadCount = user ? notifications.filter((n) => n.userId === user.id && !n.read).length : 0;
 
   const links = [
     { to: '/dashboard', icon: Home, label: 'Campanhas' },

@@ -58,8 +58,9 @@ export interface User {
   campaignsWon: number;
   userStatus: UserStatus;
   photos: string[];
-  registeredAt?: string;
+  createdAt?: string;
 }
+
 
 export interface Winner {
   id: string;
@@ -77,7 +78,8 @@ export interface Participation {
   userId: string;
   campaignId: string;
   participationStatus: ParticipationStatus;
-  photo: string;
+  photo: string | string[];
+  instagramPhoto?: string;
   comment?: string;
   instagram: boolean;
   timestamp: string;
@@ -85,6 +87,7 @@ export interface Participation {
   commitmentScore?: number;
   continuityScore?: number;
   totalScore?: number;
+  prizeDelivered?: boolean;
 }
 
 export interface Notification {
@@ -165,7 +168,7 @@ export const users: User[] = [
     campaignsWon: 0,
     userStatus: 'Ativo',
     photos: [winnerRunning, winnerCrossfit],
-    registeredAt: '10/01/2026',
+    createdAt: '2026-01-10',
   },
   {
     id: 'user-2',
@@ -180,7 +183,7 @@ export const users: User[] = [
     campaignsWon: 1,
     userStatus: 'Ativo',
     photos: [winnerCrossfit, winnerRunning, winnerCycling],
-    registeredAt: '05/12/2025',
+    createdAt: '2025-12-05',
   },
   {
     id: 'user-3',
@@ -195,7 +198,7 @@ export const users: User[] = [
     campaignsWon: 0,
     userStatus: 'Ativo',
     photos: [winnerCycling],
-    registeredAt: '20/02/2026',
+    createdAt: '2026-02-20',
   },
 ];
 

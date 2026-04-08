@@ -1,10 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Check } from 'lucide-react';
-import { campaigns, sportsMaster, regionsMaster } from '@/data/mockData';
-import type { CampaignStatus } from '@/data/mockData';
+import { apiGetCampaigns, apiAddCampaign, apiUpdateCampaign, apiGetSports, apiGetRegions } from '@/lib/mockApi';
+import type { CampaignStatus, Campaign } from '@/data/mockData';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
+
+const formatCampMonth = (dateStr?: string) => {
+  if (!dateStr) return '—';
+  const [y, m, d] = dateStr.split('-');
+  const dateObj = new Date(Number(y), Number(m) - 1, Number(d), 12, 0, 0);
+  const str = dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
 
 const statusColor: Record<string, string> = {
   'Aberto': 'bg-secondary/20 text-secondary',
@@ -19,13 +27,36 @@ const AdminCampaigns = () => {
   const [sportFilter, setSportFilter] = useState('Todos');
   const [showCreate, setShowCreate] = useState(false);
 
+  // List state
+  const [campaignsList, setCampaignsList] = useState<Campaign[]>([]);
+  const [sportsList, setSportsList] = useState<string[]>([]);
+  const [regionsList, setRegionsList] = useState<string[]>([]);
+
+  useEffect(() => {
+    apiGetCampaigns().then(setCampaignsList);
+    apiGetSports().then(setSportsList);
+    apiGetRegions().then(setRegionsList);
+  }, []);
+
   // Create form state
-  const [plan, setPlan] = useState('Ambos');
+  const [cSport, setCSport] = useState('');
+  const [cRegion, setCRegion] = useState('');
+  const [cCity, setCCity] = useState('');
+  const [cStart, setCStart] = useState('');
+  const [cEnd, setCEnd] = useState('');
+  const [cDesc, setCDesc] = useState('');
+  const [cWinners, setCWinners] = useState('');
+  const [cPrize, setCPrize] = useState('');
+
+  const [plan, setPlan] = useState<'Freemium'|'Premium'|'Ambos'>('Ambos');
   const [igOptional, setIgOptional] = useState(false);
   const [igHashtags, setIgHashtags] = useState('#3bukchallenge');
   const [formSubmitted, setFormSubmitted] = useState(false);
 
-  const sorted = [...campaigns].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  // Today's date in YYYY-MM-DD format (used as min for date pickers)
+  const today = new Date().toISOString().split('T')[0];
+
+  const sorted = [...campaignsList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const filtered = sorted.filter((c) => {
     if (nameFilter && !c.description.toLowerCase().includes(nameFilter.toLowerCase())) return false;
@@ -34,13 +65,42 @@ const AdminCampaigns = () => {
     return true;
   });
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const newCamp: Campaign = {
+      id: `camp-${Date.now()}`,
+      sport: cSport,
+      sportIcon: '🏆',
+      city: cCity,
+      region: cRegion,
+      startDate: cStart,
+      endDate: cEnd,
+      description: cDesc,
+      winnersCount: parseInt(cWinners, 10),
+      prize: cPrize,
+      plan,
+      instagramOptional: igOptional,
+      instagramHashtags: igHashtags,
+      status: 'Aberto',
+      createdAt: new Date().toISOString()
+    };
+    
+    await apiAddCampaign(newCamp);
+    setCampaignsList(await apiGetCampaigns());
     setFormSubmitted(true);
+    
     setTimeout(() => {
       setFormSubmitted(false);
       setShowCreate(false);
+      setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize('');
+      setPlan('Ambos'); setIgOptional(false); setIgHashtags('#3bukchallenge');
     }, 2500);
+  };
+
+  const handleStatusChange = async (id: string, newStatus: CampaignStatus) => {
+    // Optimistic update
+    setCampaignsList(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
+    await apiUpdateCampaign(id, { status: newStatus });
   };
 
   return (
@@ -85,7 +145,7 @@ const AdminCampaigns = () => {
           className="bg-input text-foreground rounded-lg px-3 py-2 text-sm input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none"
         >
           <option value="Todos">Todos os esportes</option>
-          {sportsMaster.map((s) => (
+          {sportsList.map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
@@ -99,13 +159,14 @@ const AdminCampaigns = () => {
               <tr className="border-b border-border">
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">CAMPANHA</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">ESPORTE</th>
+                <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">MÊS DA CAMPANHA</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">ESTADO DA CAMPANHA</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
                     Nenhuma campanha encontrada.
                   </td>
                 </tr>
@@ -114,10 +175,18 @@ const AdminCampaigns = () => {
                   <tr key={c.id}>
                     <td className="px-4 py-3 text-foreground font-bold">{c.description}</td>
                     <td className="px-4 py-3 text-muted-foreground">{c.sportIcon} {c.sport}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{formatCampMonth(c.startDate)}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${statusColor[c.status] || 'bg-muted text-muted-foreground'}`}>
-                        {c.status}
-                      </span>
+                      <select
+                        value={c.status}
+                        onChange={(e) => handleStatusChange(c.id, e.target.value as CampaignStatus)}
+                        className={`text-xs font-bold px-3 py-1 rounded-full appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-ring ${statusColor[c.status] || 'bg-muted text-muted-foreground'}`}
+                      >
+                        <option value="Aberto">Aberto</option>
+                        <option value="Concluído">Concluído</option>
+                        <option value="Eliminado">Eliminado</option>
+                        <option value="Qualificado">Qualificado</option>
+                      </select>
                     </td>
                   </tr>
                 ))
@@ -148,9 +217,9 @@ const AdminCampaigns = () => {
 
                   <div>
                     <label className="text-ui text-xs text-muted-foreground block mb-2">ESPORTE</label>
-                    <select className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none" required>
+                    <select value={cSport} onChange={(e) => setCSport(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none" required>
                       <option value="">Selecione</option>
-                      {sportsMaster.map((s) => (
+                      {sportsList.map((s) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
@@ -159,33 +228,33 @@ const AdminCampaigns = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-ui text-xs text-muted-foreground block mb-2">ESTADO</label>
-                      <select className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none" required>
+                      <select value={cRegion} onChange={(e) => setCRegion(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none" required>
                         <option value="">Selecione</option>
-                        {regionsMaster.map((r) => (
+                        {regionsList.map((r) => (
                           <option key={r} value={r}>{r}</option>
                         ))}
                       </select>
                     </div>
                     <div>
                       <label className="text-ui text-xs text-muted-foreground block mb-2">CIDADE</label>
-                      <input type="text" className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" placeholder="São Paulo" required />
+                      <input type="text" value={cCity} onChange={(e) => setCCity(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" placeholder="São Paulo" required />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-ui text-xs text-muted-foreground block mb-2">DATA DE INÍCIO</label>
-                      <input type="date" className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" required />
+                      <input type="date" value={cStart} min={today} onChange={(e) => { setCStart(e.target.value); if (cEnd && e.target.value > cEnd) setCEnd(''); }} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" required />
                     </div>
                     <div>
                       <label className="text-ui text-xs text-muted-foreground block mb-2">DATA DE FIM</label>
-                      <input type="date" className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" required />
+                      <input type="date" value={cEnd} min={cStart || today} onChange={(e) => setCEnd(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" required />
                     </div>
                   </div>
 
                   <div>
                     <label className="text-ui text-xs text-muted-foreground block mb-2">DESCRIÇÃO DO DESAFIO</label>
-                    <textarea className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all resize-none h-24" placeholder="Descreva o desafio..." required />
+                    <textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all resize-none h-24" placeholder="Descreva o desafio..." required />
                   </div>
 
                   {/* Plan */}
@@ -196,7 +265,7 @@ const AdminCampaigns = () => {
                         <motion.button
                           key={p}
                           type="button"
-                          onClick={() => setPlan(p)}
+                          onClick={() => setPlan(p as 'Freemium' | 'Premium' | 'Ambos')}
                           whileHover={{ scale: 1.03 }}
                           whileTap={{ scale: 0.97 }}
                           transition={spring}
@@ -213,11 +282,11 @@ const AdminCampaigns = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="text-ui text-xs text-muted-foreground block mb-2">QTD GANHADORES</label>
-                      <input type="number" min="1" className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" placeholder="3" required />
+                      <input type="number" min="1" value={cWinners} onChange={(e) => setCWinners(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" placeholder="3" required />
                     </div>
                     <div>
                       <label className="text-ui text-xs text-muted-foreground block mb-2">PRÊMIO</label>
-                      <input type="text" className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" placeholder="Tênis Nike — R$350" required />
+                      <input type="text" value={cPrize} onChange={(e) => setCPrize(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" placeholder="Tênis Nike — R$350" required />
                     </div>
                   </div>
 

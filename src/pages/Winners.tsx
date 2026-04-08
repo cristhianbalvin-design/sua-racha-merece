@@ -1,13 +1,19 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import WinnerCard from '@/components/WinnerCard';
-import { winners } from '@/data/mockData';
+import { apiGetWinners } from '@/lib/mockApi';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 const stagger = { animate: { transition: { staggerChildren: 0.06 } } };
 const fadeIn = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 } };
 
 const Winners = () => {
+  const [winners, setWinners] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiGetWinners().then(setWinners);
+  }, []);
   return (
     <div className="px-4 md:px-8 py-6 max-w-4xl mx-auto">
       <h1 className="font-bold italic text-2xl text-foreground mb-2">

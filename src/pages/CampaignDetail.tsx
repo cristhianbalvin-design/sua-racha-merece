@@ -1,16 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, Instagram } from 'lucide-react';
-import { campaigns } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiGetCampaigns, apiAddParticipation, apiGetParticipations } from '@/lib/mockApi';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const CampaignDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const campaign = campaigns.find((c) => c.id === id);
+  const { user } = useAuth();
+  const [campaign, setCampaign] = useState<any>(null);
   const [participated, setParticipated] = useState(false);
+
+  useEffect(() => {
+    apiGetCampaigns().then(camps => {
+      setCampaign(camps.find(c => c.id === id) || null);
+    });
+  }, [id]);
+
+  useEffect(() => {
+    if (user && id) {
+      apiGetParticipations().then(parts => {
+        const existing = parts.find(p => p.campaignId === id && p.userId === user.id);
+        if (existing) setParticipated(true);
+      });
+    }
+  }, [user, id]);
 
   if (!campaign) {
     return (
@@ -22,9 +39,20 @@ const CampaignDetail = () => {
     );
   }
 
-  const handleParticipate = () => {
+  const handleParticipate = async () => {
+    if (!user || !id) return;
     setParticipated(true);
-    // In a real app, this would create a participation with status "Em curso"
+    const result = await apiAddParticipation({
+      userId: user.id,
+      campaignId: id,
+      participationStatus: 'EM CURSO',
+      photo: '',
+      instagram: false,
+    });
+    if (!result) {
+      setParticipated(false);
+      console.error('Failed to insert participation');
+    }
   };
 
   return (
@@ -93,7 +121,7 @@ const CampaignDetail = () => {
           <h3 className="font-bold italic text-lg text-foreground mb-2">Participação registrada!</h3>
           <p className="text-muted-foreground text-sm mb-4">Sua participação está em curso. Envie suas evidências na aba Participações.</p>
           <div className="inline-block bg-secondary/20 text-secondary text-sm font-bold px-4 py-2 rounded-full">
-            🟢 Em curso
+            🟢 EM CURSO
           </div>
         </motion.div>
       )}

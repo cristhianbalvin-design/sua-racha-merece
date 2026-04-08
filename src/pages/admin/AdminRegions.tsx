@@ -1,29 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash2 } from 'lucide-react';
-import { regionsMaster } from '@/data/mockData';
+import { apiGetRegions, apiAddRegion, apiRemoveRegion } from '@/lib/mockApi';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const AdminRegions = () => {
-  const [regionsList, setRegionsList] = useState([...regionsMaster]);
+  const [regionsList, setRegionsList] = useState<string[]>([]);
   const [newRegion, setNewRegion] = useState('');
 
-  const handleAdd = () => {
+  useEffect(() => {
+    apiGetRegions().then(setRegionsList);
+  }, []);
+
+  const handleAdd = async () => {
     const trimmed = newRegion.trim();
     if (trimmed && !regionsList.includes(trimmed)) {
-      setRegionsList((prev) => [...prev, trimmed]);
+      await apiAddRegion(trimmed);
+      setRegionsList(await apiGetRegions());
       setNewRegion('');
     }
   };
 
-  const handleRemove = (region: string) => {
-    setRegionsList((prev) => prev.filter((r) => r !== region));
+  const handleRemove = async (region: string) => {
+    await apiRemoveRegion(region);
+    setRegionsList(await apiGetRegions());
   };
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="font-bold italic text-2xl text-foreground mb-6">REGIÃO GEOGRÁFICA</h1>
+      <h1 className="font-bold italic text-2xl text-foreground mb-6">ESTADOS DO BRASIL</h1>
 
       {/* Add new region */}
       <div className="flex gap-3 mb-6">
@@ -33,7 +39,7 @@ const AdminRegions = () => {
           onChange={(e) => setNewRegion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
           className="flex-1 bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background outline-none transition-all"
-          placeholder="Nome da região"
+          placeholder="Nome do estado"
         />
         <motion.button
           onClick={handleAdd}
