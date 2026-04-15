@@ -3,16 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import PlanBadge from '@/components/PlanBadge';
 import { apiGetParticipations, apiGetUsers, apiGetCampaigns, apiGetSports } from '@/lib/mockApi';
 import { Participation, User, Campaign } from '@/data/mockData';
-import { X } from 'lucide-react';
+import { X, ChevronDown, Search } from 'lucide-react';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const partStatusColor: Record<string, string> = {
-  'EM CURSO': 'bg-secondary/20 text-secondary',
-  'CONCLUÍDO': 'bg-success/20 text-success',
-  'NÃO CONCLUÍDO': 'bg-destructive/20 text-destructive',
-  'QUALIFICADO': 'bg-accent/20 text-accent',
-  'GANHADOR': 'bg-warning/20 text-warning',
+  'Em curso': 'bg-secondary/20 text-secondary',
+  'Concluído': 'bg-success/20 text-success',
+  'Não concluído': 'bg-destructive/20 text-destructive',
+  'Qualificado': 'bg-accent/20 text-accent',
+  'Ganhador': 'bg-warning/20 text-warning',
 };
 
 const campStatusColor: Record<string, string> = {
@@ -31,11 +31,12 @@ const formatCampMonth = (dateStr?: string) => {
 };
 
 const AdminParticipations = () => {
-  const [campaignFilter, setCampaignFilter] = useState('Todas');
+  const [campaignFilter, setCampaignFilter] = useState('');
   const [planFilter, setPlanFilter] = useState('Todos');
+  const [sportFilter, setSportFilter] = useState('Todos');
+  const [monthFilter, setMonthFilter] = useState('Todos');
   const [partStatusFilter, setPartStatusFilter] = useState('Todos');
   const [campStatusFilter, setCampStatusFilter] = useState('Todos');
-  const [sportFilter, setSportFilter] = useState('Todos');
   const [showDetail, setShowDetail] = useState<string | null>(null);
 
   const [parts, setParts] = useState<Participation[]>([]);
@@ -67,12 +68,18 @@ const AdminParticipations = () => {
     return dateB - dateA;
   });
 
+  // Unique campaign months for filter
+  const monthsList = Array.from(new Set(
+    enriched.map(p => formatCampMonth(p.campaign?.startDate)).filter(Boolean)
+  )).sort();
+
   const filtered = enriched.filter((p) => {
-    if (campaignFilter !== 'Todas' && p.campaign?.id !== campaignFilter) return false;
+    if (campaignFilter && !p.campaign?.description?.toLowerCase().includes(campaignFilter.toLowerCase())) return false;
     if (planFilter !== 'Todos' && p.user?.plan !== planFilter) return false;
+    if (sportFilter !== 'Todos' && p.campaign?.sport !== sportFilter) return false;
+    if (monthFilter !== 'Todos' && formatCampMonth(p.campaign?.startDate) !== monthFilter) return false;
     if (partStatusFilter !== 'Todos' && p.participationStatus !== partStatusFilter) return false;
     if (campStatusFilter !== 'Todos' && p.campaign?.status !== campStatusFilter) return false;
-    if (sportFilter !== 'Todos' && p.campaign?.sport !== sportFilter) return false;
     return true;
   });
 
@@ -80,45 +87,106 @@ const AdminParticipations = () => {
     <div className="max-w-6xl mx-auto">
       <h1 className="font-bold italic text-2xl text-foreground mb-6">PARTICIPAÇÕES</h1>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <select value={campaignFilter} onChange={(e) => setCampaignFilter(e.target.value)}
-          className="bg-input text-foreground rounded-lg px-3 py-2 text-sm input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none">
-          <option value="Todas">Todas as campanhas</option>
-          {campsList.map((c) => (
-            <option key={c.id} value={c.id}>{c.description}</option>
-          ))}
-        </select>
-        <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}
-          className="bg-input text-foreground rounded-lg px-3 py-2 text-sm input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none">
-          <option value="Todos">Todos os planos</option>
-          <option value="Freemium">Freemium</option>
-          <option value="Premium">Premium</option>
-        </select>
-        <select value={partStatusFilter} onChange={(e) => setPartStatusFilter(e.target.value)}
-          className="bg-input text-foreground rounded-lg px-3 py-2 text-sm input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none">
-          <option value="Todos">Estado participação</option>
-          <option value="EM CURSO">EM CURSO</option>
-          <option value="CONCLUÍDO">CONCLUÍDO</option>
-          <option value="NÃO CONCLUÍDO">NÃO CONCLUÍDO</option>
-          <option value="QUALIFICADO">QUALIFICADO</option>
-          <option value="GANHADOR">GANHADOR</option>
-        </select>
-        <select value={campStatusFilter} onChange={(e) => setCampStatusFilter(e.target.value)}
-          className="bg-input text-foreground rounded-lg px-3 py-2 text-sm input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none">
-          <option value="Todos">Estado campanha</option>
-          <option value="Aberto">Aberto</option>
-          <option value="Concluído">Concluído</option>
-          <option value="Eliminado">Eliminado</option>
-          <option value="Qualificado">Qualificado</option>
-        </select>
-        <select value={sportFilter} onChange={(e) => setSportFilter(e.target.value)}
-          className="bg-input text-foreground rounded-lg px-3 py-2 text-sm input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none">
-          <option value="Todos">Todos os esportes</option>
-          {sportsList.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+      {/* Filters — grid 3×2 with custom dropdown arrow */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+
+        {/* 1. Campanha — text search */}
+        <div className="relative">
+          <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={campaignFilter}
+            onChange={(e) => setCampaignFilter(e.target.value)}
+            placeholder="Buscar campanha..."
+            className="w-full bg-card border border-border text-foreground text-sm rounded-xl pl-8 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-ring transition-all placeholder:text-muted-foreground"
+          />
+          {campaignFilter && (
+            <button
+              onClick={() => setCampaignFilter('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        {/* 2. Plano */}
+        <div className="relative">
+          <select
+            value={planFilter}
+            onChange={(e) => setPlanFilter(e.target.value)}
+            className="w-full bg-card border border-border text-foreground text-sm rounded-xl px-4 py-2.5 pr-9 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+          >
+            <option value="Todos">Todos os planos</option>
+            <option value="Freemium">Freemium</option>
+            <option value="Premium">Premium</option>
+          </select>
+          <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        </div>
+
+        {/* 3. Esporte */}
+        <div className="relative">
+          <select
+            value={sportFilter}
+            onChange={(e) => setSportFilter(e.target.value)}
+            className="w-full bg-card border border-border text-foreground text-sm rounded-xl px-4 py-2.5 pr-9 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+          >
+            <option value="Todos">Todos os esportes</option>
+            {sportsList.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        </div>
+
+        {/* 4. Mês da Campanha */}
+        <div className="relative">
+          <select
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            className="w-full bg-card border border-border text-foreground text-sm rounded-xl px-4 py-2.5 pr-9 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+          >
+            <option value="Todos">Todos os meses</option>
+            {monthsList.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+          <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        </div>
+
+        {/* 5. Estado Participação */}
+        <div className="relative">
+          <select
+            value={partStatusFilter}
+            onChange={(e) => setPartStatusFilter(e.target.value)}
+            className="w-full bg-card border border-border text-foreground text-sm rounded-xl px-4 py-2.5 pr-9 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+          >
+            <option value="Todos">Estado participação</option>
+            <option value="Em curso">Em curso</option>
+            <option value="Concluído">Concluído</option>
+            <option value="Não concluído">Não concluído</option>
+            <option value="Qualificado">Qualificado</option>
+            <option value="Ganhador">Ganhador</option>
+          </select>
+          <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        </div>
+
+        {/* 6. Estado Campanha */}
+        <div className="relative">
+          <select
+            value={campStatusFilter}
+            onChange={(e) => setCampStatusFilter(e.target.value)}
+            className="w-full bg-card border border-border text-foreground text-sm rounded-xl px-4 py-2.5 pr-9 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+          >
+            <option value="Todos">Estado campanha</option>
+            <option value="Aberto">Aberto</option>
+            <option value="Concluído">Concluído</option>
+            <option value="Eliminado">Eliminado</option>
+            <option value="Qualificado">Qualificado</option>
+          </select>
+          <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        </div>
+
       </div>
 
       {/* Report table */}

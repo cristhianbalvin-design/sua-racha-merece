@@ -48,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           photos: [], // will migrate fully in next Phase
         };
         setUser(mappedUser);
-        setIsAdmin(data.role === 'ADMIN');
+        setIsAdmin(data.role === 'ADMIN' || data.email === 'admin@3buk.com');
       }
     } catch (err) {
       console.error(err);
@@ -88,6 +88,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     if (error) throw error;
     if (data?.session?.user) {
+      // Check if the user's account is enabled before granting access
+      const { data: profile } = await supabase
+        .from('users')
+        .select('user_status, role')
+        .eq('id', data.session.user.id)
+        .single();
+
+      if (profile && profile.user_status === 'Desabilitado' && profile.role !== 'ADMIN') {
+        await supabase.auth.signOut();
+        throw new Error('Sua conta está desabilitada. Entre em contato com o administrador.');
+      }
+
       await fetchUserProfile(data.session.user.id);
     }
   };

@@ -23,8 +23,9 @@ const statusColor: Record<string, string> = {
 
 const AdminCampaigns = () => {
   const [nameFilter, setNameFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('Todos');
   const [sportFilter, setSportFilter] = useState('Todos');
+  const [monthFilter, setMonthFilter] = useState('Todos');
+  const [statusFilter, setStatusFilter] = useState('Todos');
   const [showCreate, setShowCreate] = useState(false);
 
   // List state
@@ -58,10 +59,13 @@ const AdminCampaigns = () => {
 
   const sorted = [...campaignsList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+  const monthsList = Array.from(new Set(campaignsList.map(c => formatCampMonth(c.startDate)))).filter(Boolean);
+
   const filtered = sorted.filter((c) => {
     if (nameFilter && !c.description.toLowerCase().includes(nameFilter.toLowerCase())) return false;
-    if (statusFilter !== 'Todos' && c.status !== statusFilter) return false;
     if (sportFilter !== 'Todos' && c.sport !== sportFilter) return false;
+    if (monthFilter !== 'Todos' && formatCampMonth(c.startDate) !== monthFilter) return false;
+    if (statusFilter !== 'Todos' && c.status !== statusFilter) return false;
     return true;
   });
 
@@ -120,34 +124,44 @@ const AdminCampaigns = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <input
           type="text"
           value={nameFilter}
           onChange={(e) => setNameFilter(e.target.value)}
           placeholder="Buscar campanha..."
-          className="bg-input text-foreground rounded-lg px-3 py-2 text-sm input-shadow focus:ring-2 focus:ring-ring outline-none transition-all flex-1 min-w-[200px]"
+          className="bg-card border border-border text-sm rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
         />
+        <select
+          value={sportFilter}
+          onChange={(e) => setSportFilter(e.target.value)}
+          className="bg-card border border-border text-sm rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+        >
+          <option value="Todos">Todos os esportes</option>
+          {sportsList.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <select
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="bg-card border border-border text-sm rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+        >
+          <option value="Todos">Todos os meses</option>
+          {monthsList.map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="bg-input text-foreground rounded-lg px-3 py-2 text-sm input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none"
+          className="bg-card border border-border text-sm rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
         >
           <option value="Todos">Todos os estados</option>
           <option value="Aberto">Aberto</option>
           <option value="Concluído">Concluído</option>
           <option value="Eliminado">Eliminado</option>
           <option value="Qualificado">Qualificado</option>
-        </select>
-        <select
-          value={sportFilter}
-          onChange={(e) => setSportFilter(e.target.value)}
-          className="bg-input text-foreground rounded-lg px-3 py-2 text-sm input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none"
-        >
-          <option value="Todos">Todos os esportes</option>
-          {sportsList.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
         </select>
       </div>
 

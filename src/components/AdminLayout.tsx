@@ -14,6 +14,7 @@ const AdminLayout = () => {
   };
 
   const links = [
+    { to: '/admin/dashboard', label: 'Dashboard' },
     { to: '/admin/usuarios', label: 'Usuários' },
     { to: '/admin/campanhas', label: 'Campanhas' },
     { to: '/admin/participacoes', label: 'Participações' },

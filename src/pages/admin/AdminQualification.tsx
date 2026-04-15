@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiGetParticipations, apiGetUsers, apiGetCampaigns, apiUpdateParticipation } from '@/lib/mockApi';
+import { apiGetParticipations, apiGetUsers, apiGetCampaigns, apiUpdateParticipation, apiUpdateCampaign } from '@/lib/mockApi';
 import { Participation, User, Campaign } from '@/data/mockData';
-import { X, Trophy, Info } from 'lucide-react';
+import { X, Trophy, Info, ChevronUp, ChevronDown, RotateCcw, Search } from 'lucide-react';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -150,6 +150,13 @@ const calcContinuidade = (
 const AdminQualification = () => {
   const [showDetail, setShowDetail] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
+
+  // ── Filters ────────────────────────────────────────────────────
+  const [searchName, setSearchName]     = useState('');
+  const [filterSport, setFilterSport]   = useState('');
+  const [filterMonth, setFilterMonth]   = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
   const [parts, setParts] = useState<Participation[]>([]);
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -164,15 +171,75 @@ const AdminQualification = () => {
 
   useEffect(() => { loadAll(); }, []);
 
-  // Eligible: participation concluded+, campaign concluded, user active
+  // Eligible: participation concluded+, campaign exists (admin can see all regardless of user status)
   const eligible = parts
-    .filter((p) => ['Concluído', 'Qualificado', 'Ganhador'].includes(p.participationStatus))
+    .filter((p) => {
+      const normalized = (p.participationStatus || '').toLowerCase();
+      return normalized.includes('conclu') || normalized.includes('qualific') || normalized === 'ganhador';
+    })
     .map((p) => ({
       ...p,
       user: usersList.find((u) => u.id === p.userId),
       campaign: campsList.find((c) => c.id === p.campaignId),
     }))
-    .filter((p) => p.campaign?.status === 'Concluído' && p.user?.userStatus === 'Ativo');
+    .filter((p) => p.campaign != null && p.user != null);
+
+  // Compute display total for sorting
+  const getDisplayTotal = (p: typeof eligible[0]) => {
+    const { score: comp } = calcCompromiso(p, p.campaign);
+    const { score: cont } = calcContinuidade(p, parts, p.user, campsList);
+    const att = p.attitudeScore ?? 0;
+    return att > 0 ? parseFloat(((comp + cont) * att).toFixed(2)) : (p.totalScore ?? 0);
+  };
+
+  const sortedEligible = [...eligible].sort((a, b) => {
+    const diff = getDisplayTotal(a) - getDisplayTotal(b);
+    return sortDir === 'desc' ? -diff : diff;
+  });
+
+  // ── Unique filter options (derived from eligible) ──────────────
+  const sportOptions  = [...new Set(eligible.map(p => p.campaign?.sport).filter(Boolean))] as string[];
+  const monthOptions  = [...new Set(eligible.map(p => {
+    const s = p.campaign?.startDate;
+    if (!s) return '';
+    const [y, m] = s.split('-');
+    return `${y}-${m}`;
+  }).filter(Boolean))].sort() as string[];
+  const statusOptions = [...new Set(eligible.map(p => p.campaign?.status).filter(Boolean))] as string[];
+
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split('-');
+    const d = new Date(Number(y), Number(m) - 1, 1);
+    const s = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+
+  // ── Apply filters on top of sorted list ───────────────────────
+  const filteredEligible = sortedEligible.filter(p => {
+    if (searchName) {
+      const haystack = (p.campaign?.description || '').toLowerCase();
+      if (!haystack.includes(searchName.toLowerCase())) return false;
+    }
+    if (filterSport && p.campaign?.sport !== filterSport) return false;
+    if (filterMonth) {
+      const s = p.campaign?.startDate || '';
+      const [y, m] = s.split('-');
+      if (`${y}-${m}` !== filterMonth) return false;
+    }
+    if (filterStatus && p.campaign?.status !== filterStatus) return false;
+    return true;
+  });
+
+  const hasActiveFilters = searchName || filterSport || filterMonth || filterStatus;
+  const clearFilters = () => { setSearchName(''); setFilterSport(''); setFilterMonth(''); setFilterStatus(''); };
+
+  // Winners already assigned per campaign (from all parts, not just eligible)
+  const winnersByCamp = parts.reduce<Record<string, number>>((acc, p) => {
+    if ((p.participationStatus || '').toLowerCase() === 'ganhador') {
+      acc[p.campaignId] = (acc[p.campaignId] || 0) + 1;
+    }
+    return acc;
+  }, {});
 
   const handleAttitudeChange = async (p: Participation, value: string) => {
     const attitude = value === '' ? 0 : Math.min(0.95, Math.max(0, parseFloat(value) || 0));
@@ -184,7 +251,7 @@ const AdminQualification = () => {
     const total = parseFloat(((compromiso + continuidade) * attitude).toFixed(2));
 
     let newStatus = p.participationStatus;
-    if (attitude > 0 && p.participationStatus === 'Concluído') {
+    if (attitude > 0 && (p.participationStatus || '').toLowerCase().includes('conclu')) {
       newStatus = 'Qualificado';
     }
 
@@ -214,20 +281,108 @@ const AdminQualification = () => {
       continuityScore: continuidade,
       totalScore: total,
     });
+
+    // Check if campaign has now reached its winner limit → set to 'Qualificado'
+    if (campaign) {
+      const currentWinners = (winnersByCamp[campaign.id] || 0) + 1; // +1 for the one we just marked
+      if (currentWinners >= (campaign.winnersCount || 1)) {
+        await apiUpdateCampaign(campaign.id, { status: 'Qualificado' });
+      }
+    }
+
     await loadAll();
   };
+
+  const revokeWinner = async (p: Participation) => {
+    // Revert participation back to Qualificado
+    await apiUpdateParticipation(p.id, {
+      participationStatus: 'Qualificado' as const,
+    });
+
+    // If campaign was closed (Qualificado status) due to this winner,
+    // reopen it so a new winner can be assigned
+    const campaign = campsList.find((c) => c.id === p.campaignId);
+    if (campaign) {
+      const remainingWinners = (winnersByCamp[campaign.id] || 1) - 1;
+      if (remainingWinners < (campaign.winnersCount || 1)) {
+        await apiUpdateCampaign(campaign.id, { status: 'Concluído' });
+      }
+    }
+
+    await loadAll();
+  };
+
 
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="font-bold italic text-2xl text-foreground mb-2">QUALIFICAÇÃO</h1>
       <p className="text-xs text-muted-foreground mb-6">
-        TOTAL = (COMPROMISSO + CONTINUIDADE) × ATITUDE &nbsp;·&nbsp; Máx 9.5 pontos
+        TOTAL = (COMPROMISSO + CONTINUIDADE) × ATITUDE ·  Máx 9.5 pontos
       </p>
 
-      {eligible.length === 0 ? (
+      {/* ── Search + Filters ── */}
+      <div className="flex flex-wrap gap-3 mb-5 items-end">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchName}
+            onChange={e => setSearchName(e.target.value)}
+            placeholder="Buscar por nome de campanha…"
+            className="w-full bg-card border border-border text-sm rounded-xl pl-9 pr-4 py-2.5 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        {/* Sport filter */}
+        <select
+          value={filterSport}
+          onChange={e => setFilterSport(e.target.value)}
+          className="bg-card border border-border text-sm rounded-xl px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-[150px]"
+        >
+          <option value="">Esporte (Todos)</option>
+          {sportOptions.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        {/* Month filter */}
+        <select
+          value={filterMonth}
+          onChange={e => setFilterMonth(e.target.value)}
+          className="bg-card border border-border text-sm rounded-xl px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-[170px]"
+        >
+          <option value="">Mês de campanha (Todos)</option>
+          {monthOptions.map(ym => <option key={ym} value={ym}>{monthLabel(ym)}</option>)}
+        </select>
+
+        {/* Status filter */}
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="bg-card border border-border text-sm rounded-xl px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-[170px]"
+        >
+          <option value="">Est. campanha (Todos)</option>
+          {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        {/* Clear filters */}
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-xl px-3 py-2.5 transition-colors"
+          >
+            <X size={12} /> Limpar filtros
+          </button>
+        )}
+      </div>
+
+      {filteredEligible.length === 0 ? (
         <div className="text-center py-12">
-          <span className="text-4xl block mb-3">📋</span>
-          <p className="text-muted-foreground">Nenhum participante elegível para qualificação.</p>
+          <span className="text-4xl block mb-3">{eligible.length === 0 ? '📋' : '🔍'}</span>
+          <p className="text-muted-foreground">
+            {eligible.length === 0
+              ? 'Nenhum participante elegível para qualificação.'
+              : 'Nenhum resultado para os filtros selecionados.'}
+          </p>
         </div>
       ) : (
         <div className="bg-card rounded-2xl card-shadow overflow-hidden">
@@ -241,6 +396,9 @@ const AdminQualification = () => {
                   <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">MÊS DE CAMPANHA</th>
                   <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">VENCIMENTO</th>
                   <th className="text-center px-4 py-3 text-ui text-xs text-muted-foreground">
+                    EST. CAMP.<br/><span className="text-[10px] font-normal opacity-60">ganhadores</span>
+                  </th>
+                  <th className="text-center px-4 py-3 text-ui text-xs text-muted-foreground">
                     ATITUDE<br/><span className="text-[10px] font-normal opacity-60">0–0.95</span>
                   </th>
                   <th className="text-center px-4 py-3 text-ui text-xs text-muted-foreground">
@@ -250,13 +408,26 @@ const AdminQualification = () => {
                     CONTINUIDADE<br/><span className="text-[10px] font-normal opacity-60">auto / máx 5</span>
                   </th>
                   <th className="text-center px-4 py-3 text-ui text-xs text-muted-foreground">
-                    TOTAL<br/><span className="text-[10px] font-normal opacity-60">máx 9.5</span>
+                    <button
+                      onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+                      className="inline-flex flex-col items-center gap-0.5 hover:text-foreground transition-colors group"
+                      title="Ordenar por total"
+                    >
+                      <span className="flex items-center gap-1">
+                        TOTAL
+                        <span className="flex flex-col">
+                          <ChevronUp size={10} className={sortDir === 'asc' ? 'text-warning' : 'opacity-30 group-hover:opacity-60'} />
+                          <ChevronDown size={10} className={sortDir === 'desc' ? 'text-warning' : 'opacity-30 group-hover:opacity-60'} />
+                        </span>
+                      </span>
+                      <span className="text-[10px] font-normal opacity-60">máx 9.5</span>
+                    </button>
                   </th>
                   <th className="text-center px-4 py-3 text-ui text-xs text-muted-foreground">AÇÕES</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {eligible.map((p) => {
+                {filteredEligible.map((p) => {
                   const { score: compromiso, rules: compRules, required: compReq } = calcCompromiso(p, p.campaign);
                   const { score: continuidade, rules: contRules } = calcContinuidade(p, parts, p.user, campsList);
                   const attitude = p.attitudeScore ?? '';
@@ -264,10 +435,27 @@ const AdminQualification = () => {
                     ? parseFloat(((compromiso + continuidade) * (attitude as number)).toFixed(2))
                     : p.totalScore ?? 0;
 
+                  // Winners count logic for this campaign
+                  const campWinnersCount = winnersByCamp[p.campaignId] || 0;
+                  const campMaxWinners = p.campaign?.winnersCount || 1;
+                  const campIsFull = campWinnersCount >= campMaxWinners;
+                  const campStatus = p.campaign?.status || '';
+                  const campStatusColor: Record<string, string> = {
+                    'Aberto': 'bg-secondary/20 text-secondary',
+                    'Concluído': 'bg-success/20 text-success',
+                    'Qualificado': 'bg-accent/20 text-accent',
+                    'Eliminado': 'bg-destructive/20 text-destructive',
+                  };
+
                   return (
                     <tr key={p.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3">
-                        <p className="text-foreground font-bold">{p.user?.name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-foreground font-bold">{p.user?.name}</p>
+                          {p.user?.userStatus === 'Desabilitado' && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-destructive/20 text-destructive">DESABILITADO</span>
+                          )}
+                        </div>
                         {p.user?.email && <p className="text-xs text-muted-foreground">{p.user.email}</p>}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{p.campaign?.sportIcon} {p.campaign?.sport || 'N/A'}</td>
@@ -275,6 +463,18 @@ const AdminQualification = () => {
                       <td className="px-4 py-3 text-muted-foreground">{formatCampMonth(p.campaign?.startDate)}</td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
                         {p.campaign?.endDate ? new Date(p.campaign.endDate).toLocaleDateString('pt-BR') : '—'}
+                      </td>
+
+                      {/* EST. CAMPAIGN + winners counter */}
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${campStatusColor[campStatus] || 'bg-muted text-muted-foreground'}`}>
+                            {campStatus || '—'}
+                          </span>
+                          <span className={`text-[10px] font-bold ${campIsFull ? 'text-accent' : 'text-muted-foreground'}`}>
+                            {campWinnersCount}/{campMaxWinners} 🏆
+                          </span>
+                        </div>
                       </td>
 
                       {/* ATITUDE: manual 0–0.95 */}
@@ -336,7 +536,8 @@ const AdminQualification = () => {
                           >
                             DETALHES
                           </motion.button>
-                          {p.participationStatus === 'Qualificado' && (
+                          {/* Can only mark winner if: status=Qualificado AND campaign has slots left */}
+                          {p.participationStatus === 'Qualificado' && !campIsFull && (
                             <motion.button
                               onClick={() => markWinner(p)}
                               whileHover={{ scale: 1.05 }}
@@ -348,8 +549,28 @@ const AdminQualification = () => {
                               GANHADOR
                             </motion.button>
                           )}
+                          {/* Show disabled state when campaign is full */}
+                          {p.participationStatus === 'Qualificado' && campIsFull && (
+                            <span className="text-muted-foreground text-xs px-3 py-1.5 rounded-xl bg-muted flex items-center gap-1 opacity-50" title={`Cupo completo: ${campMaxWinners} ganhadores`}>
+                              <Trophy size={12} />
+                              CUPO COMPLETO
+                            </span>
+                          )}
                           {p.participationStatus === 'Ganhador' && (
-                            <span className="text-warning text-xs font-bold">🏆 GANHADOR</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-warning text-xs font-bold">🏆 GANHADOR</span>
+                              <motion.button
+                                onClick={() => revokeWinner(p)}
+                                whileHover={{ scale: 1.08 }}
+                                whileTap={{ scale: 0.92 }}
+                                transition={spring}
+                                title="Revogar ganhador → volta a Qualificado"
+                                className="bg-destructive/15 text-destructive hover:bg-destructive/30 rounded-lg p-1 flex items-center gap-0.5 text-[10px] font-bold transition-colors"
+                              >
+                                <RotateCcw size={10} />
+                                REVOGAR
+                              </motion.button>
+                            </div>
                           )}
                         </div>
                       </td>

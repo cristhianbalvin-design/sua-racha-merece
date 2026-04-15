@@ -28,6 +28,7 @@ import AdminSports from "./pages/admin/AdminSports";
 import AdminRegions from "./pages/admin/AdminRegions";
 import AdminRelatorio from "./pages/admin/AdminRelatorio";
 import AdminProfile from "./pages/admin/AdminProfile";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -68,6 +69,7 @@ const AnimatedRoutes = () => {
         {/* Admin */}
         <Route path="/admin" element={<PageTransition><AdminLogin /></PageTransition>} />
         <Route element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/relatorio" element={<AdminRelatorio />} />
           <Route path="/admin/perfil" element={<AdminProfile />} />
           <Route path="/admin/usuarios" element={<AdminUsers />} />

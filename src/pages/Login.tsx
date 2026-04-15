@@ -21,7 +21,8 @@ const Login = () => {
       toast.success('Login bem-sucedido!');
       navigate('/dashboard');
     } catch (error: any) {
-      toast.error('Erro ao entrar. Verifique suas credenciais.');
+      const msg = error?.message || 'Erro ao entrar. Verifique suas credenciais.';
+      toast.error(msg);
     }
   };
 

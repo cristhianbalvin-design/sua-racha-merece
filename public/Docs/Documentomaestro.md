@@ -109,26 +109,36 @@ Solo aparecen en el Tab Calificación los participantes que cumplan **las tres c
 
 ### 5.3 Los tres criterios de calificación
 
-#### 🔥 Actitud (1–10, permite decimales)
-> *Cómo se muestra el atleta en sus fotos y videos: energía, carisma, presencia.*
-- El admin revisa toda la evidencia multimedia
-- Ingresa una nota del 1 al 10 (permite decimales, ej: 8.5)
+La fórmula de calificación final genera un puntaje máximo de **9.5** calculado de la siguiente manera:
+**TOTAL = (COMPROMISO + CONTINUIDAD) × ACTITUD**
 
-#### 💪 Compromiso (valor fijo: 10)
-> *Si el participante está en estado CONCLUIDO, significa que cumplió el desafío.*
-- Este campo se llena automáticamente con **10** por defecto
-- No es editable (el hecho de haber concluido ya es la máxima nota de compromiso)
+#### 💪 Compromiso (Automático: hasta 5 pts)
+> *Se evalúa qué tan involucrado estuvo el usuario con la participación de la campaña.*
+- Se calcula de forma automática cumpliendo estas 4 o 5 reglas (cada una suma 1 punto):
+  1. El usuario se unió a la campaña el mismo día de su creación.
+  2. El usuario se unió a la campaña en los primeros 7 días.
+  3. Envió tanto foto como video en la evidencia.
+  4. Concluyó la participación.
+  5. *Si la campaña requiere Instagram:* Envió captura de pantalla de Instagram (+1 pt).
+  *(La fórmula prorratea sobre 5 puntos el total de reglas).*
 
-#### 📅 Continuidad (1–10, permite decimales)
-> *Si participa de forma constante, incluso sin ganar.*
-- El admin ingresa una nota del 1 al 10 (permite decimales)
-- Se valora el historial de participaciones anteriores del usuario
+#### 📅 Continuidad (Automático: hasta 5 pts)
+> *Premia la trayectoria mes a mes del atleta.*
+- Se calcula de forma automática con base en el historial:
+  1. Participó en el 1er mes de su registro (+1 pt).
+  2. Ganó en el 1er mes de su registro (+1 pt).
+  3. Participó 3 o más meses consecutivos (+1 pt).
+  4. Ganó 3 o más meses consecutivos (+1 pt).
+  5. Ganó otra campaña en el mismo mes que la campaña actual (+1 pt).
 
-#### ∑ Total (calculado automáticamente)
-- Suma de los tres campos: Actitud + Compromiso + Continuidad
-- Máximo posible: 30 puntos
-- Se calcula y muestra en tiempo real al completar los tres campos
-- Al completar los tres campos → estado de participación pasa a **CALIFICADO**
+#### 🔥 Actitud (Manual: 0 a 0.95)
+> *Cómo se muestra el atleta: energía, carisma, presencia.*
+- El admin manual revisa la evidencia.
+- Asigna un multiplicador de actitud en un rango de 0 hasta 0.95 en incrementos cortos.
+
+#### ∑ Total (calculado en tiempo real)
+- El panel muestra el cálculo final: (Compromiso + Continuidad) × Actitud.
+- Si Actitud es mayor a 0 y la participación estaba CONCLUIDA, la participación pasa al estado **CALIFICADO**.
 
 ### 5.4 Selección de ganador
 - Botón **"Marcar como ganador"** disponible en cada registro del Tab Calificación
@@ -136,10 +146,12 @@ Solo aparecen en el Tab Calificación los participantes que cumplan **las tres c
 - Solo los participantes con estado **GANADOR** aparecen en el Tab Ganadores
 
 ### 5.5 Vista de detalle (desde Tab Calificación)
-Botón "Detalles" en cada registro abre ventana/modal con toda la evidencia del formulario de participación:
-- Galería completa de fotos y videos subidos
-- Comentario del participante
-- Badge de publicación en Instagram: ✅ sí / ❌ no
+Botón "Detalles" en cada registro abre ventana/modal detallado con toda la evidencia del participante separada estructuralmente:
+- **Galería interactiva segmentada**: fotos (con visor/zomm independiente) y videos enviados.
+- Información del perfil del usuario y estado de la campaña.
+- Comentario del participante.
+- Resumen desglosado de las reglas de calificación (checks verdes para reglas cumplidas de Compromiso y Continuidad).
+- Evidencia de red social: comprobación visual de la publicación de la captura de pantalla de Instagram y el hashtag.
 
 ---
 
@@ -209,14 +221,14 @@ Botón "Detalles" en cada registro abre ventana/modal con toda la evidencia del 
 
 ### Tab Calificación
 - **Reporte** filtrado automáticamente: solo participantes con estado participación CONCLUIDO + estado campaña CONCLUIDO + estado usuario ACTIVO
-- Columnas: nombre del participante | nombre de campaña | fecha de vencimiento de campaña | campos de calificación | total | acciones
+- Columnas ampliadas: Participante | Esporte | Campanha | Mês de Campanha | Vencimento | Atitude | Compromisso | Continuidade | Total | Ações
 - Por cada registro:
-  - Botón **"Detalles"** → abre modal con toda la evidencia
-  - Campo **Actitud**: número 1–10, permite decimales
-  - Campo **Compromiso**: valor fijo 10 (no editable, se muestra automáticamente)
-  - Campo **Continuidad**: número 1–10, permite decimales
-  - Campo **Total**: suma automática en tiempo real (máx. 30)
-  - Al completar Actitud y Continuidad → estado pasa a CALIFICADO automáticamente
+  - Botón **"Detalles"** → abre modal con toda la evidencia y el desglose visual de las reglas de puntuación.
+  - Campo **Actitud**: número 0–0.95, manual e influye como multiplicador.
+  - Campo **Compromiso**: automático, de 0 a 5 pts según reglas fijas. Botón de tooltips para ver detalles.
+  - Campo **Continuidad**: automático, de 0 a 5 pts calculando los últimos meses e historial. Botón de tooltips para ver detalles.
+  - Campo **Total**: máximo de 9.5 (calculado por fórmula).
+  - Al completar Actitud > 0 → estado pasa a CALIFICADO automáticamente.
   - Botón **"Marcar como ganador"** → estado pasa a GANADOR
 
 ### Tab Ganadores
@@ -374,4 +386,4 @@ Ejemplo base:
 
 ---
 
-*Versión 1.4 — Estados del sistema definidos, 8 tabs de admin, sistema de calificación numérica, tablas maestras de deportes y regiones geográficas.*
+*Versión 1.5 — Estados del sistema definidos, integración final del sistema automatizado de puntuación de campaña, reglas de compromiso y continuidad automáticas (Max 9.5).*

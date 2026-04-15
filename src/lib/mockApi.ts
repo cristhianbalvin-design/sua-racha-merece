@@ -102,15 +102,20 @@ export const apiUpdateCampaign = async (id: string, updates: Partial<Campaign>) 
 
 // photo_url may be a single URL, a JSON array of URLs, or a JSON object {media: [], igScreenshot: string}
 const parseMedia = (raw: string | null) => {
-  if (!raw) return { photo: undefined, instagramPhoto: undefined };
+  if (!raw) return { photo: undefined, instagramPhoto: undefined, prizeDelivered: false };
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return { photo: parsed, instagramPhoto: undefined };
-    if (parsed && typeof parsed === 'object' && parsed.media) {
-      return { photo: parsed.media, instagramPhoto: parsed.igScreenshot };
+    if (Array.isArray(parsed)) return { photo: parsed, instagramPhoto: undefined, prizeDelivered: false };
+    if (parsed && typeof parsed === 'object') {
+      const pUrl = parsed.media !== undefined ? parsed.media : parsed.photo;
+      return { 
+        photo: pUrl, 
+        instagramPhoto: parsed.igScreenshot,
+        prizeDelivered: !!parsed.prizeDelivered
+      };
     }
   } catch (_) {/* not JSON */}
-  return { photo: raw, instagramPhoto: undefined };
+  return { photo: raw, instagramPhoto: undefined, prizeDelivered: false };
 };
 
 const mapPart = (row: any): Participation => {
@@ -171,22 +176,28 @@ export const apiAddParticipation = async (p: Partial<Participation>) => {
 export const apiUpdateParticipation = async (id: string, updates: Partial<Participation>) => {
   const row: any = {};
   if (updates.participationStatus) row.status = toDbStatus(updates.participationStatus);
-  if (updates.photo !== undefined || updates.instagramPhoto !== undefined) {
-    if (updates.instagramPhoto) {
-      row.photo_url = JSON.stringify({
-        media: updates.photo || [],
-        igScreenshot: updates.instagramPhoto
-      });
-    } else if (updates.photo !== undefined) {
-      row.photo_url = Array.isArray(updates.photo) ? JSON.stringify(updates.photo) : updates.photo;
-    }
+  if (updates.photo !== undefined || updates.instagramPhoto !== undefined || updates.prizeDelivered !== undefined) {
+    const { data: curr } = await supabase.from('participations').select('photo_url').eq('id', id).single();
+    const existing = curr ? parseMedia(curr.photo_url) : { photo: [], instagramPhoto: undefined, prizeDelivered: false };
+    
+    // Merge updates
+    const newMedia = updates.photo !== undefined ? updates.photo : existing.photo;
+    const newIg = updates.instagramPhoto !== undefined ? updates.instagramPhoto : existing.instagramPhoto;
+    const newDelivered = updates.prizeDelivered !== undefined ? updates.prizeDelivered : existing.prizeDelivered;
+
+    row.photo_url = JSON.stringify({
+      media: newMedia,
+      igScreenshot: newIg,
+      prizeDelivered: newDelivered
+    });
   }
   if (updates.comment !== undefined) row.comment = updates.comment;
   if (updates.instagram !== undefined) row.instagram_posted = updates.instagram;
   if (updates.attitudeScore !== undefined) row.attitude_score = updates.attitudeScore;
+  if (updates.commitmentScore !== undefined) row.commitment_score = updates.commitmentScore;
   if (updates.continuityScore !== undefined) row.continuity_score = updates.continuityScore;
   if (updates.totalScore !== undefined) row.total_score = updates.totalScore;
-  if (updates.prizeDelivered !== undefined) row.prize_delivered = updates.prizeDelivered;
+
 
   const { data, error } = await supabase.from('participations').update(row).eq('id', id).select('*').single();
   if (error) {
@@ -206,6 +217,7 @@ export const apiAddSport = async (name: string) => {
   if (error) {
     console.error("Erro ao adicionar esporte:", error);
     toast.error('Erro ao adicionar esporte: ' + error.message);
+    throw new Error(error.message);
   }
 };
 export const apiRemoveSport = async (name: string) => {
@@ -221,6 +233,7 @@ export const apiAddRegion = async (name: string) => {
   if (error) {
     console.error("Erro ao adicionar região:", error);
     toast.error('Erro ao adicionar região: ' + error.message);
+    throw new Error(error.message);
   }
 };
 export const apiRemoveRegion = async (name: string) => {
@@ -248,10 +261,14 @@ export const apiGetWinners = async () => {
       id: p.id,
       user,
       camp,
-      photo: p.photo_url,
+      photo: Array.isArray(parseMedia(p.photo_url).photo) 
+        ? parseMedia(p.photo_url).photo[0] 
+        : parseMedia(p.photo_url).photo,
       prize: camp.prize,
       medal: medals[idx % 3],
-      prizeDelivered: p.prize_delivered,
+      prizeDelivered: p.prize_delivered !== null && p.prize_delivered !== undefined 
+        ? p.prize_delivered 
+        : parseMedia(p.photo_url).prizeDelivered,
       campaignMonth: camp.startDate ? new Date(camp.startDate).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : 'N/A',
       justification: `Nota Total: ${p.total_score || 0}. Excelente atitude e compromisso.`
     };
