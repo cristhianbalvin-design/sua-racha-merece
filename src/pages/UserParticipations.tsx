@@ -7,8 +7,8 @@ import { toast } from 'sonner';
 import { apiGetParticipations, apiGetCampaigns, apiUpdateParticipation, apiUploadEvidence } from '@/lib/mockApi';
 import { Participation, Campaign } from '@/data/mockData';
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
-const MAX_PHOTOS = 5;
-const MAX_VIDEOS = 2;
+const MAX_PHOTOS = 1;
+const MAX_VIDEOS = 1;
 
 const sportIconFallback: Record<string, string> = {
   'Corrida': '🏃', 'Crossfit': '🏋️', 'Ciclismo': '🚴',
@@ -85,9 +85,9 @@ const UserParticipations = () => {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     const remaining = MAX_PHOTOS - photos.length;
-    if (remaining <= 0) { toast.error(`Máximo de ${MAX_PHOTOS} fotos atingido.`); return; }
+    if (remaining <= 0) { toast.error(`Máximo de ${MAX_PHOTOS} fotos alcanzado.`); return; }
     const toAdd = selected.slice(0, remaining);
-    if (selected.length > remaining) toast.warning(`Apenas ${remaining} foto(s) adicionada(s).`);
+    if (selected.length > remaining) toast.warning(`Se añadió solo 1 foto.`);
     setPhotos(prev => [...prev, ...toAdd]);
     setPhotoPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))]);
     e.target.value = '';
@@ -96,9 +96,9 @@ const UserParticipations = () => {
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     const remaining = MAX_VIDEOS - videos.length;
-    if (remaining <= 0) { toast.error(`Máximo de ${MAX_VIDEOS} vídeos atingido.`); return; }
+    if (remaining <= 0) { toast.error(`Máximo de ${MAX_VIDEOS} videos alcanzado.`); return; }
     const toAdd = selected.slice(0, remaining);
-    if (selected.length > remaining) toast.warning(`Apenas ${remaining} vídeo(s) adicionado(s).`);
+    if (selected.length > remaining) toast.warning(`Se añadió solo 1 video.`);
     setVideos(prev => [...prev, ...toAdd]);
     e.target.value = '';
   };
@@ -116,11 +116,11 @@ const UserParticipations = () => {
     e.preventDefault();
     if (!showEvidenceModal || !user) return;
     if (photos.length === 0 && videos.length === 0) {
-      toast.error('Adicione ao menos uma foto ou vídeo.');
+      toast.error('Adiciona al menos una foto o un video.');
       return;
     }
     setIsUploading(true);
-    toast.loading('Enviando evidência...', { id: 'upload-evidence' });
+    toast.loading('Subiendo evidencia...', { id: 'upload-evidence' });
 
     const uploadedUrls: string[] = [];
     for (const file of [...photos, ...videos]) {
@@ -135,7 +135,7 @@ const UserParticipations = () => {
     }
 
     if (uploadedUrls.length === 0 && !igUrl && (photos.length > 0 || videos.length > 0 || (instagram && igScreenshot))) {
-      toast.error('Erro ao enviar arquivos. Tente novamente.', { id: 'upload-evidence' });
+      toast.error('Error al subir los archivos. Intenta nuevamente.', { id: 'upload-evidence' });
       setIsUploading(false);
       return;
     }
@@ -149,7 +149,7 @@ const UserParticipations = () => {
       timestamp: new Date().toISOString()
     });
 
-    toast.success(`${uploadedUrls.length} arquivo(s) enviado(s)!`, { id: 'upload-evidence' });
+    toast.success(`¡Archivos subidos exitosamente!`, { id: 'upload-evidence' });
     setIsUploading(false);
     setSubmitted(true);
     setTimeout(() => {
@@ -240,7 +240,7 @@ const UserParticipations = () => {
                       className="bg-primary text-primary-foreground text-ui text-xs px-3 py-1.5 rounded-xl btn-shadow flex items-center gap-1.5"
                     >
                       <Upload size={12} />
-                      REGISTRAR PARTICIPAÇÃO
+                      REGISTRAR PARTICIPACIÓN
                     </motion.button>
                   )}
                 </div>
@@ -273,96 +273,86 @@ const UserParticipations = () => {
             >
               {!submitted ? (
                 <form onSubmit={handleSubmitEvidence}>
-                  <h3 className="font-bold italic text-lg text-foreground mb-4">REGISTRAR PARTICIPAÇÃO</h3>
+                  <h3 className="font-bold italic text-lg text-foreground mb-4 uppercase">Registrar Participación</h3>
 
                   {/* Photo upload */}
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-ui text-xs text-muted-foreground">FOTOS <span className="text-primary font-bold">{photos.length}/{MAX_PHOTOS}</span></label>
+                  <div className="mb-4 mt-2">
+                    <div className="flex justify-between items-end mb-1">
+                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold">FOTOS <span className="text-primary">{photos.length}/{MAX_PHOTOS}</span></label>
                       {photos.length < MAX_PHOTOS && (
-                        <button type="button" onClick={() => photoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><ImageIcon size={11} /> Adicionar</button>
+                        <button type="button" onClick={() => photoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><ImageIcon size={11} /> Para añadir</button>
                       )}
                     </div>
-                    <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoChange} />
+                    <p className="text-sm text-foreground mb-3 leading-snug">Sube una foto mostrando tu mejor actitud mientras practicas tu deporte favorito.</p>
+                    <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
 
                     {photoPreviews.length > 0 ? (
-                      <div className="grid grid-cols-4 gap-1.5 mb-1">
+                      <div className="grid grid-cols-1 gap-1.5 mb-1">
                         {photoPreviews.map((src, i) => (
                           <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                            className="relative aspect-square rounded-lg overflow-hidden group">
+                            className="relative h-48 rounded-xl overflow-hidden group border border-border/50">
                             <img src={src} className="w-full h-full object-cover" alt={`photo-${i}`} />
                             <button type="button" onClick={() => removePhoto(i)}
-                              className="absolute top-0.5 right-0.5 bg-background/80 text-destructive rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <X size={12} />
+                              className="absolute top-2 right-2 bg-background/80 text-destructive rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <X size={16} />
                             </button>
                           </motion.div>
                         ))}
-                        {photos.length < MAX_PHOTOS && (
-                          <button type="button" onClick={() => photoInputRef.current?.click()}
-                            className="aspect-square rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:bg-muted/80 transition-colors border-2 border-dashed border-border">
-                            <Upload size={16} />
-                          </button>
-                        )}
                       </div>
                     ) : (
                       <div onClick={() => photoInputRef.current?.click()}
-                        className="w-full h-24 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer bg-muted text-muted-foreground hover:bg-muted/80 transition-all border-2 border-dashed border-border">
+                        className="w-full py-8 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer bg-muted/40 text-muted-foreground hover:bg-muted/80 transition-all border border-dashed border-border/50">
                         <ImageIcon size={24} />
-                        <span className="text-xs">Até {MAX_PHOTOS} fotos</span>
+                        <span className="text-xs">Hasta 1 foto</span>
                       </div>
                     )}
                   </div>
 
                   {/* Video upload */}
                   <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-ui text-xs text-muted-foreground">VÍDEOS <span className="text-primary font-bold">{videos.length}/{MAX_VIDEOS}</span></label>
+                    <div className="flex justify-between items-end mb-1">
+                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold">VIDEOS <span className="text-primary">{videos.length}/{MAX_VIDEOS}</span></label>
                       {videos.length < MAX_VIDEOS && (
-                        <button type="button" onClick={() => videoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><Film size={11} /> Adicionar</button>
+                        <button type="button" onClick={() => videoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><Film size={11} /> Para añadir</button>
                       )}
                     </div>
-                    <input ref={videoInputRef} type="file" accept="video/*" multiple className="hidden" onChange={handleVideoChange} />
+                    <p className="text-sm text-foreground mb-3 leading-snug">Sube un video mostrando como vives tu deporte favorito.</p>
+                    <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoChange} />
 
                     {videos.length > 0 ? (
                       <div className="space-y-1.5">
                         {videos.map((v, i) => (
                           <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-                            className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
-                            <Film size={16} className="text-primary flex-shrink-0" />
+                            className="flex items-center gap-3 bg-card rounded-xl px-3 py-3 card-shadow border border-border/50">
+                            <Film size={20} className="text-primary flex-shrink-0" />
                             <span className="text-xs text-foreground font-bold truncate flex-1">{v.name}</span>
                             <button type="button" onClick={() => removeVideo(i)} className="text-muted-foreground hover:text-destructive transition-colors"><X size={14} /></button>
                           </motion.div>
                         ))}
-                        {videos.length < MAX_VIDEOS && (
-                          <button type="button" onClick={() => videoInputRef.current?.click()}
-                            className="w-full h-10 rounded-lg bg-muted text-muted-foreground flex items-center justify-center gap-2 text-xs hover:bg-muted/80 transition-colors border-2 border-dashed border-border">
-                            <Upload size={14} /> Adicionar outro vídeo
-                          </button>
-                        )}
                       </div>
                     ) : (
                       <div onClick={() => videoInputRef.current?.click()}
-                        className="w-full h-16 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer bg-muted text-muted-foreground hover:bg-muted/80 transition-all border-2 border-dashed border-border">
+                        className="w-full py-6 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer bg-muted/40 text-muted-foreground hover:bg-muted/80 transition-all border border-dashed border-border/50">
                         <Film size={20} />
-                        <span className="text-xs">Até {MAX_VIDEOS} vídeos</span>
+                        <span className="text-xs">Hasta 1 video</span>
                       </div>
                     )}
                   </div>
 
                   {/* Comment */}
                   <div className="mb-4">
-                    <label className="text-ui text-xs text-muted-foreground block mb-2">COMENTÁRIO (OPCIONAL)</label>
+                    <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 uppercase">COMENTARIO (OPCIONAL)</label>
                     <textarea
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
-                      className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background outline-none transition-all resize-none h-20"
-                      placeholder="Ex: Melhor treino da semana!"
+                      className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all resize-none h-20"
+                      placeholder="Ejemplo: ¡El mejor entrenamiento de la semana!"
                     />
                   </div>
 
                   {/* Timestamp */}
-                  <div className="bg-muted rounded-xl p-3 mb-4">
-                    <span className="text-ui text-xs text-muted-foreground">TIMESTAMP</span>
+                  <div className="bg-card card-shadow border border-border/50 rounded-xl p-3 mb-4">
+                    <span className="text-ui text-xs text-muted-foreground font-bold uppercase">MARCA DE TIEMPO</span>
                     <p className="text-foreground text-sm font-bold mt-1">{timestamp}</p>
                   </div>
 
@@ -370,12 +360,12 @@ const UserParticipations = () => {
                   <div className="mb-6">
                     <label className="flex items-center gap-3 cursor-pointer" onClick={() => setInstagram(!instagram)}>
                       <div
-                        className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${instagram ? 'bg-primary' : 'bg-muted'}`}
+                        className={`min-w-[1.25rem] w-5 h-5 rounded-full flex items-center justify-center transition-colors ${instagram ? 'bg-primary' : 'bg-muted border border-border'}`}
                       >
-                        {instagram && <Check size={14} className="text-primary-foreground" />}
+                        {instagram && <Check size={14} className="text-primary-foreground font-bold" />}
                       </div>
-                      <span className="text-foreground text-sm">
-                        Publiquei no Instagram com <span className="text-accent font-bold">#3bukchallenge</span>
+                      <span className="text-foreground text-sm font-bold leading-tight">
+                        Lo publiqué en Instagram con el <span className="text-accent">hashtag #3bukchallenge</span>
                       </span>
                     </label>
 
@@ -388,7 +378,7 @@ const UserParticipations = () => {
                           exit={{ opacity: 0, height: 0 }}
                           className="mt-3 overflow-hidden"
                         >
-                          <label className="text-ui text-xs text-muted-foreground block mb-2">SCREENSHOT DO INSTAGRAM (OPCIONAL)</label>
+                          <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 mt-2 uppercase">CAPTURA DE PANTALLA DE INSTAGRAM (OPCIONAL)</label>
                           <input ref={igScreenshotRef} type="file" accept="image/*" className="hidden"
                             onChange={(e) => {
                               const f = e.target.files?.[0];
@@ -399,18 +389,18 @@ const UserParticipations = () => {
                             }}
                           />
                           {igScreenshotPreview ? (
-                            <div className="relative rounded-xl overflow-hidden h-28">
+                            <div className="relative rounded-xl overflow-hidden h-40 border border-border/50">
                               <img src={igScreenshotPreview} className="w-full h-full object-cover" alt="Instagram screenshot" />
                               <button type="button" onClick={() => { setIgScreenshot(null); setIgScreenshotPreview(null); }}
-                                className="absolute top-1.5 right-1.5 bg-background/80 text-destructive rounded-full p-1">
-                                <X size={12} />
+                                className="absolute top-2 right-2 bg-background/80 text-destructive rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <X size={16} />
                               </button>
                             </div>
                           ) : (
                             <div onClick={() => igScreenshotRef.current?.click()}
-                              className="w-full h-16 rounded-xl flex items-center justify-center gap-2 cursor-pointer bg-muted text-muted-foreground hover:bg-muted/80 transition-all border-2 border-dashed border-accent/40">
-                              <Upload size={16} className="text-accent" />
-                              <span className="text-xs text-accent font-bold">Anexar print do Instagram</span>
+                              className="w-full py-5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-accent hover:bg-accent/10 transition-all border border-dashed border-accent">
+                              <Upload size={18} />
+                              <span className="text-sm font-bold">Adjunta una captura de pantalla de Instagram.</span>
                             </div>
                           )}
                         </motion.div>
@@ -431,34 +421,34 @@ const UserParticipations = () => {
                         setComment('');
                         setInstagram(false);
                       }}
-                      whileHover={{ scale: 1.03 }}
-                      whileTap={{ scale: 0.97 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       transition={spring}
-                      className="flex-1 bg-muted text-foreground text-ui text-xs py-2.5 rounded-xl"
+                      className="flex-[0.4] bg-muted/60 hover:bg-muted text-foreground text-ui text-xs py-3 rounded-xl font-bold"
                     >
                       CANCELAR
                     </motion.button>
                     <motion.button
                       type="submit"
                       disabled={isUploading || (photos.length === 0 && videos.length === 0)}
-                      whileHover={!isUploading ? { scale: 1.03 } : {}}
-                      whileTap={!isUploading ? { scale: 0.97 } : {}}
+                      whileHover={!isUploading ? { scale: 1.02 } : {}}
+                      whileTap={!isUploading ? { scale: 0.98 } : {}}
                       transition={spring}
-                      className={`flex-1 text-primary-foreground text-ui text-xs py-2.5 rounded-xl btn-shadow ${
+                      className={`flex-[0.6] text-primary-foreground text-ui text-xs py-3 rounded-xl font-bold btn-shadow ${
                         isUploading || (photos.length === 0 && videos.length === 0)
                           ? 'bg-primary/50 cursor-not-allowed'
-                          : 'bg-primary'
+                          : 'bg-primary hover:btn-shadow-hover'
                       }`}
                     >
-                      {isUploading ? 'ENVIANDO...' : 'ENVIAR PARTICIPAÇÃO'}
+                      {isUploading ? 'SUBIENDO...' : 'ENVÍA TU PARTICIPACIÓN'}
                     </motion.button>
                   </div>
                 </form>
               ) : (
                 <div className="text-center py-8">
                   <span className="text-5xl block mb-3">🔥</span>
-                  <h3 className="font-bold italic text-lg text-foreground mb-2">Participação enviada!</h3>
-                  <p className="text-muted-foreground text-sm">Agora é com o admin. Boa sorte!</p>
+                  <h3 className="font-bold italic text-2xl text-foreground mb-2">¡Participación enviada!</h3>
+                  <p className="text-muted-foreground text-sm">Ahora está en manos del administrador. ¡Buena suerte!</p>
                 </div>
               )}
             </motion.div>

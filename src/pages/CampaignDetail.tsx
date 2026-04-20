@@ -42,6 +42,7 @@ const CampaignDetail = () => {
   const handleParticipate = async () => {
     if (!user || !id) return;
     setParticipated(true);
+    
     const result = await apiAddParticipation({
       userId: user.id,
       campaignId: id,
@@ -49,9 +50,12 @@ const CampaignDetail = () => {
       photo: '',
       instagram: false,
     });
+    
     if (!result) {
       setParticipated(false);
       console.error('Failed to insert participation');
+    } else {
+      navigate('/participacoes');
     }
   };
 
@@ -62,43 +66,71 @@ const CampaignDetail = () => {
       </button>
 
       <div className="mb-6">
-        <span className="text-3xl mb-2 block">{campaign.sportIcon}</span>
-        <h1 className="font-bold italic text-2xl text-foreground mb-2">{campaign.description}</h1>
-        <span className="text-ui text-xs text-secondary">{campaign.sport}</span>
+        <span className="text-4xl mb-2 block">{campaign.sportIcon}</span>
+        <h1 className="font-bold italic text-3xl md:text-4xl text-foreground mb-2">{campaign.description}</h1>
+        <span className="text-base text-secondary font-bold uppercase">{campaign.sport}</span>
       </div>
 
-      <div className="space-y-2 mb-6">
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <MapPin size={16} />
+      <div className="space-y-3 mb-8">
+        <div className="flex items-center gap-3 text-muted-foreground text-base md:text-lg">
+          <MapPin size={20} />
           <span>{campaign.city} — {campaign.region}</span>
         </div>
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Calendar size={16} />
+        <div className="flex items-center gap-3 text-muted-foreground text-base md:text-lg">
+          <Calendar size={20} />
           <span>{campaign.startDate} até {campaign.endDate}</span>
         </div>
       </div>
 
-      {/* Instrução principal */}
-      <div className="bg-primary/10 rounded-2xl p-5 mb-4">
-        <p className="text-foreground font-bold text-sm">
-          📸 Suba uma foto no site 3buk.com com sua melhor atitude praticando seu esporte favorito
-        </p>
+      {/* Instruções Numéricas */}
+      <div className="mb-4">
+        <h3 className="text-foreground font-bold text-lg mb-4">Sigue estos pasos para validar tu participación:</h3>
       </div>
+      <div className="space-y-4 mb-10">
+        <div className="bg-primary/10 rounded-2xl p-5 flex flex-col sm:flex-row items-start gap-4">
+          <div className="bg-primary text-primary-foreground font-bold rounded-full px-3 py-1 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs uppercase tracking-wide">
+            Paso 1
+          </div>
+          <p className="text-foreground font-bold text-base md:text-lg leading-snug">
+            Sube una foto a 3buk.com mostrando tu mejor actitud mientras practicas tu deporte favorito.
+          </p>
+        </div>
 
-      {/* Instagram */}
-      {campaign.instagramOptional && (
-        <div className="bg-card rounded-2xl p-5 card-shadow mb-8">
-          <div className="flex items-start gap-3">
-            <Instagram size={20} className="text-secondary flex-shrink-0 mt-0.5" />
+        <div className="bg-card rounded-2xl p-5 card-shadow flex flex-col sm:flex-row items-start gap-4">
+          <div className="bg-muted text-foreground font-bold rounded-full px-3 py-1 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs uppercase tracking-wide">
+            Paso 2
+          </div>
+          <p className="text-foreground font-bold text-base md:text-lg leading-snug">
+            Sube un video mostrando como vives tu deporte favorito.
+          </p>
+        </div>
+
+        {campaign.instagramOptional && (
+          <div className="bg-card rounded-2xl p-5 card-shadow flex flex-col sm:flex-row items-start gap-4 border border-secondary/20">
+            <div className="bg-secondary text-secondary-foreground font-bold rounded-full px-3 py-1 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs uppercase tracking-wide">
+              Paso 3
+            </div>
             <div>
-              <p className="text-foreground text-sm font-bold mb-1">Ganhe pontos extras!</p>
-              <p className="text-muted-foreground text-sm">
-                Publique no Instagram com a hashtag <span className="text-accent font-bold">{campaign.instagramHashtags || '#3bukchallenge'}</span> para ganhar pontos extras na avaliação
+              <div className="flex items-center gap-2 mb-2">
+                <Instagram size={24} className="text-secondary" />
+                <p className="text-foreground text-base md:text-lg font-bold">¡Gana puntos extra!</p>
+              </div>
+              <p className="text-muted-foreground text-base leading-snug">
+                Publica en Instagram con el hashtag <span className="text-accent font-bold">{campaign.instagramHashtags || '#3bukchallenge'}</span> para ganar puntos extra en la evaluación.
               </p>
             </div>
           </div>
+        )}
+
+        <div className="bg-card rounded-2xl p-5 card-shadow flex flex-col sm:flex-row items-start gap-4 border border-success/20">
+          <div className="bg-success text-success-foreground font-bold rounded-full px-3 py-1 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs uppercase tracking-wide">
+            Paso {campaign.instagramOptional ? '4' : '3'}
+          </div>
+          <p className="text-foreground font-bold text-base md:text-lg leading-snug">
+            ¡Eso es todo! Ya has concluido tu participación. Ahora te toca esperar resultados. ¡Recuerda mantener siempre una excelente actitud!
+          </p>
         </div>
-      )}
+      </div>
 
       {!participated ? (
         <motion.button
@@ -106,9 +138,9 @@ const CampaignDetail = () => {
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           transition={spring}
-          className="w-full bg-primary text-primary-foreground text-ui py-4 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow text-base"
+          className="w-full bg-primary text-primary-foreground text-ui py-5 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow text-lg md:text-xl font-bold"
         >
-          QUERO PARTICIPAR
+          QUIERO PARTICIPAR
         </motion.button>
       ) : (
         <motion.div

@@ -10,8 +10,8 @@ const MobileNav = () => {
   const unreadCount = user ? notifications.filter((n) => n.userId === user.id && !n.read).length : 0;
 
   const links = [
-    { to: '/dashboard', icon: Home, label: 'Campanhas' },
-    { to: '/participacoes', icon: Trophy, label: 'Participações' },
+    { to: '/dashboard', icon: Home, label: 'Campañas' },
+    { to: '/participacoes', icon: Trophy, label: 'Participaciones' },
     { to: '/notificacoes', icon: Bell, label: 'Avisos', badge: unreadCount },
     { to: '/perfil', icon: User, label: 'Perfil' },
   ];
@@ -30,13 +30,13 @@ const MobileNav = () => {
                 active ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
-              <div className="relative">
+              <div className="relative flex items-center justify-center h-6">
                 <Icon size={20} />
-                {badge && badge > 0 && (
-                  <span className="absolute -top-1.5 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {badge !== undefined && badge > 0 ? (
+                  <span className="absolute -top-1.5 -right-2 bg-primary text-primary-foreground text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                     {badge}
                   </span>
-                )}
+                ) : null}
               </div>
               <span className="text-xs font-bold">{label}</span>
             </Link>

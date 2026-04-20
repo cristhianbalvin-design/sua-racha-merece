@@ -20,6 +20,8 @@ const CompleteProfile = () => {
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
   const [sport, setSport] = useState('');
+  const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,7 +53,7 @@ const CompleteProfile = () => {
         }
       }
 
-      await apiUpdateUser(user.id, { name, city, country, sport, avatar: finalAvatar });
+      await apiUpdateUser(user.id, { name, city, country, sport, phone, gender, avatar: finalAvatar });
       
       // Update context securely, which forces React to re-render the Header and all views
       updateUserContext({
@@ -59,14 +61,16 @@ const CompleteProfile = () => {
         city,
         country,
         sport,
+        ...(phone && { phone }),
+        ...(gender && { gender }),
         ...(finalAvatar && { avatar: finalAvatar })
       });
       
-      toast.success('Perfil completo!');
+      toast.success('¡Perfil completo!');
       navigate('/dashboard');
     } catch (err) {
       console.error(err);
-      toast.error('Ocorreu um erro ao salvar o perfil.');
+      toast.error('Ocurrió un error al guardar tu perfil.');
       setIsSubmitting(false);
     }
   };
@@ -77,8 +81,8 @@ const CompleteProfile = () => {
         <OnboardingStepper currentStep={3} />
         <div className="text-center mb-8">
           <Logo size="md" />
-          <h1 className="font-bold italic text-2xl text-foreground mt-4">COMPLETE SEU PERFIL</h1>
-          <p className="text-muted-foreground mt-2">Queremos te conhecer melhor!</p>
+          <h1 className="font-bold italic text-2xl text-foreground mt-4 uppercase">COMPLETA TU PERFIL</h1>
+          <p className="text-muted-foreground mt-2">¡Queremos conocerte mejor!</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -115,38 +119,38 @@ const CompleteProfile = () => {
           </div>
 
           <div>
-            <label className="text-ui text-xs text-muted-foreground block mb-2">NOME COMPLETO</label>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">NOMBRE COMPLETO</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background outline-none transition-all"
-              placeholder="Seu nome completo"
+              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all"
+              placeholder="Su nombre completo"
               required
             />
           </div>
 
           <div>
-            <label className="text-ui text-xs text-muted-foreground block mb-2">CIDADE</label>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">CIUDAD</label>
             <input
               type="text"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background outline-none transition-all"
+              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all"
               placeholder="São Paulo"
               required
             />
           </div>
 
           <div>
-            <label className="text-ui text-xs text-muted-foreground block mb-2">ESTADO</label>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">ESTADO</label>
             <select
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background outline-none transition-all appearance-none"
+              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all appearance-none"
               required
             >
-              <option value="">Selecione seu estado</option>
+              <option value="">Seleccione su estado</option>
               {regionsList.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -154,17 +158,44 @@ const CompleteProfile = () => {
           </div>
 
           <div>
-            <label className="text-ui text-xs text-muted-foreground block mb-2">ESPORTE FAVORITO</label>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">DEPORTE FAVORITO</label>
             <select
               value={sport}
               onChange={(e) => setSport(e.target.value)}
-              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background outline-none transition-all appearance-none"
+              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all appearance-none"
               required
             >
-              <option value="">Selecione</option>
+              <option value="">Seleccionar</option>
               {sportsList.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
+            </select>
+          </div>
+          
+          <div>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">NÚMERO DE CELULAR</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all"
+              placeholder="Su número de celular"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">SEXO</label>
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all appearance-none"
+              required
+            >
+              <option value="">Seleccionar</option>
+              <option value="Masculino">Masculino</option>
+              <option value="Femenino">Femenino</option>
+              <option value="Otro">Otro</option>
             </select>
           </div>
 
@@ -174,9 +205,9 @@ const CompleteProfile = () => {
             whileHover={!isSubmitting ? { scale: 1.03 } : {}}
             whileTap={!isSubmitting ? { scale: 0.97 } : {}}
             transition={spring}
-            className={`w-full text-primary-foreground text-ui py-3 rounded-xl btn-shadow transition-shadow ${isSubmitting ? 'bg-primary/70 cursor-not-allowed' : 'bg-primary hover:btn-shadow-hover'}`}
+            className={`w-full text-primary-foreground text-ui py-3 rounded-xl font-bold btn-shadow transition-shadow ${isSubmitting ? 'bg-primary/70 cursor-not-allowed' : 'bg-primary hover:btn-shadow-hover'}`}
           >
-            {isSubmitting ? 'SALVANDO...' : 'SALVAR PERFIL'}
+            {isSubmitting ? 'GUARDANDO...' : 'GUARDAR PERFIL'}
           </motion.button>
         </form>
       </div>

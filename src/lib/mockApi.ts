@@ -10,6 +10,8 @@ const mapUser = (row: any): User => ({
   city: row.city || '',
   country: row.country || '',
   sport: row.sport || '',
+  phone: row.phone || '',
+  gender: row.gender || '',
   avatar: row.avatar_url || '',
   plan: row.plan as 'Freemium' | 'Premium',
   userStatus: row.user_status,
@@ -30,6 +32,8 @@ export const apiUpdateUser = async (userId: string, updates: Partial<User>) => {
   if (updates.city) mapping.city = updates.city;
   if (updates.country) mapping.country = updates.country;
   if (updates.sport) mapping.sport = updates.sport;
+  if (updates.phone !== undefined) mapping.phone = updates.phone;
+  if (updates.gender !== undefined) mapping.gender = updates.gender;
   if (updates.avatar) mapping.avatar_url = updates.avatar;
 
   const { data } = await supabase.from('users').update(mapping).eq('id', userId).select('*').single();

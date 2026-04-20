@@ -52,6 +52,8 @@ export interface User {
   city: string;
   country: string;
   sport: string;
+  phone?: string;
+  gender?: string;
   plan: 'Freemium' | 'Premium';
   avatar: string;
   campaignsParticipated: number;
