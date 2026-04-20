@@ -56,6 +56,7 @@ const UserParticipations = () => {
   const [photos, setPhotos] = useState<File[]>([]);
   const [videos, setVideos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [videoPreviews, setVideoPreviews] = useState<string[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -100,6 +101,7 @@ const UserParticipations = () => {
     const toAdd = selected.slice(0, remaining);
     if (selected.length > remaining) toast.warning(`Se añadió solo 1 video.`);
     setVideos(prev => [...prev, ...toAdd]);
+    setVideoPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))]);
     e.target.value = '';
   };
 
@@ -110,6 +112,7 @@ const UserParticipations = () => {
 
   const removeVideo = (i: number) => {
     setVideos(prev => prev.filter((_, idx) => idx !== i));
+    setVideoPreviews(prev => prev.filter((_, idx) => idx !== i));
   };
 
   const handleSubmitEvidence = async (e: React.FormEvent) => {
@@ -263,7 +266,7 @@ const UserParticipations = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm px-4"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-sm px-4 py-8"
           >
             <motion.div
               initial={{ scale: 0.95 }}
@@ -320,14 +323,14 @@ const UserParticipations = () => {
                     <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoChange} />
 
                     {videos.length > 0 ? (
-                      <div className="space-y-1.5">
+                      <div className="grid grid-cols-2 gap-3">
                         {videos.map((v, i) => (
-                          <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-                            className="flex items-center gap-3 bg-card rounded-xl px-3 py-3 card-shadow border border-border/50">
-                            <Film size={20} className="text-primary flex-shrink-0" />
-                            <span className="text-xs text-foreground font-bold truncate flex-1">{v.name}</span>
-                            <button type="button" onClick={() => removeVideo(i)} className="text-muted-foreground hover:text-destructive transition-colors"><X size={14} /></button>
-                          </motion.div>
+                          <div key={i} className="relative rounded-xl overflow-hidden aspect-square border border-border/50 group bg-muted">
+                            <video src={videoPreviews[i]} className="w-full h-full object-cover" controls playsInline preload="metadata" />
+                            <button type="button" onClick={() => removeVideo(i)} className="absolute top-2 right-2 bg-background/80 text-destructive rounded-full p-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                              <X size={16} />
+                            </button>
+                          </div>
                         ))}
                       </div>
                     ) : (
@@ -416,6 +419,7 @@ const UserParticipations = () => {
                         setPhotos([]);
                         setVideos([]);
                         setPhotoPreviews([]);
+                        setVideoPreviews([]);
                         setIgScreenshot(null);
                         setIgScreenshotPreview(null);
                         setComment('');
