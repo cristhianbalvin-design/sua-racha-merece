@@ -104,6 +104,19 @@ export const apiUpdateCampaign = async (id: string, updates: Partial<Campaign>) 
   return data ? mapCampaign(data) : null;
 }
 
+export const apiDeleteCampaign = async (id: string) => {
+  // Eliminar referencias para evitar fallos de llave foránea
+  await supabase.from('notifications').delete().eq('campaign_id', id);
+  await supabase.from('participations').delete().eq('campaign_id', id);
+  
+  // Eliminar la campaña
+  const { error } = await supabase.from('campaigns').delete().eq('id', id);
+  if (error) {
+    console.error('Error delete campaign:', error);
+    throw error;
+  }
+};
+
 // photo_url may be a single URL, a JSON array of URLs, or a JSON object {media: [], igScreenshot: string}
 const parseMedia = (raw: string | null) => {
   if (!raw) return { photo: undefined, instagramPhoto: undefined, prizeDelivered: false };

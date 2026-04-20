@@ -158,6 +158,8 @@ const AdminQualification = () => {
   const [filterMonth, setFilterMonth]   = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
+  const [editingAttitudes, setEditingAttitudes] = useState<Record<string, string>>({});
+
   const [parts, setParts] = useState<Participation[]>([]);
   const [usersList, setUsersList] = useState<User[]>([]);
   const [campsList, setCampsList] = useState<Campaign[]>([]);
@@ -241,8 +243,18 @@ const AdminQualification = () => {
     return acc;
   }, {});
 
-  const handleAttitudeChange = async (p: Participation, value: string) => {
-    const attitude = value === '' ? 0 : Math.min(0.95, Math.max(0, parseFloat(value) || 0));
+  const handleAttitudeBlur = async (p: Participation, valueStr: string) => {
+    if (valueStr !== "" && (!valueStr.startsWith('0') || parseFloat(valueStr) > 0.95 || parseFloat(valueStr) < 0)) {
+      window.alert("Ingreso incorrecto. El valor correcto es comenzar con cero y ser un decimal máximo de 0.95 (ej: 0.90).");
+      setEditingAttitudes(prev => {
+        const next = { ...prev };
+        delete next[p.id];
+        return next;
+      });
+      return;
+    }
+
+    const attitude = valueStr === '' ? 0 : parseFloat(valueStr);
     const campaign = campsList.find((c) => c.id === p.campaignId);
     const user = usersList.find((u) => u.id === p.userId);
 
@@ -262,6 +274,13 @@ const AdminQualification = () => {
       totalScore: total,
       participationStatus: newStatus,
     });
+    
+    setEditingAttitudes(prev => {
+      const next = { ...prev };
+      delete next[p.id];
+      return next;
+    });
+
     await loadAll();
   };
 
@@ -430,9 +449,14 @@ const AdminQualification = () => {
                 {filteredEligible.map((p) => {
                   const { score: compromiso, rules: compRules, required: compReq } = calcCompromiso(p, p.campaign);
                   const { score: continuidade, rules: contRules } = calcContinuidade(p, parts, p.user, campsList);
-                  const attitude = p.attitudeScore ?? '';
-                  const total = attitude !== '' && attitude > 0
-                    ? parseFloat(((compromiso + continuidade) * (attitude as number)).toFixed(2))
+                  
+                  const currentAttitudeValue = editingAttitudes[p.id] !== undefined 
+                    ? editingAttitudes[p.id] 
+                    : (p.attitudeScore ?? '');
+
+                  const attitudeForTotal = p.attitudeScore ?? 0;
+                  const total = p.attitudeScore !== undefined && p.attitudeScore > 0
+                    ? parseFloat(((compromiso + continuidade) * attitudeForTotal).toFixed(2))
                     : p.totalScore ?? 0;
 
                   // Winners count logic for this campaign
@@ -484,9 +508,15 @@ const AdminQualification = () => {
                           step="0.05"
                           min="0"
                           max="0.95"
-                          value={attitude}
+                          value={currentAttitudeValue}
                           placeholder="0.00"
-                          onChange={(e) => handleAttitudeChange(p, e.target.value)}
+                          onChange={(e) => setEditingAttitudes(prev => ({ ...prev, [p.id]: e.target.value }))}
+                          onBlur={(e) => handleAttitudeBlur(p, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
                           disabled={p.participationStatus === 'Ganhador'}
                           className="w-20 bg-input text-foreground text-center rounded-lg px-2 py-1.5 text-sm input-shadow focus:ring-2 focus:ring-ring outline-none disabled:opacity-50"
                         />

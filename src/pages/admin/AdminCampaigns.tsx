@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Check } from 'lucide-react';
-import { apiGetCampaigns, apiAddCampaign, apiUpdateCampaign, apiGetSports, apiGetRegions } from '@/lib/mockApi';
+import { Plus, Check, Trash2 } from 'lucide-react';
+import { apiGetCampaigns, apiAddCampaign, apiUpdateCampaign, apiDeleteCampaign, apiGetSports, apiGetRegions } from '@/lib/mockApi';
 import type { CampaignStatus, Campaign } from '@/data/mockData';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
@@ -107,6 +107,17 @@ const AdminCampaigns = () => {
     await apiUpdateCampaign(id, { status: newStatus });
   };
 
+  const handleDeleteCampaign = async (id: string, description: string) => {
+    if (window.confirm(`¿Estás seguro que deseas eliminar la campaña "${description}"? Esto también borrará todas las participaciones vinculadas a la misma.`)) {
+      try {
+        await apiDeleteCampaign(id);
+        setCampaignsList(prev => prev.filter(c => c.id !== id));
+      } catch (err) {
+        console.error('Error deleting campaign:', err);
+      }
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -175,6 +186,7 @@ const AdminCampaigns = () => {
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">ESPORTE</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">MÊS DA CAMPANHA</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">ESTADO DA CAMPANHA</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -201,6 +213,15 @@ const AdminCampaigns = () => {
                         <option value="Eliminado">Eliminado</option>
                         <option value="Qualificado">Qualificado</option>
                       </select>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => handleDeleteCampaign(c.id, c.description)}
+                        title="Eliminar campaña"
+                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </td>
                   </tr>
                 ))
