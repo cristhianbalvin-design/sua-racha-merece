@@ -10,6 +10,24 @@ const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 const MAX_PHOTOS = 1;
 const MAX_VIDEOS = 1;
 
+const MAX_VIDEO_DURATION_SECONDS = 10;
+
+const getVideoDuration = (file: File): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(video.src);
+      resolve(video.duration);
+    };
+    video.onerror = () => {
+      window.URL.revokeObjectURL(video.src);
+      reject("Error cargando el video");
+    };
+    video.src = URL.createObjectURL(file);
+  });
+};
+
 const sportIconFallback: Record<string, string> = {
   'Corrida': '🏃', 'Crossfit': '🏋️', 'Ciclismo': '🚴',
   'Natação': '🏊', 'Futebol': '⚽', 'Basquete': '🏀',
@@ -94,14 +112,34 @@ const UserParticipations = () => {
     e.target.value = '';
   };
 
-  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     const remaining = MAX_VIDEOS - videos.length;
     if (remaining <= 0) { toast.error(`Máximo de ${MAX_VIDEOS} videos alcanzado.`); return; }
-    const toAdd = selected.slice(0, remaining);
-    if (selected.length > remaining) toast.warning(`Se añadió solo 1 video.`);
-    setVideos(prev => [...prev, ...toAdd]);
-    setVideoPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))]);
+    
+    const toProcess = selected.slice(0, remaining);
+    const validFiles: File[] = [];
+
+    for (const file of toProcess) {
+      try {
+        const duration = await getVideoDuration(file);
+        // Margen extra pequeño por redondeos de algunas cámaras
+        if (duration > MAX_VIDEO_DURATION_SECONDS + 0.5) {
+          toast.error(`El video "${file.name}" supera los 10 segundos (dura aprox. ${Math.round(duration)}s).`);
+        } else {
+          validFiles.push(file);
+        }
+      } catch (err) {
+        toast.error(`No se pudo verificar la duración del video "${file.name}".`);
+      }
+    }
+
+    if (selected.length > remaining) toast.warning(`Solo se puede subir ${MAX_VIDEOS} video.`);
+    
+    if (validFiles.length > 0) {
+      setVideos(prev => [...prev, ...validFiles]);
+      setVideoPreviews(prev => [...prev, ...validFiles.map(f => URL.createObjectURL(f))]);
+    }
     e.target.value = '';
   };
 
@@ -319,7 +357,7 @@ const UserParticipations = () => {
                         <button type="button" onClick={() => videoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><Film size={11} /> Para añadir</button>
                       )}
                     </div>
-                    <p className="text-sm text-foreground mb-3 leading-snug">Sube un video mostrando como vives tu deporte favorito.</p>
+                    <p className="text-sm text-foreground mb-3 leading-snug">Sube un video mostrando como vives tu deporte favorito <strong className="text-accent">(máximo 10 segundos)</strong>.</p>
                     <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoChange} />
 
                     {videos.length > 0 ? (
@@ -337,7 +375,7 @@ const UserParticipations = () => {
                       <div onClick={() => videoInputRef.current?.click()}
                         className="w-full py-6 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer bg-muted/40 text-muted-foreground hover:bg-muted/80 transition-all border border-dashed border-border/50">
                         <Film size={20} />
-                        <span className="text-xs">Hasta 1 video</span>
+                        <span className="text-xs">Hasta 1 video (Máx 10s)</span>
                       </div>
                     )}
                   </div>
