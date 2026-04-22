@@ -184,7 +184,7 @@ const AdminQualification = () => {
       user: usersList.find((u) => u.id === p.userId),
       campaign: campsList.find((c) => c.id === p.campaignId),
     }))
-    .filter((p) => p.campaign != null && p.user != null);
+    .filter((p) => p.campaign != null && p.user != null && p.campaign.status === 'Concluído');
 
   // Compute display total for sorting
   const getDisplayTotal = (p: typeof eligible[0]) => {
@@ -650,11 +650,6 @@ const AdminQualification = () => {
                     const videos = media.filter(url => /\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url));
                     let displayPhotos = media.filter(url => !/\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url));
                     let displayIg = p.instagramPhoto;
-
-                    // Fallback for older test data where IG screenshot was appended to the photos array
-                    if (p.instagram && !p.instagramPhoto && displayPhotos.length > 0) {
-                      displayIg = displayPhotos.pop();
-                    }
                     
                     return (
                       <div className="space-y-4">
@@ -756,11 +751,7 @@ const AdminQualification = () => {
                           Publicou com #3bukchallenge
                         </p>
                         {(() => {
-                          let displayPhotos = Array.isArray(p.photo) ? p.photo : [p.photo];
                           let displayIg = p.instagramPhoto;
-                          if (p.instagram && !p.instagramPhoto && displayPhotos.length > 0) {
-                            displayIg = displayPhotos.filter(u => u && !/\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(u)).pop();
-                          }
                           
                           return displayIg ? (
                             <div className="mt-2">

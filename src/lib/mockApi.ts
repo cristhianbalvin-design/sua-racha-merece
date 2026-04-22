@@ -300,7 +300,10 @@ export const apiUploadEvidence = async (file: File, userId: string): Promise<str
   const fileExt = file.name.split('.').pop();
   const fileName = `${userId}-${Date.now()}.${fileExt}`;
   
-  const { error } = await supabase.storage.from('evidences').upload(fileName, file);
+  const { error } = await supabase.storage.from('evidences').upload(fileName, file, {
+    cacheControl: '3600',
+    upsert: false
+  });
   if (error) {
     console.error('Upload evidence error:', error);
     return null;
@@ -314,7 +317,10 @@ export const apiUploadAvatar = async (file: File, userId: string): Promise<strin
   const fileExt = file.name.split('.').pop();
   const fileName = `${userId}-${Date.now()}.${fileExt}`;
   
-  const { error } = await supabase.storage.from('avatars').upload(fileName, file);
+  const { error } = await supabase.storage.from('avatars').upload(fileName, file, {
+    cacheControl: '3600',
+    upsert: false
+  });
   if (error) {
     console.error('Upload avatar error:', error);
     return null;

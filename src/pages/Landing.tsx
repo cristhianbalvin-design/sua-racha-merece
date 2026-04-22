@@ -55,39 +55,42 @@ const Landing = () => {
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden min-h-[600px] md:min-h-[700px] flex items-center">
         <div className="absolute inset-0">
-          <img src={heroImg} alt="Atleta correndo" className="w-full h-full object-cover opacity-30" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+          <img src={heroImg} alt="Grupo de atletas" className="w-full h-full object-cover object-top opacity-100" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 md:via-background/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
         </div>
-        <div className="relative px-4 md:px-8 py-20 md:py-32 max-w-3xl mx-auto text-center">
-          <motion.h1
-            {...fadeIn}
-            transition={{ ...spring, delay: 0.1 }}
-            className="text-display font-bold italic text-foreground mb-6"
-          >
-            TODOS COMEÇAM IGUAIS.<br /><span className="text-primary">SÓ A ATITUDE DECIDE.</span>
-          </motion.h1>
-          <motion.p
-            {...fadeIn}
-            transition={{ ...spring, delay: 0.2 }}
-            className="text-lg text-muted-foreground mb-8 max-w-md mx-auto"
-          >
-            Mostre sua atitude, participe de campanhas<br />
-            e ganhe <strong className="text-foreground">recompensas</strong> reais com a <strong className="text-primary italic">3BUK</strong>.
-          </motion.p>
-          <motion.div {...fadeIn} transition={{ ...spring, delay: 0.3 }}>
-            <Link to="/registro">
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                transition={spring}
-                className="bg-primary text-primary-foreground text-ui px-8 py-4 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow text-base"
-              >
-                QUERO MEU PATROCÍNIO
-              </motion.button>
-            </Link>
-          </motion.div>
+        <div className="relative px-4 md:px-8 py-20 w-full max-w-7xl mx-auto text-left">
+          <div className="max-w-2xl">
+            <motion.h1
+              {...fadeIn}
+              transition={{ ...spring, delay: 0.1 }}
+              className="text-display font-bold italic text-foreground mb-6 leading-tight"
+            >
+              TODOS COMEÇAM IGUAIS.<br /><span className="text-primary">SÓ A ATITUDE DECIDE.</span>
+            </motion.h1>
+            <motion.p
+              {...fadeIn}
+              transition={{ ...spring, delay: 0.2 }}
+              className="text-lg text-muted-foreground mb-8"
+            >
+              Mostre sua atitude, participe de campanhas<br />
+              e ganhe <strong className="text-foreground">recompensas</strong> reais com a <strong className="text-primary italic">3BUK</strong>.
+            </motion.p>
+            <motion.div {...fadeIn} transition={{ ...spring, delay: 0.3 }}>
+              <Link to="/registro">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={spring}
+                  className="bg-primary text-primary-foreground text-ui px-8 py-4 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow text-base font-bold"
+                >
+                  QUERO MEU PATROCÍNIO
+                </motion.button>
+              </Link>
+            </motion.div>
+          </div>
         </div>
       </section>
 
@@ -247,3 +250,4 @@ const Landing = () => {
 };
 
 export default Landing;
+// Force HMR 

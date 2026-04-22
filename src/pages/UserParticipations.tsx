@@ -156,24 +156,24 @@ const UserParticipations = () => {
   const handleSubmitEvidence = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!showEvidenceModal || !user) return;
-    if (photos.length === 0 && videos.length === 0) {
-      toast.error('Adiciona al menos una foto o un video.');
+    if (photos.length === 0 || videos.length === 0 || comment.trim() === '') {
+      toast.error('Adiciona una foto, un video y un comentario para participar.');
+      return;
+    }
+    if (instagram && !igScreenshot) {
+      toast.error('Por favor, añade la captura de pantalla de Instagram o desmarca la opción.');
       return;
     }
     setIsUploading(true);
     toast.loading('Subiendo evidencia...', { id: 'upload-evidence' });
 
-    const uploadedUrls: string[] = [];
-    for (const file of [...photos, ...videos]) {
-      const url = await apiUploadEvidence(file, user.id);
-      if (url) uploadedUrls.push(url);
-    }
+    const [mediaUrls, igUrlResult] = await Promise.all([
+      Promise.all([...photos, ...videos].map(file => apiUploadEvidence(file, user.id))),
+      (instagram && igScreenshot) ? apiUploadEvidence(igScreenshot, user.id) : Promise.resolve(undefined)
+    ]);
 
-    let igUrl: string | undefined = undefined;
-    if (instagram && igScreenshot) {
-      const url = await apiUploadEvidence(igScreenshot, user.id);
-      if (url) igUrl = url;
-    }
+    const uploadedUrls = mediaUrls.filter((url): url is string => url !== null);
+    const igUrl = igUrlResult || undefined;
 
     if (uploadedUrls.length === 0 && !igUrl && (photos.length > 0 || videos.length > 0 || (instagram && igScreenshot))) {
       toast.error('Error al subir los archivos. Intenta nuevamente.', { id: 'upload-evidence' });
@@ -319,7 +319,7 @@ const UserParticipations = () => {
                   {/* Photo upload */}
                   <div className="mb-4 mt-2">
                     <div className="flex justify-between items-end mb-1">
-                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold">FOTOS <span className="text-primary">{photos.length}/{MAX_PHOTOS}</span></label>
+                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">FOTOS <span className="text-destructive">(OBLIGATORIO)</span> <span className="text-primary ml-1">{photos.length}/{MAX_PHOTOS}</span></label>
                       {photos.length < MAX_PHOTOS && (
                         <button type="button" onClick={() => photoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><ImageIcon size={11} /> Para añadir</button>
                       )}
@@ -352,7 +352,7 @@ const UserParticipations = () => {
                   {/* Video upload */}
                   <div className="mb-4">
                     <div className="flex justify-between items-end mb-1">
-                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold">VIDEOS <span className="text-primary">{videos.length}/{MAX_VIDEOS}</span></label>
+                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">VIDEOS <span className="text-destructive">(OBLIGATORIO)</span> <span className="text-primary ml-1">{videos.length}/{MAX_VIDEOS}</span></label>
                       {videos.length < MAX_VIDEOS && (
                         <button type="button" onClick={() => videoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><Film size={11} /> Para añadir</button>
                       )}
@@ -382,7 +382,7 @@ const UserParticipations = () => {
 
                   {/* Comment */}
                   <div className="mb-4">
-                    <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 uppercase">COMENTARIO (OPCIONAL)</label>
+                    <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 uppercase">COMENTARIO <span className="text-destructive">(OBLIGATORIO)</span></label>
                     <textarea
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
@@ -398,56 +398,58 @@ const UserParticipations = () => {
                   </div>
 
                   {/* Instagram */}
-                  <div className="mb-6">
-                    <label className="flex items-center gap-3 cursor-pointer" onClick={() => setInstagram(!instagram)}>
-                      <div
-                        className={`min-w-[1.25rem] w-5 h-5 rounded-full flex items-center justify-center transition-colors ${instagram ? 'bg-primary' : 'bg-muted border border-border'}`}
-                      >
-                        {instagram && <Check size={14} className="text-primary-foreground font-bold" />}
-                      </div>
-                      <span className="text-foreground text-sm font-bold leading-tight">
-                        Lo publiqué en Instagram con el <span className="text-accent">hashtag #3bukchallenge</span>
-                      </span>
-                    </label>
-
-                    {/* Screenshot upload - only when instagram is checked */}
-                    <AnimatePresence>
-                      {instagram && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="mt-3 overflow-hidden"
+                  {String(userParticipations.find(p => p.id === showEvidenceModal)?.campaign?.instagramOptional) === 'true' && (
+                    <div className="mb-6">
+                      <label className="flex items-center gap-3 cursor-pointer" onClick={() => setInstagram(!instagram)}>
+                        <div
+                          className={`min-w-[1.25rem] w-5 h-5 rounded-full flex items-center justify-center transition-colors ${instagram ? 'bg-primary' : 'bg-muted border border-border'}`}
                         >
-                          <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 mt-2 uppercase">CAPTURA DE PANTALLA DE INSTAGRAM (OPCIONAL)</label>
-                          <input ref={igScreenshotRef} type="file" accept="image/*" className="hidden"
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) {
-                                setIgScreenshot(f);
-                                setIgScreenshotPreview(URL.createObjectURL(f));
-                              }
-                            }}
-                          />
-                          {igScreenshotPreview ? (
-                            <div className="relative rounded-xl overflow-hidden h-40 border border-border/50">
-                              <img src={igScreenshotPreview} className="w-full h-full object-cover" alt="Instagram screenshot" />
-                              <button type="button" onClick={() => { setIgScreenshot(null); setIgScreenshotPreview(null); }}
-                                className="absolute top-2 right-2 bg-background/80 text-destructive rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <X size={16} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div onClick={() => igScreenshotRef.current?.click()}
-                              className="w-full py-5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-accent hover:bg-accent/10 transition-all border border-dashed border-accent">
-                              <Upload size={18} />
-                              <span className="text-sm font-bold">Adjunta una captura de pantalla de Instagram.</span>
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                          {instagram && <Check size={14} className="text-primary-foreground font-bold" />}
+                        </div>
+                        <span className="text-foreground text-sm font-bold leading-tight">
+                          Lo publiqué en Instagram con el <span className="text-accent">hashtag {userParticipations.find(p => p.id === showEvidenceModal)?.campaign?.instagramHashtags || '#3bukchallenge'}</span>
+                        </span>
+                      </label>
+
+                      {/* Screenshot upload - only when instagram is checked */}
+                      <AnimatePresence>
+                        {instagram && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-3 overflow-hidden"
+                          >
+                            <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 mt-2 uppercase">CAPTURA DE PANTALLA DE INSTAGRAM (OPCIONAL)</label>
+                            <input ref={igScreenshotRef} type="file" accept="image/*" className="hidden"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) {
+                                  setIgScreenshot(f);
+                                  setIgScreenshotPreview(URL.createObjectURL(f));
+                                }
+                              }}
+                            />
+                            {igScreenshotPreview ? (
+                              <div className="relative rounded-xl overflow-hidden h-40 border border-border/50">
+                                <img src={igScreenshotPreview} className="w-full h-full object-cover" alt="Instagram screenshot" />
+                                <button type="button" onClick={() => { setIgScreenshot(null); setIgScreenshotPreview(null); }}
+                                  className="absolute top-2 right-2 bg-background/80 text-destructive rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div onClick={() => igScreenshotRef.current?.click()}
+                                className="w-full py-5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-accent hover:bg-accent/10 transition-all border border-dashed border-accent">
+                                <Upload size={18} />
+                                <span className="text-sm font-bold">Adjunta una captura de pantalla de Instagram.</span>
+                              </div>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
 
                   <div className="flex gap-3">
                     <motion.button
@@ -472,12 +474,12 @@ const UserParticipations = () => {
                     </motion.button>
                     <motion.button
                       type="submit"
-                      disabled={isUploading || (photos.length === 0 && videos.length === 0)}
+                      disabled={isUploading || photos.length === 0 || videos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)}
                       whileHover={!isUploading ? { scale: 1.02 } : {}}
                       whileTap={!isUploading ? { scale: 0.98 } : {}}
                       transition={spring}
                       className={`flex-[0.6] text-primary-foreground text-ui text-xs py-3 rounded-xl font-bold btn-shadow ${
-                        isUploading || (photos.length === 0 && videos.length === 0)
+                        isUploading || photos.length === 0 || videos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)
                           ? 'bg-primary/50 cursor-not-allowed'
                           : 'bg-primary hover:btn-shadow-hover'
                       }`}

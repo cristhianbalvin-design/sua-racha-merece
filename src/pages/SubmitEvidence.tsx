@@ -141,8 +141,12 @@ const SubmitEvidence = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (photos.length === 0 && videos.length === 0) {
-      toast.error('Adicione ao menos uma foto ou vídeo.');
+    if (photos.length === 0 || videos.length === 0 || comment.trim() === '') {
+      toast.error('Adiciona una foto, un video y un comentario para participar.');
+      return;
+    }
+    if (instagram && !igScreenshot) {
+      toast.error('Por favor, añade la captura de pantalla de Instagram o desmarca la opción.');
       return;
     }
     if (!participationId || !user) return;
@@ -150,25 +154,16 @@ const SubmitEvidence = () => {
     setIsUploading(true);
     toast.loading('Subiendo archivos...', { id: 'upload-evidence' });
 
-    // Upload all files and collect URLs
-    const uploadedPhotoUrls: string[] = [];
-    for (const file of photos) {
-      const url = await apiUploadEvidence(file, user.id);
-      if (url) uploadedPhotoUrls.push(url);
-    }
-    
-    // Upload videos (though mockApi currently uploads to photos, standard usage is abstracting URL)
-    const uploadedVideoUrls: string[] = [];
-    for (const file of videos) {
-      const url = await apiUploadEvidence(file, user.id);
-      if (url) uploadedVideoUrls.push(url);
-    }
+    // Subida óptima: concurrente con Promise.all
+    const [photoUrls, videoUrls, igUrlResult] = await Promise.all([
+      Promise.all(photos.map(file => apiUploadEvidence(file, user.id))),
+      Promise.all(videos.map(file => apiUploadEvidence(file, user.id))),
+      igScreenshot ? apiUploadEvidence(igScreenshot, user.id) : Promise.resolve(undefined)
+    ]);
 
-    let igUrl: string | undefined = undefined;
-    if (igScreenshot) {
-      const url = await apiUploadEvidence(igScreenshot, user.id);
-      if (url) igUrl = url;
-    }
+    const uploadedPhotoUrls = photoUrls.filter((url): url is string => url !== null);
+    const uploadedVideoUrls = videoUrls.filter((url): url is string => url !== null);
+    const igUrl = igUrlResult || undefined;
 
     if (uploadedPhotoUrls.length === 0 && uploadedVideoUrls.length === 0 && !igUrl) {
       toast.error('Error al subir los archivos. Por favor intenta nuevamente.', { id: 'upload-evidence' });
@@ -215,8 +210,8 @@ const SubmitEvidence = () => {
               {/* Photos section */}
               <div>
                 <div className="flex justify-between items-end mb-1">
-                  <label className="text-ui text-xs text-muted-foreground uppercase font-bold">
-                    FOTOS <span className="text-primary">{photos.length}/{MAX_PHOTOS}</span>
+                  <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">
+                    FOTOS <span className="text-destructive">(OBLIGATORIO)</span> <span className="text-primary ml-1">{photos.length}/{MAX_PHOTOS}</span>
                   </label>
                   {photos.length < MAX_PHOTOS && (
                     <button type="button" onClick={() => photoInputRef.current?.click()}
@@ -253,8 +248,8 @@ const SubmitEvidence = () => {
               {/* Videos section */}
               <div>
                 <div className="flex justify-between items-end mb-1">
-                  <label className="text-ui text-xs text-muted-foreground uppercase font-bold">
-                    VIDEOS <span className="text-primary">{videos.length}/{MAX_VIDEOS}</span>
+                  <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">
+                    VIDEOS <span className="text-destructive">(OBLIGATORIO)</span> <span className="text-primary ml-1">{videos.length}/{MAX_VIDEOS}</span>
                   </label>
                   {videos.length < MAX_VIDEOS && (
                     <button type="button" onClick={() => videoInputRef.current?.click()}
@@ -291,7 +286,7 @@ const SubmitEvidence = () => {
               {/* Comment */}
               <div>
                 <label className="text-ui text-xs text-muted-foreground block font-bold uppercase mb-2">
-                  COMENTARIO (OPCIONAL)
+                  COMENTARIO <span className="text-destructive">(OBLIGATORIO)</span>
                 </label>
                 <textarea
                   value={comment}
@@ -308,7 +303,7 @@ const SubmitEvidence = () => {
               </div>
 
               {/* Instagram Screenshot Section */}
-              {campaign.instagramOptional && (
+              {String(campaign.instagramOptional) === 'true' && (
                 <div className="space-y-3">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <div
@@ -353,12 +348,12 @@ const SubmitEvidence = () => {
 
               <motion.button
                 type="submit"
-                disabled={isUploading || (photos.length === 0 && videos.length === 0)}
+                disabled={isUploading || photos.length === 0 || videos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)}
                 whileHover={!isUploading ? { scale: 1.03 } : {}}
                 whileTap={!isUploading ? { scale: 0.97 } : {}}
                 transition={spring}
                 className={`w-full text-primary-foreground text-ui py-4 rounded-xl btn-shadow text-base transition-all ${
-                  isUploading || (photos.length === 0 && videos.length === 0)
+                  isUploading || photos.length === 0 || videos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)
                     ? 'bg-primary/50 cursor-not-allowed'
                     : 'bg-primary hover:btn-shadow-hover'
                 }`}
