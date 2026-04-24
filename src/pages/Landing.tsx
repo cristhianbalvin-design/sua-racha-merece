@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import Logo from '@/components/Logo';
 import WinnerCard from '@/components/WinnerCard';
 import { apiGetWinners } from '@/lib/mockApi';
-import heroImg from '@/assets/hero-running.jpg';
+import heroImg from '@/assets/Comunidad 3buk.png';
 import { CheckCircle, Flame, Dumbbell, Shield, Calendar } from 'lucide-react';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
@@ -55,11 +55,11 @@ const Landing = () => {
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden min-h-[600px] md:min-h-[700px] flex items-center">
+      <section className="relative overflow-hidden min-h-[600px] md:min-h-[800px] lg:min-h-[90vh] flex items-center">
         <div className="absolute inset-0">
-          <img src={heroImg} alt="Grupo de atletas" className="w-full h-full object-cover object-top opacity-100" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 md:via-background/40 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          <img src={heroImg} alt="Grupo de atletas" className="w-full h-full object-cover opacity-100" style={{ objectPosition: '50% 20%' }} />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 md:via-background/50 to-background/10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-transparent" />
         </div>
         <div className="relative px-4 md:px-8 py-20 w-full max-w-7xl mx-auto text-left">
           <div className="max-w-2xl">
