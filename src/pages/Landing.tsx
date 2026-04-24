@@ -5,6 +5,7 @@ import Logo from '@/components/Logo';
 import WinnerCard from '@/components/WinnerCard';
 import { apiGetWinners } from '@/lib/mockApi';
 import heroImg from '@/assets/Comunidad 3buk.png';
+import heroImgMobile from '@/assets/Comunidad 3buk mobile.png';
 import { CheckCircle, Flame, Dumbbell, Shield, Calendar } from 'lucide-react';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
@@ -57,7 +58,11 @@ const Landing = () => {
       {/* Hero */}
       <section className="relative overflow-hidden min-h-[600px] md:min-h-[800px] lg:min-h-[90vh] flex items-center">
         <div className="absolute inset-0">
-          <img src={heroImg} alt="Grupo de atletas" className="w-full h-full object-cover opacity-100" style={{ objectPosition: '50% 20%' }} />
+          <picture>
+            <source media="(max-width: 767px)" srcSet={heroImgMobile} />
+            <source media="(min-width: 768px)" srcSet={heroImg} />
+            <img src={heroImg} alt="Grupo de atletas" className="w-full h-full object-cover object-center" />
+          </picture>
           <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 md:via-background/50 to-background/10" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/10 to-transparent" />
         </div>
