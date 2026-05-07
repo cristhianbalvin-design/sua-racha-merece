@@ -143,17 +143,41 @@ CREATE POLICY "Only admins modify regions" ON public.regions FOR ALL USING (
   EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND users.role = 'ADMIN')
 );
 
+-- ==============================================
+-- 5. Home Popups
+-- ==============================================
+CREATE TABLE public.home_popups (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  image_url TEXT NOT NULL,
+  target_url TEXT NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()),
+  CHECK (end_date >= start_date)
+);
+
+ALTER TABLE public.home_popups ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Home popups viewable by everyone" ON public.home_popups FOR SELECT USING (true);
+CREATE POLICY "Admins can insert home popups" ON public.home_popups FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND users.role = 'ADMIN')
+);
+CREATE POLICY "Admins can delete home popups" ON public.home_popups FOR DELETE USING (
+  EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND users.role = 'ADMIN')
+);
+
 -- Mock Master Data Inicial
 INSERT INTO public.sports (name) VALUES ('Corrida de Rua'), ('Ciclismo'), ('Natação'), ('Crossfit');
 INSERT INTO public.regions (name) VALUES ('Nordeste'), ('Sudeste'), ('Sul'), ('Norte'), ('Centro-Oeste');
 
 -- ==============================================
--- 5. Storage Buckets (Fotos y Evidencias)
+-- 6. Storage Buckets (Fotos y Evidencias)
 -- ==============================================
 INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true) ON CONFLICT DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('evidences', 'evidences', true) ON CONFLICT DO NOTHING;
+INSERT INTO storage.buckets (id, name, public) VALUES ('popups', 'popups', true) ON CONFLICT DO NOTHING;
 
-CREATE POLICY "Public avatars access" ON storage.objects FOR SELECT USING (bucket_id IN ('avatars', 'evidences'));
-CREATE POLICY "Any user can upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id IN ('avatars', 'evidences'));
-CREATE POLICY "Any user can update" ON storage.objects FOR UPDATE USING (bucket_id IN ('avatars', 'evidences'));
-CREATE POLICY "Any user can delete" ON storage.objects FOR DELETE USING (bucket_id IN ('avatars', 'evidences'));
+CREATE POLICY "Public avatars access" ON storage.objects FOR SELECT USING (bucket_id IN ('avatars', 'evidences', 'popups'));
+CREATE POLICY "Any user can upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id IN ('avatars', 'evidences', 'popups'));
+CREATE POLICY "Any user can update" ON storage.objects FOR UPDATE USING (bucket_id IN ('avatars', 'evidences', 'popups'));
+CREATE POLICY "Any user can delete" ON storage.objects FOR DELETE USING (bucket_id IN ('avatars', 'evidences', 'popups'));

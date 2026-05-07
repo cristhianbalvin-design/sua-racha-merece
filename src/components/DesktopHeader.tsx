@@ -20,6 +20,7 @@ const DesktopHeader = () => {
   const links = [
     { to: '/dashboard', label: 'Campanhas' },
     { to: '/participacoes', label: 'Participações' },
+    { to: '/fotografias-3buk', label: 'Fotografias 3BUK' },
     { to: '/ganhadores', label: 'Ganhadores' },
   ];
 

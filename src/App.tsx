@@ -17,6 +17,7 @@ import SubmitEvidence from "./pages/SubmitEvidence";
 import UserProfile from "./pages/UserProfile";
 import UserParticipations from "./pages/UserParticipations";
 import UserNotifications from "./pages/UserNotifications";
+import UserPhotos3buk from "./pages/UserPhotos3buk";
 import Winners from "./pages/Winners";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminUsers from "./pages/admin/AdminUsers";
@@ -29,6 +30,7 @@ import AdminRegions from "./pages/admin/AdminRegions";
 import AdminRelatorio from "./pages/admin/AdminRelatorio";
 import AdminProfile from "./pages/admin/AdminProfile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminPopups from "./pages/admin/AdminPopups";
 import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -63,6 +65,7 @@ const AnimatedRoutes = () => {
           <Route path="/campanha/:id" element={<CampaignDetail />} />
           <Route path="/campanha/:id/participar" element={<SubmitEvidence />} />
           <Route path="/participacoes" element={<UserParticipations />} />
+          <Route path="/fotografias-3buk" element={<UserPhotos3buk />} />
           <Route path="/notificacoes" element={<UserNotifications />} />
           <Route path="/perfil" element={<UserProfile />} />
           <Route path="/ganhadores" element={<Winners />} />
@@ -79,6 +82,7 @@ const AnimatedRoutes = () => {
           <Route path="/admin/participacoes" element={<AdminParticipations />} />
           <Route path="/admin/qualificacao" element={<AdminQualification />} />
           <Route path="/admin/ganhadores" element={<AdminWinners />} />
+          <Route path="/admin/popups" element={<AdminPopups />} />
           <Route path="/admin/esportes" element={<AdminSports />} />
           <Route path="/admin/regioes" element={<AdminRegions />} />
         </Route>

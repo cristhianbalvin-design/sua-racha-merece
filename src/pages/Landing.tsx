@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Logo from '@/components/Logo';
 import WinnerCard from '@/components/WinnerCard';
-import { apiGetWinners } from '@/lib/mockApi';
+import { apiGetActiveHomePopup, apiGetWinners } from '@/lib/mockApi';
+import type { HomePopup } from '@/data/mockData';
 import heroImg from '@/assets/Comunidad 3buk.png';
 import heroImgMobile from '@/assets/Comunidad 3buk mobile.png';
-import { Activity, Bike, CheckCircle, Dumbbell, Flame, Footprints, Goal, Shield, Trophy, Waves, Calendar } from 'lucide-react';
+import { Activity, Bike, CheckCircle, Dumbbell, Flame, Footprints, Goal, Shield, Trophy, Waves, Calendar, X } from 'lucide-react';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
@@ -16,6 +17,7 @@ const SHOW_PAID_PLANS = false;
 const Landing = () => {
   const navigate = useNavigate();
   const [latestWinners, setLatestWinners] = useState<any[]>([]);
+  const [activePopup, setActivePopup] = useState<HomePopup | null>(null);
 
   useEffect(() => {
     const isStandalone =
@@ -32,10 +34,47 @@ const Landing = () => {
       const withCarouselMedals = latest.map((w, idx) => ({ ...w, medal: medals[idx % 3] }));
       setLatestWinners(withCarouselMedals);
     });
+    apiGetActiveHomePopup().then((popup) => {
+      if (!popup) return;
+      if (sessionStorage.getItem(`home-popup-dismissed-${popup.id}`)) return;
+      setActivePopup(popup);
+    });
   }, [navigate]);
+
+  const closePopup = () => {
+    if (activePopup) {
+      sessionStorage.setItem(`home-popup-dismissed-${activePopup.id}`, 'true');
+    }
+    setActivePopup(null);
+  };
 
   return (
     <div className="min-h-svh bg-background">
+      {activePopup && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/85 backdrop-blur-sm px-3 md:px-8">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={spring}
+            className="relative w-full max-w-[min(96vw,1400px)]"
+          >
+            <button
+              onClick={closePopup}
+              className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-card/95 text-foreground border border-border card-shadow hover:bg-muted transition-colors"
+              aria-label="Fechar popup"
+            >
+              <X size={18} />
+            </button>
+            <Link to="/login" onClick={closePopup}>
+              <img
+                src={activePopup.imageUrl}
+                alt={activePopup.name}
+                className="w-full aspect-[5/2] max-h-[78vh] object-cover rounded-2xl border border-border card-shadow bg-card"
+              />
+            </Link>
+          </motion.div>
+        </div>
+      )}
       {/* Header */}
       <header className="flex items-center justify-between px-4 md:px-8 py-4">
         <Logo size="md" />

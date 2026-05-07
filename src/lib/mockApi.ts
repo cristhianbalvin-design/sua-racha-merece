@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { User, Campaign, Participation, Winner } from '../data/mockData';
+import type { User, Campaign, Participation, Winner, HomePopup } from '../data/mockData';
 import { toast } from 'sonner';
 
 // Map Row to User interface
@@ -380,4 +380,88 @@ export const apiMarkNotificationRead = async (id: string) => {
 
 export const apiMarkAllNotificationsRead = async (userId: string) => {
   await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false);
+};
+
+// Home popups
+const mapHomePopup = (row: any): HomePopup => ({
+  id: row.id,
+  name: row.name,
+  imageUrl: row.image_url,
+  targetUrl: row.target_url,
+  startDate: row.start_date,
+  endDate: row.end_date,
+  createdAt: row.created_at,
+});
+
+export const apiGetHomePopups = async (): Promise<HomePopup[]> => {
+  const { data, error } = await supabase
+    .from('home_popups')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('Error get home popups:', error);
+    toast.error('Erro bd: ' + error.message);
+    return [];
+  }
+  return (data || []).map(mapHomePopup);
+};
+
+export const apiGetActiveHomePopup = async (): Promise<HomePopup | null> => {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('home_popups')
+    .select('*')
+    .lte('start_date', today)
+    .gte('end_date', today)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error('Error get active home popup:', error);
+    return null;
+  }
+  return data ? mapHomePopup(data) : null;
+};
+
+export const apiAddHomePopup = async (popup: Omit<HomePopup, 'id' | 'createdAt'>): Promise<HomePopup | null> => {
+  const row = {
+    name: popup.name,
+    image_url: popup.imageUrl,
+    target_url: popup.targetUrl,
+    start_date: popup.startDate,
+    end_date: popup.endDate,
+  };
+  const { data, error } = await supabase.from('home_popups').insert(row).select('*').single();
+  if (error) {
+    console.error('Error insert home popup:', error);
+    toast.error('Erro bd: ' + error.message);
+    return null;
+  }
+  return data ? mapHomePopup(data) : null;
+};
+
+export const apiDeleteHomePopup = async (id: string) => {
+  const { error } = await supabase.from('home_popups').delete().eq('id', id);
+  if (error) {
+    console.error('Error delete home popup:', error);
+    throw error;
+  }
+};
+
+export const apiUploadHomePopupImage = async (file: File): Promise<string | null> => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+  
+  const { error } = await supabase.storage.from('popups').upload(fileName, file, {
+    cacheControl: '3600',
+    upsert: false
+  });
+  if (error) {
+    console.error('Upload home popup error:', error);
+    toast.error('Erro ao enviar imagem: ' + error.message);
+    return null;
+  }
+  
+  const { data } = supabase.storage.from('popups').getPublicUrl(fileName);
+  return data.publicUrl;
 };

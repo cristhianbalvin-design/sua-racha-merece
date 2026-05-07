@@ -20,6 +20,7 @@ const AdminLayout = () => {
     { to: '/admin/participacoes', label: 'Participações' },
     { to: '/admin/qualificacao', label: 'Qualificação' },
     { to: '/admin/ganhadores', label: 'Ganhadores' },
+    { to: '/admin/popups', label: 'Popups' },
     { to: '/admin/esportes', label: 'Esportes' },
     { to: '/admin/regioes', label: 'Regiões' },
   ];

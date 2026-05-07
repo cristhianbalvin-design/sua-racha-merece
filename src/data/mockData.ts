@@ -105,6 +105,16 @@ export interface Notification {
   read: boolean;
 }
 
+export interface HomePopup {
+  id: string;
+  name: string;
+  imageUrl: string;
+  targetUrl: string;
+  startDate: string;
+  endDate: string;
+  createdAt?: string;
+}
+
 // ─── Mock data ──────────────────────────────────────────────────
 export const campaigns: Campaign[] = [
   {

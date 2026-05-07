@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Trophy, User, Bell } from 'lucide-react';
+import { Home, Trophy, User, Bell, Images } from 'lucide-react';
 import { notifications } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -12,6 +12,7 @@ const MobileNav = () => {
   const links = [
     { to: '/dashboard', icon: Home, label: 'Campañas' },
     { to: '/participacoes', icon: Trophy, label: 'Participaciones' },
+    { to: '/fotografias-3buk', icon: Images, label: 'Fotos' },
     { to: '/notificacoes', icon: Bell, label: 'Avisos', badge: unreadCount },
     { to: '/perfil', icon: User, label: 'Perfil' },
   ];
