@@ -383,10 +383,27 @@ export const apiMarkAllNotificationsRead = async (userId: string) => {
 };
 
 // Home popups
+const normalizeStoragePublicUrl = (url: string) => {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (!url || !supabaseUrl) return url;
+
+  try {
+    const parsed = new URL(url);
+    const proxyPrefix = '/supabase/storage/v1/object/public/';
+    if (parsed.pathname.startsWith(proxyPrefix)) {
+      return `${supabaseUrl}/storage/v1/object/public/${parsed.pathname.slice(proxyPrefix.length)}`;
+    }
+  } catch (_) {
+    return url;
+  }
+
+  return url;
+};
+
 const mapHomePopup = (row: any): HomePopup => ({
   id: row.id,
   name: row.name,
-  imageUrl: row.image_url,
+  imageUrl: normalizeStoragePublicUrl(row.image_url),
   targetUrl: row.target_url,
   startDate: row.start_date,
   endDate: row.end_date,
@@ -463,5 +480,5 @@ export const apiUploadHomePopupImage = async (file: File): Promise<string | null
   }
   
   const { data } = supabase.storage.from('popups').getPublicUrl(fileName);
-  return data.publicUrl;
+  return normalizeStoragePublicUrl(data.publicUrl);
 };
