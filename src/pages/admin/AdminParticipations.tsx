@@ -74,7 +74,7 @@ const AdminParticipations = () => {
   )).sort();
 
   const filtered = enriched.filter((p) => {
-    if (campaignFilter && !p.campaign?.description?.toLowerCase().includes(campaignFilter.toLowerCase())) return false;
+    if (campaignFilter && !(p.campaign?.name || '').toLowerCase().includes(campaignFilter.toLowerCase())) return false;
     if (planFilter !== 'Todos' && p.user?.plan !== planFilter) return false;
     if (sportFilter !== 'Todos' && p.campaign?.sport !== sportFilter) return false;
     if (monthFilter !== 'Todos' && formatCampMonth(p.campaign?.startDate) !== monthFilter) return false;
@@ -222,7 +222,7 @@ const AdminParticipations = () => {
                       {p.user && <PlanBadge plan={p.user.plan} />}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{p.campaign?.sportIcon} {p.campaign?.sport || 'N/A'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.campaign?.description || 'N/A'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.campaign?.name || 'N/A'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatCampMonth(p.campaign?.startDate)}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-bold px-3 py-1 rounded-full ${partStatusColor[p.participationStatus] || 'bg-muted text-muted-foreground'}`}>

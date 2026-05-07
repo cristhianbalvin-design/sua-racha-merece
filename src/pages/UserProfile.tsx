@@ -29,6 +29,7 @@ const UserProfile = () => {
   const [city, setCity] = useState(user?.city || '');
   const [country, setCountry] = useState(user?.country || '');
   const [sport, setSport] = useState(user?.sport || '');
+  const [birthDate, setBirthDate] = useState(user?.birthDate || '');
   const [saved, setSaved] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -39,6 +40,7 @@ const UserProfile = () => {
       setCity(user.city);
       setCountry(user.country);
       setSport(user.sport);
+      setBirthDate(user.birthDate || '');
 
       apiGetParticipations().then(parts => {
         const userParts = parts.filter(p => p.userId === user.id);
@@ -75,13 +77,14 @@ const UserProfile = () => {
         }
       }
 
-      await apiUpdateUser(user.id, { name, city, country, sport, avatar: finalAvatar });
+      await apiUpdateUser(user.id, { name, city, country, sport, birthDate, avatar: finalAvatar });
       // Update global context to sync immediately
       updateUserContext({
         name,
         city,
         country,
         sport,
+        ...(birthDate !== undefined && { birthDate }),
         avatar: finalAvatar
       });
     }
@@ -95,6 +98,7 @@ const UserProfile = () => {
     setCity(user.city);
     setCountry(user.country);
     setSport(user.sport);
+    setBirthDate(user.birthDate || '');
     setAvatarFile(null);
     setAvatarPreview(null);
   };
@@ -161,6 +165,11 @@ const UserProfile = () => {
               <p className="text-muted-foreground/60 text-xs mb-2">{user.email}</p>
             )}
             <p className="text-secondary text-sm font-bold mb-3">{sport}</p>
+            {birthDate && (
+              <p className="text-muted-foreground text-xs mb-3">
+                {new Date(birthDate + 'T00:00:00').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+              </p>
+            )}
             <PlanBadge plan={user.plan} />
           </>
         ) : (
@@ -207,6 +216,15 @@ const UserProfile = () => {
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="text-ui text-xs text-muted-foreground block mb-1.5">FECHA DE NACIMIENTO</label>
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background outline-none transition-all"
+              />
             </div>
             <div className="flex gap-3 pt-2">
               <motion.button

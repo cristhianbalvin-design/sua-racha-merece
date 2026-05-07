@@ -1,10 +1,19 @@
 import { Check } from "lucide-react";
 
-export const OnboardingStepper = ({ currentStep }: { currentStep: number }) => {
-  const steps = [
+export const OnboardingStepper = ({
+  currentStep,
+  includePlan = false,
+}: {
+  currentStep: number;
+  includePlan?: boolean;
+}) => {
+  const steps = includePlan ? [
     { num: 1, label: "Conta" },
-    { num: 2, label: "Plan" },
+    { num: 2, label: "Plano" },
     { num: 3, label: "Perfil" },
+  ] : [
+    { num: 1, label: "Conta" },
+    { num: 2, label: "Perfil" },
   ];
 
   return (

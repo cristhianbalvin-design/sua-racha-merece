@@ -15,7 +15,7 @@ const PlanSelection = () => {
   return (
     <div className="min-h-svh bg-background flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-lg">
-        <OnboardingStepper currentStep={2} />
+        <OnboardingStepper currentStep={2} includePlan />
         <div className="text-center mb-8">
           <Logo size="lg" />
           <h1 className="font-bold italic text-2xl text-foreground mt-4">ESCOLHA SEU PLANO</h1>

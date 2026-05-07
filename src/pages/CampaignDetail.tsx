@@ -67,8 +67,13 @@ const CampaignDetail = () => {
 
       <div className="mb-6">
         <span className="text-4xl mb-2 block">{campaign.sportIcon}</span>
-        <h1 className="font-bold italic text-3xl md:text-4xl text-foreground mb-2">{campaign.description}</h1>
+        <h1 className="font-bold italic text-3xl md:text-4xl text-foreground mb-2">{campaign.name || campaign.description}</h1>
         <span className="text-base text-secondary font-bold uppercase">{campaign.sport}</span>
+        {campaign.description && campaign.description !== campaign.name && (
+          <p className="text-muted-foreground text-base md:text-lg mt-4 leading-relaxed">
+            {campaign.description}
+          </p>
+        )}
       </div>
 
       <div className="space-y-3 mb-8">

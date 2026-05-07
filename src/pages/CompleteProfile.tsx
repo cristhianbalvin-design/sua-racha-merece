@@ -22,6 +22,7 @@ const CompleteProfile = () => {
   const [sport, setSport] = useState('');
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,8 +54,8 @@ const CompleteProfile = () => {
         }
       }
 
-      await apiUpdateUser(user.id, { name, city, country, sport, phone, gender, avatar: finalAvatar });
-      
+      await apiUpdateUser(user.id, { name, city, country, sport, phone, gender, birthDate, avatar: finalAvatar });
+
       // Update context securely, which forces React to re-render the Header and all views
       updateUserContext({
         name,
@@ -63,6 +64,7 @@ const CompleteProfile = () => {
         sport,
         ...(phone && { phone }),
         ...(gender && { gender }),
+        ...(birthDate && { birthDate }),
         ...(finalAvatar && { avatar: finalAvatar })
       });
       
@@ -78,7 +80,7 @@ const CompleteProfile = () => {
   return (
     <div className="min-h-svh bg-background flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
-        <OnboardingStepper currentStep={3} />
+        <OnboardingStepper currentStep={2} />
         <div className="text-center mb-8">
           <Logo size="md" />
           <h1 className="font-bold italic text-2xl text-foreground mt-4 uppercase">COMPLETA TU PERFIL</h1>
@@ -197,6 +199,17 @@ const CompleteProfile = () => {
               <option value="Femenino">Femenino</option>
               <option value="Otro">Otro</option>
             </select>
+          </div>
+
+          <div>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">FECHA DE NACIMIENTO</label>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all"
+              required
+            />
           </div>
 
           <motion.button

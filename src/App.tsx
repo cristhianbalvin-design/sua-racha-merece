@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,6 +33,7 @@ import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 initializeMockData();
 
@@ -51,7 +52,8 @@ const AnimatedRoutes = () => {
         <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
         <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
         <Route path="/registro" element={<PageTransition><Register /></PageTransition>} />
-        <Route path="/plano" element={<PageTransition><PlanSelection /></PageTransition>} />
+        {/* Plans are kept in code but hidden from the current onboarding flow. */}
+        <Route path="/plano" element={<Navigate to="/completar-perfil" replace />} />
         <Route path="/completar-perfil" element={<PageTransition><CompleteProfile /></PageTransition>} />
 
         {/* User (with layout) */}
@@ -92,6 +94,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <PWAInstallPrompt />
       <AuthProvider>
         <BrowserRouter>
           <AnimatedRoutes />

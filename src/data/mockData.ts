@@ -29,6 +29,7 @@ export const sports = sportsMaster;
 // ─── Interfaces ─────────────────────────────────────────────────
 export interface Campaign {
   id: string;
+  name: string;
   sport: string;
   sportIcon: string;
   city: string;
@@ -54,6 +55,7 @@ export interface User {
   sport: string;
   phone?: string;
   gender?: string;
+  birthDate?: string;
   plan: 'Freemium' | 'Premium';
   avatar: string;
   campaignsParticipated: number;
@@ -90,6 +92,7 @@ export interface Participation {
   continuityScore?: number;
   totalScore?: number;
   prizeDelivered?: boolean;
+  prequalification?: 'Alto' | 'Medio' | 'Bajo';
 }
 
 export interface Notification {
@@ -106,6 +109,7 @@ export interface Notification {
 export const campaigns: Campaign[] = [
   {
     id: 'camp-1',
+    name: 'Desafio Corrida de Rua 3BUK',
     sport: 'Corrida',
     sportIcon: '🏃',
     city: 'São Paulo',
@@ -123,6 +127,7 @@ export const campaigns: Campaign[] = [
   },
   {
     id: 'camp-2',
+    name: 'WOD Atitude Máxima',
     sport: 'Crossfit',
     sportIcon: '🏋️',
     city: 'Belo Horizonte',
@@ -140,6 +145,7 @@ export const campaigns: Campaign[] = [
   },
   {
     id: 'camp-3',
+    name: 'Pedala e Mostra',
     sport: 'Ciclismo',
     sportIcon: '🚴',
     city: 'Curitiba',

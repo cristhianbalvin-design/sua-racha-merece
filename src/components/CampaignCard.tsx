@@ -42,7 +42,7 @@ const CampaignCard = ({ campaign }: { campaign: Campaign }) => {
         </div>
       </div>
       <h3 className="font-bold italic text-lg text-foreground mb-3 flex-1 line-clamp-2">
-        {campaign.description || `Campanha de ${campaign.sport}`}
+        {campaign.name || campaign.description || `Campanha de ${campaign.sport}`}
       </h3>
       <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
         <MapPin size={14} />

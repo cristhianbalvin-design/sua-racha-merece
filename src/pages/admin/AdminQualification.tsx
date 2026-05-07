@@ -153,10 +153,11 @@ const AdminQualification = () => {
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
 
   // ── Filters ────────────────────────────────────────────────────
-  const [searchName, setSearchName]     = useState('');
-  const [filterSport, setFilterSport]   = useState('');
-  const [filterMonth, setFilterMonth]   = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [searchName, setSearchName]           = useState('');
+  const [filterSport, setFilterSport]         = useState('');
+  const [filterMonth, setFilterMonth]         = useState('');
+  const [filterStatus, setFilterStatus]       = useState('');
+  const [filterPrequalif, setFilterPrequalif] = useState('');
 
   const [editingAttitudes, setEditingAttitudes] = useState<Record<string, string>>({});
 
@@ -219,7 +220,7 @@ const AdminQualification = () => {
   // ── Apply filters on top of sorted list ───────────────────────
   const filteredEligible = sortedEligible.filter(p => {
     if (searchName) {
-      const haystack = (p.campaign?.description || '').toLowerCase();
+      const haystack = (p.campaign?.name || '').toLowerCase();
       if (!haystack.includes(searchName.toLowerCase())) return false;
     }
     if (filterSport && p.campaign?.sport !== filterSport) return false;
@@ -229,11 +230,13 @@ const AdminQualification = () => {
       if (`${y}-${m}` !== filterMonth) return false;
     }
     if (filterStatus && p.campaign?.status !== filterStatus) return false;
+    if (filterPrequalif === 'none') { if (p.prequalification) return false; }
+    else if (filterPrequalif && p.prequalification !== filterPrequalif) return false;
     return true;
   });
 
-  const hasActiveFilters = searchName || filterSport || filterMonth || filterStatus;
-  const clearFilters = () => { setSearchName(''); setFilterSport(''); setFilterMonth(''); setFilterStatus(''); };
+  const hasActiveFilters = searchName || filterSport || filterMonth || filterStatus || filterPrequalif;
+  const clearFilters = () => { setSearchName(''); setFilterSport(''); setFilterMonth(''); setFilterStatus(''); setFilterPrequalif(''); };
 
   // Winners already assigned per campaign (from all parts, not just eligible)
   const winnersByCamp = parts.reduce<Record<string, number>>((acc, p) => {
@@ -332,6 +335,11 @@ const AdminQualification = () => {
   };
 
 
+  const handlePrequalification = async (partId: string, level: 'Alto' | 'Medio' | 'Bajo') => {
+    setParts(prev => prev.map(p => p.id === partId ? { ...p, prequalification: level } : p));
+    await apiUpdateParticipation(partId, { prequalification: level });
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="font-bold italic text-2xl text-foreground mb-2">QUALIFICAÇÃO</h1>
@@ -381,6 +389,19 @@ const AdminQualification = () => {
         >
           <option value="">Est. campanha (Todos)</option>
           {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        {/* Prequalification filter */}
+        <select
+          value={filterPrequalif}
+          onChange={e => setFilterPrequalif(e.target.value)}
+          className="bg-card border border-border text-sm rounded-xl px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ring min-w-[170px]"
+        >
+          <option value="">Precalif. (Todas)</option>
+          <option value="Alto">Alto</option>
+          <option value="Medio">Medio</option>
+          <option value="Bajo">Bajo</option>
+          <option value="none">Sin precalificación</option>
         </select>
 
         {/* Clear filters */}
@@ -442,6 +463,7 @@ const AdminQualification = () => {
                       <span className="text-[10px] font-normal opacity-60">máx 9.5</span>
                     </button>
                   </th>
+                  <th className="text-center px-4 py-3 text-ui text-xs text-muted-foreground">PRECALIF.</th>
                   <th className="text-center px-4 py-3 text-ui text-xs text-muted-foreground">AÇÕES</th>
                 </tr>
               </thead>
@@ -483,7 +505,7 @@ const AdminQualification = () => {
                         {p.user?.email && <p className="text-xs text-muted-foreground">{p.user.email}</p>}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{p.campaign?.sportIcon} {p.campaign?.sport || 'N/A'}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{p.campaign?.description}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{p.campaign?.name || 'N/A'}</td>
                       <td className="px-4 py-3 text-muted-foreground">{formatCampMonth(p.campaign?.startDate)}</td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">
                         {p.campaign?.endDate ? new Date(p.campaign.endDate).toLocaleDateString('pt-BR') : '—'}
@@ -553,6 +575,21 @@ const AdminQualification = () => {
                         }`}>
                           {total > 0 ? total : '—'}
                         </div>
+                      </td>
+
+                      {/* PRECALIF. */}
+                      <td className="px-4 py-3 text-center">
+                        {p.prequalification ? (
+                          <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase ${
+                            p.prequalification === 'Alto' ? 'bg-success/20 text-success' :
+                            p.prequalification === 'Medio' ? 'bg-warning/20 text-warning' :
+                            'bg-destructive/20 text-destructive'
+                          }`}>
+                            {p.prequalification}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </td>
 
                       {/* AÇÕES */}
@@ -644,13 +681,14 @@ const AdminQualification = () => {
                 className="bg-card rounded-2xl card-shadow max-w-lg w-full max-h-[90vh] overflow-y-auto"
               >
                 <div className="p-6 space-y-6">
-                  {/* Media Section: Photos and Videos Separately */}
-                  {p.photo && (() => {
-                    const media = Array.isArray(p.photo) ? p.photo : [p.photo];
+                  {/* Media Section */}
+                  {(() => {
+                    const raw = p.photo;
+                    if (!raw) return null;
+                    const media = Array.isArray(raw) ? raw : [raw];
                     const videos = media.filter(url => /\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url));
-                    let displayPhotos = media.filter(url => !/\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url));
-                    let displayIg = p.instagramPhoto;
-                    
+                    const displayPhotos = media.filter(url => !/\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url));
+                    if (displayPhotos.length === 0 && videos.length === 0) return null;
                     return (
                       <div className="space-y-4">
                         {displayPhotos.length > 0 && (
@@ -658,7 +696,7 @@ const AdminQualification = () => {
                             <p className="text-ui text-xs text-muted-foreground font-bold mb-2">FOTOS ENVIADAS</p>
                             <div className="flex gap-2 overflow-x-auto pb-2">
                               {displayPhotos.map((url, i) => (
-                                <img key={i} src={url} alt={`Foto ${i+1}`} 
+                                <img key={i} src={url} alt={`Foto ${i+1}`}
                                      onClick={() => setSelectedImage(url)}
                                      className="h-32 w-32 object-cover rounded-xl flex-shrink-0 card-shadow cursor-pointer hover:opacity-80 transition-opacity" />
                               ))}
@@ -678,6 +716,32 @@ const AdminQualification = () => {
                       </div>
                     );
                   })()}
+
+                  {/* Precalificación */}
+                  <div className="bg-muted/40 rounded-xl p-4">
+                    <p className="text-ui text-xs text-muted-foreground font-bold mb-3">PRECALIFICACIÓN</p>
+                    <div className="flex gap-2">
+                      {(['Alto', 'Medio', 'Bajo'] as const).map(level => {
+                        const isActive = p.prequalification === level;
+                        const colorClass =
+                          level === 'Alto'  ? (isActive ? 'bg-success text-white'     : 'bg-success/10 text-success border border-success/40') :
+                          level === 'Medio' ? (isActive ? 'bg-warning text-black'     : 'bg-warning/10 text-warning border border-warning/40') :
+                                              (isActive ? 'bg-destructive text-white' : 'bg-destructive/10 text-destructive border border-destructive/40');
+                        return (
+                          <motion.button
+                            key={level}
+                            onClick={() => handlePrequalification(p.id, level)}
+                            whileHover={{ scale: 1.04 }}
+                            whileTap={{ scale: 0.96 }}
+                            className={`flex-1 text-xs font-bold py-2.5 rounded-xl transition-all ${colorClass}`}
+                          >
+                            {level.toUpperCase()}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       {p.user.avatar && (

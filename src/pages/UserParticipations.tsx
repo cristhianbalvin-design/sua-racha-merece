@@ -261,7 +261,7 @@ const UserParticipations = () => {
                 )}
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-foreground text-sm truncate">
-                    {p.campaign?.description}
+                    {p.campaign?.name || p.campaign?.description}
                   </h4>
                   <p className="text-xs text-muted-foreground">
                     {p.campaign?.sport} — {p.campaign?.city}

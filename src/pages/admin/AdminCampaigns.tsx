@@ -40,6 +40,7 @@ const AdminCampaigns = () => {
   }, []);
 
   // Create form state
+  const [cName, setCName] = useState('');
   const [cSport, setCSport] = useState('');
   const [cRegion, setCRegion] = useState('');
   const [cCity, setCCity] = useState('');
@@ -62,7 +63,7 @@ const AdminCampaigns = () => {
   const monthsList = Array.from(new Set(campaignsList.map(c => formatCampMonth(c.startDate)))).filter(Boolean);
 
   const filtered = sorted.filter((c) => {
-    if (nameFilter && !c.description.toLowerCase().includes(nameFilter.toLowerCase())) return false;
+    if (nameFilter && !(c.name || '').toLowerCase().includes(nameFilter.toLowerCase())) return false;
     if (sportFilter !== 'Todos' && c.sport !== sportFilter) return false;
     if (monthFilter !== 'Todos' && formatCampMonth(c.startDate) !== monthFilter) return false;
     if (statusFilter !== 'Todos' && c.status !== statusFilter) return false;
@@ -73,6 +74,7 @@ const AdminCampaigns = () => {
     e.preventDefault();
     const newCamp: Campaign = {
       id: `camp-${Date.now()}`,
+      name: cName,
       sport: cSport,
       sportIcon: '🏆',
       city: cCity,
@@ -96,7 +98,7 @@ const AdminCampaigns = () => {
     setTimeout(() => {
       setFormSubmitted(false);
       setShowCreate(false);
-      setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize('');
+      setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize('');
       setPlan('Ambos'); setIgOptional(false); setIgHashtags('#3bukchallenge');
     }, 2500);
   };
@@ -107,8 +109,8 @@ const AdminCampaigns = () => {
     await apiUpdateCampaign(id, { status: newStatus });
   };
 
-  const handleDeleteCampaign = async (id: string, description: string) => {
-    if (window.confirm(`¿Estás seguro que deseas eliminar la campaña "${description}"? Esto también borrará todas las participaciones vinculadas a la misma.`)) {
+  const handleDeleteCampaign = async (id: string, campaignName: string) => {
+    if (window.confirm(`¿Estás seguro que deseas eliminar la campaña "${campaignName}"? Esto también borrará todas las participaciones vinculadas a la misma.`)) {
       try {
         await apiDeleteCampaign(id);
         setCampaignsList(prev => prev.filter(c => c.id !== id));
@@ -199,7 +201,7 @@ const AdminCampaigns = () => {
               ) : (
                 filtered.map((c) => (
                   <tr key={c.id}>
-                    <td className="px-4 py-3 text-foreground font-bold">{c.description}</td>
+                    <td className="px-4 py-3 text-foreground font-bold">{c.name || 'N/A'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{c.sportIcon} {c.sport}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatCampMonth(c.startDate)}</td>
                     <td className="px-4 py-3">
@@ -216,7 +218,7 @@ const AdminCampaigns = () => {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
-                        onClick={() => handleDeleteCampaign(c.id, c.description)}
+                        onClick={() => handleDeleteCampaign(c.id, c.name || 'N/A')}
                         title="Eliminar campaña"
                         className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                       >
@@ -249,6 +251,11 @@ const AdminCampaigns = () => {
               {!formSubmitted ? (
                 <form onSubmit={handleCreateSubmit} className="space-y-4">
                   <h3 className="font-bold italic text-lg text-foreground mb-2">CRIAR CAMPANHA</h3>
+
+                  <div>
+                    <label className="text-ui text-xs text-muted-foreground block mb-2">NOME DA CAMPANHA</label>
+                    <input type="text" value={cName} onChange={(e) => setCName(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all" placeholder="Ex: Desafio Corrida 3BUK" required />
+                  </div>
 
                   <div>
                     <label className="text-ui text-xs text-muted-foreground block mb-2">ESPORTE</label>

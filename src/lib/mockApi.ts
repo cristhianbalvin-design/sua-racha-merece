@@ -12,6 +12,7 @@ const mapUser = (row: any): User => ({
   sport: row.sport || '',
   phone: row.phone || '',
   gender: row.gender || '',
+  birthDate: row.birth_date || '',
   avatar: row.avatar_url || '',
   plan: row.plan as 'Freemium' | 'Premium',
   userStatus: row.user_status,
@@ -34,6 +35,7 @@ export const apiUpdateUser = async (userId: string, updates: Partial<User>) => {
   if (updates.sport) mapping.sport = updates.sport;
   if (updates.phone !== undefined) mapping.phone = updates.phone;
   if (updates.gender !== undefined) mapping.gender = updates.gender;
+  if (updates.birthDate !== undefined) mapping.birth_date = updates.birthDate || null;
   if (updates.avatar) mapping.avatar_url = updates.avatar;
 
   const { data } = await supabase.from('users').update(mapping).eq('id', userId).select('*').single();
@@ -48,6 +50,7 @@ export const apiToggleUserStatus = async (userId: string, currentStatus: string)
 // Campaigns
 const mapCampaign = (row: any): Campaign => ({
   id: row.id,
+  name: row.name || row.description || '',
   sport: row.sport,
   sportIcon: row.sport_icon,
   city: row.city,
@@ -75,6 +78,7 @@ export const apiGetCampaigns = async (): Promise<Campaign[]> => {
 
 export const apiAddCampaign = async (c: Campaign): Promise<Campaign | null> => {
   const row = {
+    name: c.name,
     sport: c.sport,
     sport_icon: c.sportIcon,
     city: c.city,
@@ -151,6 +155,7 @@ const mapPart = (row: any): Participation => {
     continuityScore: row.continuity_score,
     totalScore: row.total_score,
     prizeDelivered: row.prize_delivered,
+    prequalification: row.prequalification || undefined,
     timestamp: row.created_at
   };
 };
@@ -214,7 +219,7 @@ export const apiUpdateParticipation = async (id: string, updates: Partial<Partic
   if (updates.commitmentScore !== undefined) row.commitment_score = updates.commitmentScore;
   if (updates.continuityScore !== undefined) row.continuity_score = updates.continuityScore;
   if (updates.totalScore !== undefined) row.total_score = updates.totalScore;
-
+  if (updates.prequalification !== undefined) row.prequalification = updates.prequalification;
 
   const { data, error } = await supabase.from('participations').update(row).eq('id', id).select('*').single();
   if (error) {
@@ -376,4 +381,3 @@ export const apiMarkNotificationRead = async (id: string) => {
 export const apiMarkAllNotificationsRead = async (userId: string) => {
   await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false);
 };
-

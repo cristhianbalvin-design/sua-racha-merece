@@ -1,21 +1,30 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Logo from '@/components/Logo';
 import WinnerCard from '@/components/WinnerCard';
 import { apiGetWinners } from '@/lib/mockApi';
 import heroImg from '@/assets/Comunidad 3buk.png';
 import heroImgMobile from '@/assets/Comunidad 3buk mobile.png';
-import { CheckCircle, Flame, Dumbbell, Shield, Calendar } from 'lucide-react';
+import { Activity, Bike, CheckCircle, Dumbbell, Flame, Footprints, Goal, Shield, Trophy, Waves, Calendar } from 'lucide-react';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
 const stagger = { animate: { transition: { staggerChildren: 0.06 } } };
+const SHOW_PAID_PLANS = false;
 
 const Landing = () => {
+  const navigate = useNavigate();
   const [latestWinners, setLatestWinners] = useState<any[]>([]);
 
   useEffect(() => {
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as any).standalone === true;
+    if (isStandalone) {
+      navigate('/login', { replace: true });
+      return;
+    }
     apiGetWinners().then((data) => {
       // Get the latest 8 winners and assign them ordered medals (optional, just for visual flair)
       const latest = [...data].reverse().slice(0, 8);
@@ -23,7 +32,7 @@ const Landing = () => {
       const withCarouselMedals = latest.map((w, idx) => ({ ...w, medal: medals[idx % 3] }));
       setLatestWinners(withCarouselMedals);
     });
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="min-h-svh bg-background">
@@ -73,15 +82,14 @@ const Landing = () => {
               transition={{ ...spring, delay: 0.1 }}
               className="text-display font-bold italic text-foreground mb-6 leading-tight"
             >
-              TODOS COMEÇAM IGUAIS.<br /><span className="text-primary">SÓ A ATITUDE DECIDE.</span>
+              SEU ESFORÇO MERECE <span className="text-primary">PATROCÍNIO.</span>
             </motion.h1>
             <motion.p
               {...fadeIn}
               transition={{ ...spring, delay: 0.2 }}
               className="text-lg text-muted-foreground mb-8"
             >
-              Mostre sua atitude, participe de campanhas<br />
-              e ganhe <strong className="text-foreground">recompensas</strong> reais com a <strong className="text-primary italic">3BUK</strong>.
+              Plataforma que patrocina atletas amadores no Brasil.
             </motion.p>
             <motion.div {...fadeIn} transition={{ ...spring, delay: 0.3 }}>
               <Link to="/registro">
@@ -99,6 +107,39 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* O que e a 3BUK */}
+      <section className="px-4 md:px-8 py-14 bg-background">
+        <motion.div
+          {...fadeIn}
+          transition={{ ...spring, delay: 0.1 }}
+          className="max-w-5xl mx-auto border-y border-primary/30 py-10"
+        >
+          <div className="grid md:grid-cols-[0.85fr_1.15fr] gap-8 md:gap-12 items-center">
+            <div>
+              <p className="text-ui text-xs text-primary font-bold mb-3">3BUK</p>
+              <h2 className="font-bold italic text-3xl md:text-4xl text-foreground leading-tight">
+                O que é a <span className="text-primary">3BUK?</span>
+              </h2>
+            </div>
+            <div>
+              <p className="text-xl md:text-2xl text-foreground font-bold italic leading-snug">
+                A 3BUK é uma marca que patrocina atletas amadores com base em
+                <span className="text-primary"> compromisso</span>,
+                <span className="text-secondary"> continuidade</span> e
+                <span className="text-accent"> atitude</span>.
+              </p>
+              <div className="grid grid-cols-3 gap-2 mt-6">
+                {['Compromisso', 'Continuidade', 'Atitude'].map((item) => (
+                  <div key={item} className="bg-card border border-border rounded-lg px-3 py-3 text-center">
+                    <span className="text-ui text-[10px] md:text-xs text-muted-foreground">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
       {/* Como funciona */}
       <section className="px-4 md:px-8 py-16 max-w-5xl mx-auto">
         <h2 className="font-bold italic text-2xl md:text-3xl text-foreground mb-8 text-center">COMO FUNCIONA</h2>
@@ -110,9 +151,9 @@ const Landing = () => {
           className="grid md:grid-cols-3 gap-6"
         >
           {[
-            { step: '01', icon: <CheckCircle className="text-primary" size={28} />, title: 'Crie seu perfil', desc: 'Cadastre-se e escolha seu plano.' },
-            { step: '02', icon: <Dumbbell className="text-secondary" size={28} />, title: 'Participe de uma campanha', desc: 'Envie sua foto praticando seu esporte favorito.' },
-            { step: '03', icon: <Flame className="text-accent" size={28} />, title: 'Ganhe patrocínios', desc: 'O admin avalia e você pode ganhar prêmios reais.' },
+            { step: '01', icon: <CheckCircle className="text-primary" size={28} />, title: 'Você entra', desc: 'Crie seu perfil e escolha como quer competir.' },
+            { step: '02', icon: <Dumbbell className="text-secondary" size={28} />, title: 'Você participa', desc: 'Entre nas campanhas e mostre seu esporte com atitude.' },
+            { step: '03', icon: <Flame className="text-accent" size={28} />, title: 'Você pode ser patrocinado', desc: 'A 3BUK avalia compromisso, continuidade e atitude para premiar atletas amadores.' },
           ].map((item) => (
             <motion.div
               key={item.step}
@@ -127,6 +168,9 @@ const Landing = () => {
             </motion.div>
           ))}
         </motion.div>
+        <p className="text-center text-muted-foreground font-bold italic mt-8">
+          Nem todos serão escolhidos.
+        </p>
       </section>
 
       {/* Criterios */}
@@ -146,6 +190,71 @@ const Landing = () => {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Beneficio claro */}
+      <section className="px-4 md:px-8 py-16 max-w-5xl mx-auto">
+        <div className="text-center mb-8">
+          <p className="text-ui text-xs text-primary font-bold mb-3">BENEFÍCIO CLARO</p>
+          <h2 className="font-bold italic text-2xl md:text-3xl text-foreground">O que você ganha</h2>
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          {['Participação', 'Visibilidade', 'Oportunidade de patrocínio'].map((benefit) => (
+            <div key={benefit} className="bg-card border border-border rounded-xl px-5 py-6 text-center card-shadow">
+              <p className="font-bold italic text-lg text-foreground">{benefit}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Deportes */}
+      <section className="px-4 md:px-8 pb-16 max-w-6xl mx-auto">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden card-shadow">
+          <div className="grid lg:grid-cols-[1fr_1.6fr]">
+            <div className="bg-foreground text-background p-8 md:p-10 flex flex-col justify-center">
+              <p className="text-ui text-xs text-primary font-bold mb-3">DEPORTES</p>
+              <h2 className="font-bold italic text-3xl md:text-4xl leading-tight mb-5">
+                Todos os esportes.
+              </h2>
+              <p className="text-base md:text-lg font-bold leading-relaxed">
+                Se você treina, você pode participar.
+              </p>
+            </div>
+
+            <div className="p-8 md:p-10 grid grid-cols-2 sm:grid-cols-4 gap-5 content-center">
+              {[
+                { icon: <Footprints size={28} />, label: 'Corrida' },
+                { icon: <Bike size={28} />, label: 'Ciclismo' },
+                { icon: <Waves size={28} />, label: 'Surf' },
+                { icon: <Dumbbell size={28} />, label: 'Crossfit' },
+                { icon: <Activity size={28} />, label: 'Triatlo' },
+                { icon: <Goal size={28} />, label: 'Futebol' },
+                { icon: <Trophy size={28} />, label: 'Skate' },
+                { icon: <Flame size={28} />, label: 'Outro' },
+              ].map((sport) => (
+                <div key={sport.label} className="flex flex-col items-center justify-center gap-2 min-h-20 text-muted-foreground">
+                  <div className="text-foreground">{sport.icon}</div>
+                  <span className="text-ui text-[10px] text-center">{sport.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="text-center mt-10">
+          <p className="font-bold italic text-2xl md:text-4xl text-foreground leading-tight mb-6">
+            Seu esforço pode ser reconhecido.
+          </p>
+          <Link to="/registro">
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              transition={spring}
+              className="bg-primary text-primary-foreground text-ui px-10 py-4 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow text-sm font-bold"
+            >
+              QUERO MEU PATROCÍNIO
+            </motion.button>
+          </Link>
         </div>
       </section>
 
@@ -180,7 +289,8 @@ const Landing = () => {
         )}
       </section>
 
-      {/* Planos */}
+      {/* Planos kept for later; hidden while paid plans are paused. */}
+      {SHOW_PAID_PLANS && (
       <section className="px-4 md:px-8 py-16 bg-card/50">
         <div className="max-w-2xl mx-auto">
           <h2 className="font-bold italic text-2xl md:text-3xl text-foreground mb-8 text-center">PLANOS</h2>
@@ -243,6 +353,7 @@ const Landing = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Footer */}
       <footer className="px-4 md:px-8 py-12 text-center">

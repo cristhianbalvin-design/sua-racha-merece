@@ -20,7 +20,7 @@ const Register = () => {
     try {
       await register(email, password);
       toast.success('Conta criada com sucesso!');
-      navigate('/plano');
+      navigate('/completar-perfil');
     } catch (error: any) {
       console.error("Erro no signUp:", error);
       toast.error(`Erro ao criar conta: ${error.message || 'Tente novamente.'}`);

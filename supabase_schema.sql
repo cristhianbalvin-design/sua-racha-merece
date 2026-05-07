@@ -17,8 +17,12 @@ CREATE TABLE public.users (
   user_status TEXT DEFAULT 'Ativo' CHECK (user_status IN ('Ativo', 'Desabilitado')),
   campaigns_participated INTEGER DEFAULT 0,
   campaigns_won INTEGER DEFAULT 0,
+  birth_date DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
+
+-- Run this on existing databases:
+-- ALTER TABLE public.users ADD COLUMN IF NOT EXISTS birth_date DATE;
 
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users viewable by everyone" ON public.users FOR SELECT USING (true);
@@ -51,6 +55,7 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
 -- ==============================================
 CREATE TABLE public.campaigns (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
   sport TEXT NOT NULL,
   sport_icon TEXT,
   city TEXT NOT NULL,
@@ -66,6 +71,17 @@ CREATE TABLE public.campaigns (
   status TEXT DEFAULT 'Aberto' CHECK (status IN ('Aberto', 'Concluído', 'Eliminado', 'Qualificado')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW())
 );
+
+-- Existing databases: add campaign name without losing current data.
+ALTER TABLE public.campaigns
+  ADD COLUMN IF NOT EXISTS name TEXT;
+
+UPDATE public.campaigns
+SET name = description
+WHERE name IS NULL OR name = '';
+
+ALTER TABLE public.campaigns
+  ALTER COLUMN name SET NOT NULL;
 
 ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Campaigns are viewable by everyone" ON public.campaigns FOR SELECT USING (true);
@@ -89,9 +105,13 @@ CREATE TABLE public.participations (
   continuity_score NUMERIC,
   total_score NUMERIC,
   prize_delivered BOOLEAN DEFAULT false,
+  prequalification TEXT CHECK (prequalification IN ('Alto', 'Medio', 'Bajo')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()),
   UNIQUE(user_id, campaign_id)
 );
+
+-- Run this on existing databases:
+-- ALTER TABLE public.participations ADD COLUMN IF NOT EXISTS prequalification TEXT CHECK (prequalification IN ('Alto', 'Medio', 'Bajo'));
 
 ALTER TABLE public.participations ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Participations viewable by all (for leaderboards)" ON public.participations FOR SELECT USING (true);
