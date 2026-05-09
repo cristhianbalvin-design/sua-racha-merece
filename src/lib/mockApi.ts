@@ -38,13 +38,34 @@ export const apiUpdateUser = async (userId: string, updates: Partial<User>) => {
   if (updates.birthDate !== undefined) mapping.birth_date = updates.birthDate || null;
   if (updates.avatar) mapping.avatar_url = updates.avatar;
 
-  const { data } = await supabase.from('users').update(mapping).eq('id', userId).select('*').single();
+  const { data, error } = await supabase.from('users').update(mapping).eq('id', userId).select('*').single();
+  if (error) {
+    console.error('Error updating user profile:', error);
+    throw new Error(error.message);
+  }
   return data ? mapUser(data) : null;
 };
 
 export const apiToggleUserStatus = async (userId: string, currentStatus: string) => {
   const next = currentStatus === 'Ativo' ? 'Desabilitado' : 'Ativo';
   await supabase.from('users').update({ user_status: next }).eq('id', userId);
+};
+
+export const apiDeleteUser = async (userId: string) => {
+  await supabase.from('notifications').delete().eq('user_id', userId);
+  await supabase.from('participations').delete().eq('user_id', userId);
+
+  const { error } = await supabase.from('users').delete().eq('id', userId);
+  if (error) {
+    console.error('Error deleting user profile:', error);
+    throw new Error(error.message);
+  }
+
+  // Deletes the auth.users record via a SECURITY DEFINER RPC function
+  const { error: rpcError } = await supabase.rpc('delete_auth_user', { target_user_id: userId });
+  if (rpcError) {
+    console.error('Auth user delete failed (run SQL in Supabase):', rpcError);
+  }
 };
 
 // Campaigns

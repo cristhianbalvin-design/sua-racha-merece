@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Trash2 } from 'lucide-react';
 import PlanBadge from '@/components/PlanBadge';
-import { apiGetUsers, apiToggleUserStatus } from '@/lib/mockApi';
+import { apiGetUsers, apiToggleUserStatus, apiDeleteUser } from '@/lib/mockApi';
+import { toast } from 'sonner';
 import { User } from '@/data/mockData';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
@@ -13,6 +15,8 @@ const AdminUsers = () => {
   const [cityFilter, setCityFilter] = useState('');
   const [planFilter, setPlanFilter] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     apiGetUsers().then(setUserList);
@@ -21,6 +25,21 @@ const AdminUsers = () => {
   const handleDisable = async (id: string, currentStatus: string) => {
     await apiToggleUserStatus(id, currentStatus);
     setUserList(await apiGetUsers());
+  };
+
+  const handleDelete = async () => {
+    if (!userToDelete) return;
+    setDeleting(true);
+    try {
+      await apiDeleteUser(userToDelete.id);
+      setUserList(prev => prev.filter(u => u.id !== userToDelete.id));
+      toast.success(`Usuario "${userToDelete.name}" eliminado.`);
+      setUserToDelete(null);
+    } catch (err: any) {
+      toast.error('Error al eliminar: ' + err.message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const states = Array.from(new Set(userList.map(u => u.country))).filter(Boolean);
@@ -96,6 +115,9 @@ const AdminUsers = () => {
                   <PlanBadge plan={user.plan} />
                 </div>
                 <p className="text-xs text-muted-foreground">{user.city} · {user.country}</p>
+                {user.email && (
+                  <p className="text-xs text-muted-foreground/60 mt-0.5">{user.email}</p>
+                )}
               </div>
               <div className="flex items-center gap-3 flex-shrink-0">
                 <span
@@ -118,7 +140,7 @@ const AdminUsers = () => {
                       : 'bg-success/20 text-success border border-success/40 text-ui text-xs px-4 py-2 rounded-xl'
                   }
                 >
-                  {user.userStatus === 'Ativo' ? 'DESABILITAR' : 'HABILITAR'}
+                  {user.userStatus === 'Ativo' ? 'DESACTIVAR' : 'ACTIVAR'}
                 </motion.button>
                 <motion.button
                   onClick={() => setSelectedUser(user)}
@@ -129,11 +151,65 @@ const AdminUsers = () => {
                 >
                   DETALLES
                 </motion.button>
+                <motion.button
+                  onClick={() => setUserToDelete(user)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={spring}
+                  className="text-muted-foreground hover:text-destructive transition-colors p-2 rounded-lg hover:bg-destructive/10"
+                  title="Eliminar usuario"
+                >
+                  <Trash2 size={16} />
+                </motion.button>
               </div>
             </div>
           </motion.div>
         ))}
       </div>
+
+      {/* Delete confirmation modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-card border border-border rounded-2xl w-full max-w-sm p-6 card-shadow"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
+                <Trash2 size={18} className="text-destructive" />
+              </div>
+              <div>
+                <h3 className="font-bold text-foreground">Eliminar usuario</h3>
+                <p className="text-xs text-muted-foreground">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-6">
+              ¿Estás seguro que deseas eliminar a <span className="font-bold text-foreground">{userToDelete.name}</span>? Se borrarán su perfil, participaciones y cuenta de acceso.
+            </p>
+            <div className="flex gap-3">
+              <motion.button
+                onClick={() => setUserToDelete(null)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                disabled={deleting}
+                className="flex-1 bg-muted text-foreground text-ui text-xs py-2.5 rounded-xl"
+              >
+                CANCELAR
+              </motion.button>
+              <motion.button
+                onClick={handleDelete}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                disabled={deleting}
+                className="flex-1 bg-destructive text-destructive-foreground text-ui text-xs py-2.5 rounded-xl disabled:opacity-60"
+              >
+                {deleting ? 'ELIMINANDO...' : 'ELIMINAR'}
+              </motion.button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">

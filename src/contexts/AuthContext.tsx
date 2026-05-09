@@ -40,12 +40,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           city: data.city || '',
           country: data.country || '',
           sport: data.sport || '',
+          phone: data.phone || '',
+          gender: data.gender || '',
+          birthDate: data.birth_date || '',
           avatar: data.avatar_url || '',
           plan: data.plan as 'Freemium' | 'Premium',
           userStatus: data.user_status as 'Ativo' | 'Desabilitado',
           campaignsParticipated: data.campaigns_participated,
           campaignsWon: data.campaigns_won,
-          photos: [], // will migrate fully in next Phase
+          photos: [],
         };
         setUser(mappedUser);
         setIsAdmin(data.role === 'ADMIN' || data.email === 'admin@3buk.com');
@@ -125,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={{ user, isAdmin, loading, login, register, logout, updateUserContext }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
