@@ -20,7 +20,7 @@ const formatCampMonth = (dateStr?: string) => {
  * COMPROMISO: max 5 pts
  * Rule 1: joined campaign on creation day (+1)
  * Rule 2: joined within 7 days (+1)
- * Rule 3: uploaded both photo AND video (+1)
+ * Rule 3: submitted evidence media (+1)
  * Rule 4: concluded participation (+1)
  * Rule 5 (if campaign has IG enabled): submitted instagram screenshot (+1)
  * Formula: 5 * met / required
@@ -41,9 +41,7 @@ const calcCompromiso = (
   let r3 = false;
   if (p.photo) {
     const media = Array.isArray(p.photo) ? p.photo : [p.photo];
-    const hasPhoto = media.some(url => !/\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url));
-    const hasVideo = media.some(url => /\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url));
-    r3 = hasPhoto && hasVideo;
+    r3 = media.some(Boolean);
   }
 
   const r4 = ['Concluído', 'Qualificado', 'Ganhador'].includes(p.participationStatus);
@@ -548,7 +546,7 @@ const AdminQualification = () => {
                       <td className="px-4 py-3 text-center">
                         <div
                           className="inline-flex items-center gap-1 bg-secondary/10 text-secondary rounded-lg px-3 py-1.5 text-sm font-bold cursor-help"
-                          title={`R1: mesmo dia=${compRules[0]} | R2: ≤7 dias=${compRules[1]} | R3: foto+vídeo=${compRules[2]} | R4: concluído=${compRules[3]}${compReq === 5 ? ` | R5: instagram=${compRules[4]}` : ''}`}
+                          title={`R1: mesmo dia=${compRules[0]} | R2: ≤7 dias=${compRules[1]} | R3: evidência=${compRules[2]} | R4: concluído=${compRules[3]}${compReq === 5 ? ` | R5: instagram=${compRules[4]}` : ''}`}
                         >
                           {compromiso}
                           <Info size={10} className="opacity-50" />
@@ -653,7 +651,7 @@ const AdminQualification = () => {
       {/* Score formula legend */}
       <div className="mt-6 bg-card rounded-2xl p-4 card-shadow text-xs text-muted-foreground space-y-1">
         <p className="font-bold text-foreground mb-2">📐 Critérios de Pontuação</p>
-        <p><span className="text-secondary font-bold">COMPROMISSO</span> = 5 × (regras concluídas / req) &nbsp;|&nbsp; R1: participou no dia da criação (+1) · R2: ≤7 dias (+1) · R3: foto+vídeo (+1) · R4: concluiu (+1) · R5: ig (opcional, +1)</p>
+        <p><span className="text-secondary font-bold">COMPROMISSO</span> = 5 × (regras concluídas / req) &nbsp;|&nbsp; R1: participou no dia da criação (+1) · R2: ≤7 dias (+1) · R3: enviou evidência (+1) · R4: concluiu (+1) · R5: ig (opcional, +1)</p>
         <p><span className="text-accent font-bold">CONTINUIDADE</span> = até 5 pts &nbsp;|&nbsp; R1: partic. 1º mês (+1) · R2: vitória 1º mês (+1) · R3: partic. 3 meses consec. (+1) · R4: vitória 3 meses consec. (+1) · R5: vitória neste mês (+1)</p>
         <p><span className="text-warning font-bold">TOTAL</span> = (COMPROMISSO + CONTINUIDADE) × ATITUDE &nbsp;|&nbsp; Máx: (5+5) × 0.95 = <strong>9.5</strong></p>
       </div>
@@ -777,7 +775,7 @@ const AdminQualification = () => {
                       <div className="space-y-0.5 text-xs text-muted-foreground pl-2">
                         <p>{compRules[0] ? '✅' : '❌'} Participou no mesmo dia da criação da campanha</p>
                         <p>{compRules[1] ? '✅' : '❌'} Participou nos primeiros 7 dias</p>
-                        <p>{compRules[2] ? '✅' : '❌'} Enviou foto E vídeo como evidência</p>
+                        <p>{compRules[2] ? '✅' : '❌'} Enviou evidência da participação</p>
                         <p>{compRules[3] ? '✅' : '❌'} Concluiu a participação</p>
                         {compReq === 5 && (
                           <p>{compRules[4] ? '✅' : '❌'} Publicou evidência no Instagram</p>

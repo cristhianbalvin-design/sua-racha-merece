@@ -125,8 +125,8 @@ const AdminPopups = () => {
 
           <div>
             <label className="text-ui text-xs text-muted-foreground block mb-2">IMAGEM DO POPUP</label>
-            <p className="text-xs text-muted-foreground mb-2">Formato recomendado: horizontal, 5:2, com 1920px de largura.</p>
-            <label className="block cursor-pointer rounded-xl border border-dashed border-border bg-muted/40 hover:bg-muted/60 transition-colors p-4">
+            <p className="text-xs text-muted-foreground mb-2">Formato recomendado: horizontal, 4:3.</p>
+            <label className="block cursor-pointer rounded-xl border border-dashed border-border bg-muted/40 hover:bg-muted/60 transition-colors p-4 max-w-xs">
               <input
                 type="file"
                 accept="image/*"
@@ -134,9 +134,9 @@ const AdminPopups = () => {
                 onChange={(e) => handleFileChange(e.target.files?.[0])}
               />
               {preview ? (
-                <img src={preview} alt="Preview do popup" className="w-full aspect-[5/2] object-cover rounded-lg bg-background" />
+                <img src={preview} alt="Preview do popup" className="w-full aspect-[4/3] object-cover rounded-lg bg-background" />
               ) : (
-                <div className="aspect-[5/2] flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <div className="aspect-[4/3] flex flex-col items-center justify-center gap-3 text-muted-foreground">
                   <ImagePlus size={32} />
                   <span className="text-sm font-bold">Subir imagem</span>
                 </div>
@@ -222,7 +222,7 @@ const AdminPopups = () => {
                     <tr key={popup.id}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <img src={popup.imageUrl} alt={popup.name} className="w-16 h-10 object-cover rounded-md bg-muted" />
+                          <img src={popup.imageUrl} alt={popup.name} className="w-14 aspect-[4/3] object-cover rounded-md bg-muted" />
                           <div>
                             <p className="font-bold text-foreground">{popup.name}</p>
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActivePopup(popup) ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>

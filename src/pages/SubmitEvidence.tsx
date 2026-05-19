@@ -10,7 +10,6 @@ const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const MAX_PHOTOS = 1;
 const MAX_VIDEOS = 1;
-const MAX_IG = 1;
 
 const MAX_VIDEO_DURATION_SECONDS = 10;
 
@@ -141,8 +140,8 @@ const SubmitEvidence = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (photos.length === 0 || videos.length === 0 || comment.trim() === '') {
-      toast.error('Adiciona una foto, un video y un comentario para participar.');
+    if (photos.length === 0 || comment.trim() === '') {
+      toast.error('Adiciona una foto y un comentario para participar.');
       return;
     }
     if (instagram && !igScreenshot) {
@@ -155,30 +154,25 @@ const SubmitEvidence = () => {
     toast.loading('Subiendo archivos...', { id: 'upload-evidence' });
 
     // Subida óptima: concurrente con Promise.all
-    const [photoUrls, videoUrls, igUrlResult] = await Promise.all([
+    const [photoUrls, igUrlResult] = await Promise.all([
       Promise.all(photos.map(file => apiUploadEvidence(file, user.id))),
-      Promise.all(videos.map(file => apiUploadEvidence(file, user.id))),
       igScreenshot ? apiUploadEvidence(igScreenshot, user.id) : Promise.resolve(undefined)
     ]);
 
     const uploadedPhotoUrls = photoUrls.filter((url): url is string => url !== null);
-    const uploadedVideoUrls = videoUrls.filter((url): url is string => url !== null);
     const igUrl = igUrlResult || undefined;
 
-    if (uploadedPhotoUrls.length === 0 && uploadedVideoUrls.length === 0 && !igUrl) {
+    if (uploadedPhotoUrls.length === 0 && !igUrl) {
       toast.error('Error al subir los archivos. Por favor intenta nuevamente.', { id: 'upload-evidence' });
       setIsUploading(false);
       return;
     }
 
-    // Combine photos and videos into 'media' photo parameter array if backend merges it, or just use the first available picture as the primary photo.
-    const allMediaUrls = [...uploadedPhotoUrls, ...uploadedVideoUrls];
-
     await apiUpdateParticipation(participationId, {
       participationStatus: 'Concluído',
       comment,
       instagram,
-      photo: allMediaUrls, // Passing the array so mockApi handles it seamlessly
+      photo: uploadedPhotoUrls,
       instagramPhoto: igUrl,
     });
 
@@ -246,7 +240,7 @@ const SubmitEvidence = () => {
               </div>
 
               {/* Videos section */}
-              <div>
+              <div className="hidden">
                 <div className="flex justify-between items-end mb-1">
                   <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">
                     VIDEOS <span className="text-destructive">(OBLIGATORIO)</span> <span className="text-primary ml-1">{videos.length}/{MAX_VIDEOS}</span>
@@ -348,12 +342,12 @@ const SubmitEvidence = () => {
 
               <motion.button
                 type="submit"
-                disabled={isUploading || photos.length === 0 || videos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)}
+                disabled={isUploading || photos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)}
                 whileHover={!isUploading ? { scale: 1.03 } : {}}
                 whileTap={!isUploading ? { scale: 0.97 } : {}}
                 transition={spring}
                 className={`w-full text-primary-foreground text-ui py-4 rounded-xl btn-shadow text-base transition-all ${
-                  isUploading || photos.length === 0 || videos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)
+                  isUploading || photos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)
                     ? 'bg-primary/50 cursor-not-allowed'
                     : 'bg-primary hover:btn-shadow-hover'
                 }`}

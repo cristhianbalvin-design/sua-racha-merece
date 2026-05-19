@@ -48,7 +48,7 @@ const UserLayout = () => {
               <img
                 src={activePopup.imageUrl}
                 alt={activePopup.name}
-                className="w-full aspect-[5/2] max-h-[78vh] object-cover rounded-2xl border border-border card-shadow bg-card"
+                className="w-full aspect-[4/3] max-h-[78vh] object-cover rounded-2xl border border-border card-shadow bg-card"
               />
             </a>
           </motion.div>

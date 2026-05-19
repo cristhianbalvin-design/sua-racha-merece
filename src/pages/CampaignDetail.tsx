@@ -101,19 +101,10 @@ const CampaignDetail = () => {
           </p>
         </div>
 
-        <div className="bg-card rounded-2xl p-5 card-shadow flex flex-col sm:flex-row items-start gap-4">
-          <div className="bg-muted text-foreground font-bold rounded-full px-3 py-1 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs uppercase tracking-wide">
-            Paso 2
-          </div>
-          <p className="text-foreground font-bold text-base md:text-lg leading-snug">
-            Sube un video mostrando como vives tu deporte favorito.
-          </p>
-        </div>
-
         {campaign.instagramOptional && (
           <div className="bg-card rounded-2xl p-5 card-shadow flex flex-col sm:flex-row items-start gap-4 border border-secondary/20">
             <div className="bg-secondary text-secondary-foreground font-bold rounded-full px-3 py-1 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs uppercase tracking-wide">
-              Paso 3
+              Paso 2
             </div>
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -129,7 +120,7 @@ const CampaignDetail = () => {
 
         <div className="bg-card rounded-2xl p-5 card-shadow flex flex-col sm:flex-row items-start gap-4 border border-success/20">
           <div className="bg-success text-success-foreground font-bold rounded-full px-3 py-1 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs uppercase tracking-wide">
-            Paso {campaign.instagramOptional ? '4' : '3'}
+            Paso {campaign.instagramOptional ? '3' : '2'}
           </div>
           <p className="text-foreground font-bold text-base md:text-lg leading-snug">
             ¡Eso es todo! Ya has concluido tu participación. Ahora te toca esperar resultados. ¡Recuerda mantener siempre una excelente actitud!

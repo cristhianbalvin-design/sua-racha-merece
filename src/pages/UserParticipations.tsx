@@ -156,8 +156,8 @@ const UserParticipations = () => {
   const handleSubmitEvidence = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!showEvidenceModal || !user) return;
-    if (photos.length === 0 || videos.length === 0 || comment.trim() === '') {
-      toast.error('Adiciona una foto, un video y un comentario para participar.');
+    if (photos.length === 0 || comment.trim() === '') {
+      toast.error('Adiciona una foto y un comentario para participar.');
       return;
     }
     if (instagram && !igScreenshot) {
@@ -168,14 +168,14 @@ const UserParticipations = () => {
     toast.loading('Subiendo evidencia...', { id: 'upload-evidence' });
 
     const [mediaUrls, igUrlResult] = await Promise.all([
-      Promise.all([...photos, ...videos].map(file => apiUploadEvidence(file, user.id))),
+      Promise.all(photos.map(file => apiUploadEvidence(file, user.id))),
       (instagram && igScreenshot) ? apiUploadEvidence(igScreenshot, user.id) : Promise.resolve(undefined)
     ]);
 
     const uploadedUrls = mediaUrls.filter((url): url is string => url !== null);
     const igUrl = igUrlResult || undefined;
 
-    if (uploadedUrls.length === 0 && !igUrl && (photos.length > 0 || videos.length > 0 || (instagram && igScreenshot))) {
+    if (uploadedUrls.length === 0 && !igUrl && (photos.length > 0 || (instagram && igScreenshot))) {
       toast.error('Error al subir los archivos. Intenta nuevamente.', { id: 'upload-evidence' });
       setIsUploading(false);
       return;
@@ -199,7 +199,6 @@ const UserParticipations = () => {
       setComment('');
       setInstagram(false);
       setPhotos([]);
-      setVideos([]);
       setPhotoPreviews([]);
       setIgScreenshot(null);
       setIgScreenshotPreview(null);
@@ -350,7 +349,7 @@ const UserParticipations = () => {
                   </div>
 
                   {/* Video upload */}
-                  <div className="mb-4">
+                  <div className="hidden">
                     <div className="flex justify-between items-end mb-1">
                       <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">VIDEOS <span className="text-destructive">(OBLIGATORIO)</span> <span className="text-primary ml-1">{videos.length}/{MAX_VIDEOS}</span></label>
                       {videos.length < MAX_VIDEOS && (
@@ -457,9 +456,7 @@ const UserParticipations = () => {
                       onClick={() => {
                         setShowEvidenceModal(null);
                         setPhotos([]);
-                        setVideos([]);
                         setPhotoPreviews([]);
-                        setVideoPreviews([]);
                         setIgScreenshot(null);
                         setIgScreenshotPreview(null);
                         setComment('');
@@ -474,12 +471,12 @@ const UserParticipations = () => {
                     </motion.button>
                     <motion.button
                       type="submit"
-                      disabled={isUploading || photos.length === 0 || videos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)}
+                      disabled={isUploading || photos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)}
                       whileHover={!isUploading ? { scale: 1.02 } : {}}
                       whileTap={!isUploading ? { scale: 0.98 } : {}}
                       transition={spring}
                       className={`flex-[0.6] text-primary-foreground text-ui text-xs py-3 rounded-xl font-bold btn-shadow ${
-                        isUploading || photos.length === 0 || videos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)
+                        isUploading || photos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)
                           ? 'bg-primary/50 cursor-not-allowed'
                           : 'bg-primary hover:btn-shadow-hover'
                       }`}

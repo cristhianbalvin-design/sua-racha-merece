@@ -25,9 +25,7 @@ const calcCompromiso = (
   let r3 = false;
   if (p.photo) {
     const media = Array.isArray(p.photo) ? p.photo : [p.photo];
-    const hasPhoto = media.some(url => !/\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url));
-    const hasVideo = media.some(url => /\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url));
-    r3 = hasPhoto && hasVideo;
+    r3 = media.some(Boolean);
   }
 
   const r4 = ['Concluído', 'Qualificado', 'Ganhador'].includes(p.participationStatus);
@@ -424,7 +422,7 @@ const AdminWinners = () => {
                       <div className="space-y-0.5 text-xs text-muted-foreground pl-2">
                         <p>{compRules[0] ? '✅' : '❌'} Participou no mesmo dia da criação da campanha</p>
                         <p>{compRules[1] ? '✅' : '❌'} Participou nos primeiros 7 dias</p>
-                        <p>{compRules[2] ? '✅' : '❌'} Enviou foto E vídeo como evidência</p>
+                        <p>{compRules[2] ? '✅' : '❌'} Enviou evidência da participação</p>
                         <p>{compRules[3] ? '✅' : '❌'} Concluiu a participação</p>
                         {compReq === 5 && (
                           <p>{compRules[4] ? '✅' : '❌'} Publicou evidência no Instagram</p>

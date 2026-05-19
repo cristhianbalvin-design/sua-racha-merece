@@ -35,7 +35,6 @@ import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
-import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 initializeMockData();
 
@@ -100,7 +99,6 @@ const App = () => (
         <AuthProvider>
           <Toaster />
           <Sonner />
-          <PWAInstallPrompt />
           <AnimatedRoutes />
         </AuthProvider>
       </TooltipProvider>

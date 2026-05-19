@@ -56,7 +56,7 @@ const Landing = () => {
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={spring}
-            className="relative w-full max-w-[min(96vw,1400px)]"
+            className="relative w-full max-w-[min(92vw,860px)] overflow-hidden rounded-2xl border border-border bg-card card-shadow"
           >
             <button
               onClick={closePopup}
@@ -65,13 +65,33 @@ const Landing = () => {
             >
               <X size={18} />
             </button>
-            <Link to="/login" onClick={closePopup}>
-              <img
-                src={activePopup.imageUrl}
-                alt={activePopup.name}
-                className="w-full aspect-[5/2] max-h-[78vh] object-cover rounded-2xl border border-border card-shadow bg-card"
-              />
-            </Link>
+            <img
+              src={activePopup.imageUrl}
+              alt={activePopup.name}
+              className="w-full aspect-[4/3] max-h-[72vh] object-cover bg-card"
+            />
+            <div className="grid grid-cols-1 gap-3 bg-card p-3 sm:grid-cols-2 sm:p-4">
+              <Link to="/registro" onClick={closePopup}>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={spring}
+                  className="w-full rounded-xl bg-primary px-5 py-3 text-ui text-sm font-bold text-primary-foreground btn-shadow hover:btn-shadow-hover"
+                >
+                  REGISTRO NUEVO USUARIO
+                </motion.button>
+              </Link>
+              <Link to="/login" onClick={closePopup}>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={spring}
+                  className="w-full rounded-xl bg-muted px-5 py-3 text-ui text-sm font-bold text-foreground hover:bg-muted/80"
+                >
+                  INICIAR SESI&Oacute;N
+                </motion.button>
+              </Link>
+            </div>
           </motion.div>
         </div>
       )}
@@ -151,25 +171,25 @@ const Landing = () => {
         <motion.div
           {...fadeIn}
           transition={{ ...spring, delay: 0.1 }}
-          className="max-w-5xl mx-auto border-y border-primary/30 py-10"
+          className="max-w-4xl mx-auto border-y border-primary/30 py-12"
         >
-          <div className="grid md:grid-cols-[0.85fr_1.15fr] gap-8 md:gap-12 items-center">
+          <div className="flex flex-col items-center text-center gap-8">
             <div>
               <p className="text-ui text-xs text-primary font-bold mb-3">3BUK</p>
               <h2 className="font-bold italic text-3xl md:text-4xl text-foreground leading-tight">
                 O que é a <span className="text-primary">3BUK?</span>
               </h2>
             </div>
-            <div>
+            <div className="max-w-2xl">
               <p className="text-xl md:text-2xl text-foreground font-bold italic leading-snug">
                 A 3BUK é uma marca que patrocina atletas amadores com base em
                 <span className="text-primary"> compromisso</span>,
                 <span className="text-secondary"> continuidade</span> e
                 <span className="text-accent"> atitude</span>.
               </p>
-              <div className="grid grid-cols-3 gap-2 mt-6">
+              <div className="grid grid-cols-3 gap-3 mt-8">
                 {['Compromisso', 'Continuidade', 'Atitude'].map((item) => (
-                  <div key={item} className="bg-card border border-border rounded-lg px-3 py-3 text-center">
+                  <div key={item} className="bg-card border border-border rounded-lg px-4 py-4 text-center">
                     <span className="text-ui text-[10px] md:text-xs text-muted-foreground">{item}</span>
                   </div>
                 ))}
