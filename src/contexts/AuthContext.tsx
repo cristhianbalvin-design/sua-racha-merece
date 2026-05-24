@@ -7,7 +7,7 @@ interface AuthContextType {
   isAdmin: boolean;
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
-  register: (email: string, password?: string, name?: string) => Promise<void>;
+  register: (email: string, password?: string, name?: string, acceptedTerms?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   updateUserContext: (updates: Partial<User>) => void;
 }
@@ -107,12 +107,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (email: string, password = 'password123', name = 'Atleta') => {
+  const register = async (email: string, password = 'password123', name = 'Atleta', acceptedTerms = false) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { name, role: 'USUARIO' }
+        data: { 
+          name, 
+          role: 'USUARIO',
+          accepted_terms: acceptedTerms,
+          accepted_terms_at: new Date().toISOString()
+        }
       }
     });
     if (error) throw error;

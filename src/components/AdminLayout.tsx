@@ -23,6 +23,7 @@ const AdminLayout = () => {
     { to: '/admin/popups', label: 'Popups' },
     { to: '/admin/esportes', label: 'Esportes' },
     { to: '/admin/regioes', label: 'Regiões' },
+    { to: '/admin/termos', label: 'Termos' },
   ];
 
   return (

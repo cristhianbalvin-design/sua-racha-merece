@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { OnboardingStepper } from '@/components/OnboardingStepper';
+import { TermsModal } from '@/components/TermsModal';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -12,13 +13,22 @@ const Register = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const { register } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!acceptedTerms) {
+      setErrorMsg('Você precisa aceitar os Termos e Condições para continuar.');
+      toast.error('Você precisa aceitar os Termos e Condições para continuar.');
+      return;
+    }
+    setErrorMsg('');
     try {
-      await register(email, password);
+      await register(email, password, 'Atleta', acceptedTerms);
       toast.success('Conta criada com sucesso!');
       navigate('/completar-perfil');
     } catch (error: any) {
@@ -62,13 +72,45 @@ const Register = () => {
 
           <motion.button
             type="submit"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={acceptedTerms ? { scale: 1.03 } : {}}
+            whileTap={acceptedTerms ? { scale: 0.97 } : {}}
             transition={spring}
-            className="w-full bg-primary text-primary-foreground text-ui py-3 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow"
+            className={`w-full bg-primary text-primary-foreground text-ui py-3 rounded-xl btn-shadow hover:btn-shadow-hover transition-all flex items-center justify-center font-bold ${
+              !acceptedTerms ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
             CRIAR CONTA
           </motion.button>
+
+          <div className="flex flex-col gap-1 py-1">
+            <div className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                id="terms"
+                checked={acceptedTerms}
+                onChange={(e) => {
+                  setAcceptedTerms(e.target.checked);
+                  if (e.target.checked) setErrorMsg('');
+                }}
+                className="mt-1 cursor-pointer w-4 h-4 rounded border-border bg-input text-primary focus:ring-ring focus:ring-offset-background accent-primary"
+              />
+              <label htmlFor="terms" className="text-xs text-muted-foreground select-none cursor-pointer leading-tight">
+                Li e aceito os{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  className="text-primary font-bold hover:underline bg-transparent border-none p-0 inline cursor-pointer"
+                >
+                  Termos e Condições
+                </button>
+              </label>
+            </div>
+            {errorMsg && (
+              <span className="text-destructive text-xs mt-1 block animate-in fade-in slide-in-from-top-1">
+                {errorMsg}
+              </span>
+            )}
+          </div>
 
           <motion.button
             type="button"
@@ -86,6 +128,15 @@ const Register = () => {
           <Link to="/login" className="text-primary font-bold">Entrar</Link>
         </p>
       </div>
+
+      <TermsModal
+        isOpen={showTermsModal}
+        onClose={() => setShowTermsModal(false)}
+        onAccept={() => {
+          setAcceptedTerms(true);
+          setErrorMsg('');
+        }}
+      />
     </div>
   );
 };

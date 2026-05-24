@@ -63,6 +63,8 @@ export interface User {
   userStatus: UserStatus;
   photos: string[];
   createdAt?: string;
+  acceptedTerms?: boolean;
+  acceptedTermsAt?: string;
 }
 
 
@@ -113,6 +115,15 @@ export interface HomePopup {
   startDate: string;
   endDate: string;
   createdAt?: string;
+}
+
+export interface TermsAndConditions {
+  id: string;
+  content: string;
+  version: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ─── Mock data ──────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { User, Campaign, Participation, Winner, HomePopup } from '../data/mockData';
+import type { User, Campaign, Participation, Winner, HomePopup, TermsAndConditions } from '../data/mockData';
 import { toast } from 'sonner';
 
 // Map Row to User interface
@@ -20,6 +20,8 @@ const mapUser = (row: any): User => ({
   campaignsWon: row.campaigns_won,
   photos: [],
   createdAt: row.created_at || '',
+  acceptedTerms: row.accepted_terms,
+  acceptedTermsAt: row.accepted_terms_at,
 });
 
 export const apiGetUsers = async (): Promise<User[]> => {
@@ -502,4 +504,134 @@ export const apiUploadHomePopupImage = async (file: File): Promise<string | null
   
   const { data } = supabase.storage.from('popups').getPublicUrl(fileName);
   return normalizeStoragePublicUrl(data.publicUrl);
+};
+
+// ──────────────────────────────────────────────
+// Terms & Conditions
+// ──────────────────────────────────────────────
+
+const mapTerms = (row: any): TermsAndConditions => ({
+  id: row.id,
+  content: row.content,
+  version: row.version,
+  isActive: row.is_active,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+export const apiGetActiveTerms = async (): Promise<TermsAndConditions | null> => {
+  const { data, error } = await supabase
+    .from('terms_and_conditions')
+    .select('*')
+    .eq('is_active', true)
+    .order('version', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching active terms:', error);
+    return null;
+  }
+  return data ? mapTerms(data) : null;
+};
+
+export const apiGetTermsHistory = async (): Promise<TermsAndConditions[]> => {
+  const { data, error } = await supabase
+    .from('terms_and_conditions')
+    .select('*')
+    .order('version', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching terms history:', error);
+    return [];
+  }
+  return (data || []).map(mapTerms);
+};
+
+export const apiSaveTerms = async (content: string): Promise<TermsAndConditions | null> => {
+  // Get current active version to increment it
+  const activeTerms = await apiGetActiveTerms();
+  const nextVersion = activeTerms ? activeTerms.version + 1 : 1;
+
+  // Set all previous versions to is_active = false
+  const { error: updateError } = await supabase
+    .from('terms_and_conditions')
+    .update({ is_active: false })
+    .eq('is_active', true);
+
+  if (updateError) {
+    console.error('Error deactivating previous terms:', updateError);
+    toast.error('Erro ao desativar termos anteriores: ' + updateError.message);
+    return null;
+  }
+
+  // Insert the new active version
+  const { data, error } = await supabase
+    .from('terms_and_conditions')
+    .insert({
+      content,
+      version: nextVersion,
+      is_active: true,
+    })
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('Error saving terms and conditions:', error);
+    toast.error('Erro ao salvar termos: ' + error.message);
+    return null;
+  }
+
+  toast.success('Termos e Condições atualizados com sucesso!');
+  return data ? mapTerms(data) : null;
+};
+
+export const apiUpdateTermsContent = async (id: string, content: string): Promise<TermsAndConditions | null> => {
+  const { data, error } = await supabase
+    .from('terms_and_conditions')
+    .update({ 
+      content, 
+      updated_at: new Date().toISOString() 
+    })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('Error updating terms content:', error);
+    toast.error('Erro ao atualizar termos: ' + error.message);
+    return null;
+  }
+  
+  toast.success('Termos atualizados com sucesso!');
+  return data ? mapTerms(data) : null;
+};
+
+export const apiActivateTermsVersion = async (id: string): Promise<boolean> => {
+  // Deactivate all active ones
+  const { error: updateError } = await supabase
+    .from('terms_and_conditions')
+    .update({ is_active: false })
+    .eq('is_active', true);
+
+  if (updateError) {
+    console.error('Error deactivating previous terms:', updateError);
+    toast.error('Erro ao desativar termos anteriores: ' + updateError.message);
+    return false;
+  }
+
+  // Activate selected one
+  const { error: activateError } = await supabase
+    .from('terms_and_conditions')
+    .update({ is_active: true })
+    .eq('id', id);
+
+  if (activateError) {
+    console.error('Error activating terms version:', activateError);
+    toast.error('Erro ao activar versão: ' + activateError.message);
+    return false;
+  }
+
+  toast.success('Versão dos Termos activada com sucesso!');
+  return true;
 };

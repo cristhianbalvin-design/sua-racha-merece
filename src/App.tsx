@@ -31,6 +31,7 @@ import AdminRelatorio from "./pages/admin/AdminRelatorio";
 import AdminProfile from "./pages/admin/AdminProfile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminPopups from "./pages/admin/AdminPopups";
+import AdminTerms from "./pages/admin/AdminTerms";
 import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -84,6 +85,7 @@ const AnimatedRoutes = () => {
           <Route path="/admin/popups" element={<AdminPopups />} />
           <Route path="/admin/esportes" element={<AdminSports />} />
           <Route path="/admin/regioes" element={<AdminRegions />} />
+          <Route path="/admin/termos" element={<AdminTerms />} />
         </Route>
 
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
