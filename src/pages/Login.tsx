@@ -12,7 +12,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +23,15 @@ const Login = () => {
     } catch (error: any) {
       const msg = error?.message || 'Erro ao entrar. Verifique suas credenciais.';
       toast.error(msg);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      toast.error('Erro ao entrar com Google: ' + (error?.message || 'Tente novamente.'));
     }
   };
 
@@ -63,9 +72,20 @@ const Login = () => {
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             transition={spring}
-            className="w-full bg-primary text-primary-foreground text-ui py-3 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow"
+            className="w-full bg-primary text-primary-foreground text-ui py-3 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow font-bold"
           >
             ENTRAR
+          </motion.button>
+
+          <motion.button
+            type="button"
+            onClick={handleGoogleLogin}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            transition={spring}
+            className="w-full bg-card text-foreground text-ui py-3 rounded-xl card-shadow hover:card-shadow-hover transition-shadow font-bold"
+          >
+            ENTRAR COM GOOGLE
           </motion.button>
         </form>
 

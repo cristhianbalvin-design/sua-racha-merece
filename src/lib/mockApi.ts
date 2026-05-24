@@ -635,3 +635,20 @@ export const apiActivateTermsVersion = async (id: string): Promise<boolean> => {
   toast.success('Versão dos Termos activada com sucesso!');
   return true;
 };
+
+export const apiAcceptTermsForOAuthUser = async (userId: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('users')
+    .update({ 
+      accepted_terms: true, 
+      accepted_terms_at: new Date().toISOString() 
+    })
+    .eq('id', userId);
+
+  if (error) {
+    console.error('Error accepting terms for OAuth user:', error);
+    toast.error('Erro ao aceitar termos: ' + error.message);
+    return false;
+  }
+  return true;
+};

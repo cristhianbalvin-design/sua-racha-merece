@@ -17,7 +17,16 @@ const Register = () => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
+
+  const handleGoogleLogin = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (error: any) {
+      console.error('Google auth error:', error);
+      toast.error('Erro ao entrar com Google: ' + (error?.message || 'Tente novamente.'));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,10 +123,11 @@ const Register = () => {
 
           <motion.button
             type="button"
+            onClick={handleGoogleLogin}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             transition={spring}
-            className="w-full bg-card text-foreground text-ui py-3 rounded-xl card-shadow hover:card-shadow-hover transition-shadow"
+            className="w-full bg-card text-foreground text-ui py-3 rounded-xl card-shadow hover:card-shadow-hover transition-shadow font-bold"
           >
             ENTRAR COM GOOGLE
           </motion.button>

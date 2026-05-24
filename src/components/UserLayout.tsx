@@ -4,13 +4,18 @@ import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import MobileNav from './MobileNav';
 import DesktopHeader from './DesktopHeader';
-import { apiGetActiveHomePopup } from '@/lib/mockApi';
+import { apiGetActiveHomePopup, apiAcceptTermsForOAuthUser } from '@/lib/mockApi';
 import type { HomePopup } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
+import { TermsModal } from './TermsModal';
+import { toast } from 'sonner';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const UserLayout = () => {
   const [activePopup, setActivePopup] = useState<HomePopup | null>(null);
+  const { user, updateUserContext } = useAuth();
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   useEffect(() => {
     apiGetActiveHomePopup().then((popup) => {
@@ -20,11 +25,34 @@ const UserLayout = () => {
     });
   }, []);
 
+  useEffect(() => {
+    if (user && user.acceptedTerms === false) {
+      setShowTermsModal(true);
+    } else {
+      setShowTermsModal(false);
+    }
+  }, [user]);
+
   const closePopup = () => {
     if (activePopup) {
       sessionStorage.setItem(`participant-popup-dismissed-${activePopup.id}`, 'true');
     }
     setActivePopup(null);
+  };
+
+  const handleAcceptTerms = async () => {
+    if (!user) return;
+    try {
+      const success = await apiAcceptTermsForOAuthUser(user.id);
+      if (success) {
+        updateUserContext({ acceptedTerms: true });
+        setShowTermsModal(false);
+        toast.success('Termos e Condições aceitos com sucesso!');
+      }
+    } catch (e: any) {
+      console.error('Accept terms error:', e);
+      toast.error('Erro ao aceitar termos. Tente novamente.');
+    }
   };
 
   return (
@@ -59,6 +87,21 @@ const UserLayout = () => {
         <Outlet />
       </main>
       <MobileNav />
+
+      {/* Enforce Terms Modal overlay if user is logged in but hasn't accepted terms */}
+      {user && user.acceptedTerms === false && (
+        <TermsModal
+          isOpen={showTermsModal}
+          onClose={() => {
+            if (user.acceptedTerms === false) {
+              toast.warning('Você precisa aceitar os Termos e Condições para acessar a plataforma.');
+            } else {
+              setShowTermsModal(false);
+            }
+          }}
+          onAccept={handleAcceptTerms}
+        />
+      )}
     </div>
   );
 };
