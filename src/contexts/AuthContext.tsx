@@ -50,6 +50,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           campaignsParticipated: data.campaigns_participated,
           campaignsWon: data.campaigns_won,
           photos: [],
+          acceptedTerms: data.accepted_terms,
+          acceptedTermsAt: data.accepted_terms_at,
         };
         setUser(mappedUser);
         setIsAdmin(data.role === 'ADMIN' || data.email === 'admin@3buk.com');
