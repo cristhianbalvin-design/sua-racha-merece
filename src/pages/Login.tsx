@@ -39,7 +39,9 @@ const Login = () => {
     <div className="min-h-svh bg-background flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <Logo size="lg" />
+          <Link to="/" className="inline-block">
+            <Logo size="lg" />
+          </Link>
           <p className="text-muted-foreground mt-2">Entre na sua conta</p>
         </div>
 

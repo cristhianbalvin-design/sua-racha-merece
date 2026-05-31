@@ -3,30 +3,60 @@ import { Home, Trophy, User, Bell, Images } from 'lucide-react';
 import { notifications } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 
+const FOTOS_HREF = 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI';
+
 const MobileNav = () => {
   const location = useLocation();
   const { user } = useAuth();
-  
+
   const unreadCount = user ? notifications.filter((n) => n.userId === user.id && !n.read).length : 0;
 
   const links = [
     { to: '/dashboard', icon: Home, label: 'Campañas' },
     { to: '/participacoes', icon: Trophy, label: 'Participaciones' },
-    { to: '/fotografias-3buk', icon: Images, label: 'Fotos' },
+    { to: null, href: FOTOS_HREF, icon: Images, label: 'Fotos', featured: true },
     { to: '/notificacoes', icon: Bell, label: 'Avisos', badge: unreadCount },
     { to: '/perfil', icon: User, label: 'Perfil' },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-lg bg-background/80 md:hidden"
-      style={{ boxShadow: '0 -1px 0 hsl(var(--border))' }}>
-      <div className="flex items-center justify-around py-2 px-4">
-        {links.map(({ to, icon: Icon, label, badge }) => {
-          const active = location.pathname === to || (to === '/dashboard' && location.pathname.startsWith('/campanha'));
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-lg bg-background/90 md:hidden"
+      style={{ boxShadow: '0 -1px 0 hsl(var(--border))' }}
+    >
+      <div className="flex items-end justify-around px-2 pb-2 pt-1">
+        {links.map(({ to, href, icon: Icon, label, badge, featured }) => {
+          const active =
+            to !== null &&
+            (location.pathname === to ||
+              (to === '/dashboard' && location.pathname.startsWith('/campanha')));
+
+          if (featured) {
+            return (
+              <a
+                key={label}
+                href={href!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1 -mt-5"
+              >
+                <div
+                  className="w-14 h-14 rounded-full flex items-center justify-center bg-primary shadow-[0_0_14px_hsl(var(--primary)/0.5)] transition-all duration-200 active:scale-95 hover:shadow-[0_0_20px_hsl(var(--primary)/0.7)]"
+                  style={{ border: '3px solid hsl(var(--background))' }}
+                >
+                  <Icon size={22} className="text-primary-foreground" />
+                </div>
+                <span className="text-[9px] font-bold leading-none text-primary">
+                  {label}
+                </span>
+              </a>
+            );
+          }
+
           return (
             <Link
-              key={to}
-              to={to}
+              key={to!}
+              to={to!}
               className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg transition-colors relative ${
                 active ? 'text-primary' : 'text-muted-foreground'
               }`}

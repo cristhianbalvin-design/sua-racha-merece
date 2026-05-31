@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import CampaignCard from '@/components/CampaignCard';
-import PlanBadge from '@/components/PlanBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetCampaigns, apiGetSports, apiGetRegions, apiGetParticipations } from '@/lib/mockApi';
 import { Campaign, Participation } from '@/data/mockData';
@@ -50,20 +49,7 @@ const Dashboard = () => {
   const availableRegions = ['Todos', ...regionsMaster];
 
   return (
-    <div className="px-4 md:px-8 py-6 max-w-4xl mx-auto">
-      {/* Header mobile */}
-      <div className="flex items-center justify-between mb-8 md:hidden">
-        <div>
-          <h1 className="font-bold italic text-xl text-foreground">Olá, {user.name.split(' ')[0]}!</h1>
-          <PlanBadge plan={user.plan} />
-        </div>
-        <img
-          src={user.avatar}
-          alt={user.name}
-          className="w-10 h-10 rounded-full object-cover img-outline"
-        />
-      </div>
-
+    <div className="px-4 md:px-8 py-4 max-w-4xl mx-auto">
       <section>
         <h2 className="font-bold italic text-xl text-foreground mb-4">CAMPANHAS DISPONÍVEIS</h2>
 

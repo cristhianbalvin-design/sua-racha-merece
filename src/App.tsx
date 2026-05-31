@@ -9,7 +9,6 @@ import { initializeMockData } from "./lib/mockApi";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import PlanSelection from "./pages/PlanSelection";
 import CompleteProfile from "./pages/CompleteProfile";
 import Dashboard from "./pages/Dashboard";
 import CampaignDetail from "./pages/CampaignDetail";
@@ -41,56 +40,53 @@ initializeMockData();
 
 const queryClient = new QueryClient();
 
-import { AnimatePresence } from "framer-motion";
 import { PageTransition } from "./components/PageTransition";
 
 const AnimatedRoutes = () => {
   const location = useLocation();
-  
+
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        {/* Public */}
-        <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
-        <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
-        <Route path="/registro" element={<PageTransition><Register /></PageTransition>} />
-        {/* Plans are kept in code but hidden from the current onboarding flow. */}
-        <Route path="/plano" element={<Navigate to="/completar-perfil" replace />} />
-        <Route path="/completar-perfil" element={<PageTransition><CompleteProfile /></PageTransition>} />
+    <Routes location={location}>
+      {/* Public */}
+      <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
+      <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+      <Route path="/registro" element={<PageTransition><Register /></PageTransition>} />
+      {/* Plans are kept in code but hidden from the current onboarding flow. */}
+      <Route path="/plano" element={<Navigate to="/completar-perfil" replace />} />
+      <Route path="/completar-perfil" element={<PageTransition><CompleteProfile /></PageTransition>} />
 
-        {/* User (with layout) */}
-        <Route element={<ProtectedRoute><UserLayout /></ProtectedRoute>}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/campanhas" element={<Dashboard />} />
-          <Route path="/campanha/:id" element={<CampaignDetail />} />
-          <Route path="/campanha/:id/participar" element={<SubmitEvidence />} />
-          <Route path="/participacoes" element={<UserParticipations />} />
-          <Route path="/fotografias-3buk" element={<UserPhotos3buk />} />
-          <Route path="/notificacoes" element={<UserNotifications />} />
-          <Route path="/perfil" element={<UserProfile />} />
-          <Route path="/ganhadores" element={<Winners />} />
-        </Route>
+      {/* User (with layout) */}
+      <Route element={<ProtectedRoute><UserLayout /></ProtectedRoute>}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/campanhas" element={<Dashboard />} />
+        <Route path="/campanha/:id" element={<CampaignDetail />} />
+        <Route path="/campanha/:id/participar" element={<SubmitEvidence />} />
+        <Route path="/participacoes" element={<UserParticipations />} />
+        <Route path="/fotografias-3buk" element={<UserPhotos3buk />} />
+        <Route path="/notificacoes" element={<UserNotifications />} />
+        <Route path="/perfil" element={<UserProfile />} />
+        <Route path="/ganhadores" element={<Winners />} />
+      </Route>
 
-        {/* Admin */}
-        <Route path="/admin" element={<PageTransition><AdminLogin /></PageTransition>} />
-        <Route element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/relatorio" element={<AdminRelatorio />} />
-          <Route path="/admin/perfil" element={<AdminProfile />} />
-          <Route path="/admin/usuarios" element={<AdminUsers />} />
-          <Route path="/admin/campanhas" element={<AdminCampaigns />} />
-          <Route path="/admin/participacoes" element={<AdminParticipations />} />
-          <Route path="/admin/qualificacao" element={<AdminQualification />} />
-          <Route path="/admin/ganhadores" element={<AdminWinners />} />
-          <Route path="/admin/popups" element={<AdminPopups />} />
-          <Route path="/admin/esportes" element={<AdminSports />} />
-          <Route path="/admin/regioes" element={<AdminRegions />} />
-          <Route path="/admin/termos" element={<AdminTerms />} />
-        </Route>
+      {/* Admin */}
+      <Route path="/admin" element={<PageTransition><AdminLogin /></PageTransition>} />
+      <Route element={<ProtectedRoute requireAdmin={true}><AdminLayout /></ProtectedRoute>}>
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/relatorio" element={<AdminRelatorio />} />
+        <Route path="/admin/perfil" element={<AdminProfile />} />
+        <Route path="/admin/usuarios" element={<AdminUsers />} />
+        <Route path="/admin/campanhas" element={<AdminCampaigns />} />
+        <Route path="/admin/participacoes" element={<AdminParticipations />} />
+        <Route path="/admin/qualificacao" element={<AdminQualification />} />
+        <Route path="/admin/ganhadores" element={<AdminWinners />} />
+        <Route path="/admin/popups" element={<AdminPopups />} />
+        <Route path="/admin/esportes" element={<AdminSports />} />
+        <Route path="/admin/regioes" element={<AdminRegions />} />
+        <Route path="/admin/termos" element={<AdminTerms />} />
+      </Route>
 
-        <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
-      </Routes>
-    </AnimatePresence>
+      <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
+    </Routes>
   );
 };
 

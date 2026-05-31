@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import Logo from '@/components/Logo';
@@ -29,7 +29,9 @@ const AdminLogin = () => {
     <div className="min-h-svh bg-background flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <Logo size="lg" />
+          <Link to="/" className="inline-block">
+            <Logo size="lg" />
+          </Link>
           <div className="mt-3">
             <span className="text-ui bg-primary/20 text-primary-foreground px-3 py-1 rounded-md text-xs">
               ADMIN
