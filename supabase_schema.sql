@@ -65,6 +65,7 @@ CREATE TABLE public.campaigns (
   description TEXT NOT NULL,
   winners_count INTEGER NOT NULL,
   prize TEXT NOT NULL,
+  image_url TEXT,
   plan_required TEXT DEFAULT 'Ambos' CHECK (plan_required IN ('Freemium', 'Premium', 'Ambos')),
   instagram_optional BOOLEAN DEFAULT false,
   instagram_hashtags TEXT,
@@ -82,6 +83,9 @@ WHERE name IS NULL OR name = '';
 
 ALTER TABLE public.campaigns
   ALTER COLUMN name SET NOT NULL;
+
+ALTER TABLE public.campaigns
+  ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Campaigns are viewable by everyone" ON public.campaigns FOR SELECT USING (true);

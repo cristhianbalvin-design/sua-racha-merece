@@ -83,6 +83,7 @@ const mapCampaign = (row: any): Campaign => ({
   description: row.description,
   winnersCount: row.winners_count,
   prize: row.prize,
+  imageUrl: row.image_url ? normalizeStoragePublicUrl(row.image_url) : undefined,
   plan: row.plan_required,
   instagramOptional: row.instagram_optional,
   instagramHashtags: row.instagram_hashtags,
@@ -111,6 +112,7 @@ export const apiAddCampaign = async (c: Campaign): Promise<Campaign | null> => {
     description: c.description,
     winners_count: c.winnersCount,
     prize: c.prize,
+    image_url: c.imageUrl,
     plan_required: c.plan,
     instagram_optional: c.instagramOptional,
     instagram_hashtags: c.instagramHashtags,
@@ -507,6 +509,24 @@ export const apiUploadHomePopupImage = async (file: File): Promise<string | null
 };
 
 // ──────────────────────────────────────────────
+export const apiUploadCampaignImage = async (file: File): Promise<string | null> => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `campaigns/${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+
+  const { error } = await supabase.storage.from('popups').upload(fileName, file, {
+    cacheControl: '3600',
+    upsert: false,
+  });
+  if (error) {
+    console.error('Upload campaign image error:', error);
+    toast.error('Erro ao enviar imagem da campanha: ' + error.message);
+    return null;
+  }
+
+  const { data } = supabase.storage.from('popups').getPublicUrl(fileName);
+  return normalizeStoragePublicUrl(data.publicUrl);
+};
+
 // Terms & Conditions
 // ──────────────────────────────────────────────
 

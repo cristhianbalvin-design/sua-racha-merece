@@ -39,6 +39,7 @@ export interface Campaign {
   description: string;
   winnersCount: number;
   prize: string;
+  imageUrl?: string;
   plan?: 'Freemium' | 'Premium' | 'Ambos';
   instagramOptional?: boolean;
   instagramHashtags?: string;

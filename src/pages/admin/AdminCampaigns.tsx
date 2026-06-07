@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Check, Trash2 } from 'lucide-react';
-import { apiGetCampaigns, apiAddCampaign, apiUpdateCampaign, apiDeleteCampaign, apiGetSports, apiGetRegions } from '@/lib/mockApi';
+import { Plus, Check, Trash2, Image as ImageIcon } from 'lucide-react';
+import { apiGetCampaigns, apiAddCampaign, apiUpdateCampaign, apiDeleteCampaign, apiGetSports, apiGetRegions, apiUploadCampaignImage } from '@/lib/mockApi';
 import type { CampaignStatus, Campaign } from '@/data/mockData';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
@@ -49,11 +49,14 @@ const AdminCampaigns = () => {
   const [cDesc, setCDesc] = useState('');
   const [cWinners, setCWinners] = useState('');
   const [cPrize, setCPrize] = useState('');
+  const [cImageFile, setCImageFile] = useState<File | null>(null);
+  const [cImagePreview, setCImagePreview] = useState('');
 
   const [plan, setPlan] = useState<'Freemium'|'Premium'|'Ambos'>('Ambos');
   const [igOptional, setIgOptional] = useState(false);
   const [igHashtags, setIgHashtags] = useState('#3bukchallenge');
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Today's date in YYYY-MM-DD format (used as min for date pickers)
   const today = new Date().toISOString().split('T')[0];
@@ -72,6 +75,15 @@ const AdminCampaigns = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!cImageFile || isSubmitting) return;
+
+    setIsSubmitting(true);
+    const imageUrl = await apiUploadCampaignImage(cImageFile);
+    if (!imageUrl) {
+      setIsSubmitting(false);
+      return;
+    }
+
     const newCamp: Campaign = {
       id: `camp-${Date.now()}`,
       name: cName,
@@ -84,6 +96,7 @@ const AdminCampaigns = () => {
       description: cDesc,
       winnersCount: parseInt(cWinners, 10),
       prize: cPrize,
+      imageUrl,
       plan,
       instagramOptional: igOptional,
       instagramHashtags: igHashtags,
@@ -91,16 +104,27 @@ const AdminCampaigns = () => {
       createdAt: new Date().toISOString()
     };
     
-    await apiAddCampaign(newCamp);
+    const createdCampaign = await apiAddCampaign(newCamp);
+    if (!createdCampaign) {
+      setIsSubmitting(false);
+      return;
+    }
     setCampaignsList(await apiGetCampaigns());
     setFormSubmitted(true);
+    setIsSubmitting(false);
     
     setTimeout(() => {
       setFormSubmitted(false);
       setShowCreate(false);
-      setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize('');
+      setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize(''); setCImageFile(null); setCImagePreview('');
       setPlan('Ambos'); setIgOptional(false); setIgHashtags('#3bukchallenge');
     }, 2500);
+  };
+
+  const handleImageChange = (file?: File) => {
+    if (!file) return;
+    setCImageFile(file);
+    setCImagePreview(URL.createObjectURL(file));
   };
 
   const handleStatusChange = async (id: string, newStatus: CampaignStatus) => {
@@ -299,6 +323,31 @@ const AdminCampaigns = () => {
                     <textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all resize-none h-24" placeholder="Descreva o desafio..." required />
                   </div>
 
+                  <div>
+                    <label className="text-ui text-xs text-muted-foreground block mb-2">IMAGEM DA CAMPANHA</label>
+                    <label className="block cursor-pointer rounded-xl border border-dashed border-border bg-input/60 p-3 transition-colors hover:border-primary/70">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleImageChange(e.target.files?.[0])}
+                      />
+                      {cImagePreview ? (
+                        <img
+                          src={cImagePreview}
+                          alt="Preview da campanha"
+                          className="h-40 w-full rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg bg-background/40 text-muted-foreground">
+                          <ImageIcon size={26} className="text-primary" />
+                          <span className="text-sm font-bold">Adjuntar imagem</span>
+                          <span className="text-xs">Aparecera como fundo da campanha</span>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+
                   {/* Plan */}
                   <div>
                     <label className="text-ui text-xs text-muted-foreground block mb-2">TIPO DE PLANO</label>
@@ -373,12 +422,13 @@ const AdminCampaigns = () => {
                     </motion.button>
                     <motion.button
                       type="submit"
+                      disabled={!cImageFile || isSubmitting}
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                       transition={spring}
-                      className="flex-1 bg-primary text-primary-foreground text-ui text-xs py-3 rounded-xl btn-shadow"
+                      className="flex-1 bg-primary text-primary-foreground text-ui text-xs py-3 rounded-xl btn-shadow disabled:opacity-60 disabled:pointer-events-none"
                     >
-                      PUBLICAR CAMPANHA
+                      {isSubmitting ? 'PUBLICANDO...' : 'PUBLICAR CAMPANHA'}
                     </motion.button>
                   </div>
                 </form>

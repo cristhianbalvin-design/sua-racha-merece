@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
-import { Bell, User as UserIcon } from 'lucide-react';
+import { Bell, Images, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetNotifications } from '@/lib/mockApi';
+
+const FOTOS_HREF = 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI';
 
 const DesktopHeader = () => {
   const location = useLocation();
@@ -20,23 +22,36 @@ const DesktopHeader = () => {
   const links = [
     { to: '/dashboard', label: 'Campanhas' },
     { to: '/participacoes', label: 'Participações' },
-    { to: '/fotografias-3buk', label: 'Fotografias 3BUK' },
+    { href: FOTOS_HREF, label: 'Fotografias 3BUK' },
     { to: '/ganhadores', label: 'Ganhadores' },
   ];
 
   return (
-    <header className="hidden md:flex items-center justify-between px-8 py-4 bg-black/60 backdrop-blur-md"
-      style={{ boxShadow: '0 1px 0 hsl(var(--primary) / 0.24)' }}>
+    <header className="hidden md:flex items-center justify-between px-8 py-4 bg-card"
+      style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
       <Link to="/dashboard">
         <Logo size="sm" />
       </Link>
       <nav className="flex items-center gap-8">
-        {links.map(({ to, label }) => {
+        {links.map(({ to, href, label }) => {
+          if (href) {
+            return (
+              <a
+                key={href}
+                href={href}
+                className="text-ui inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/15 px-3 py-1.5 text-primary transition-colors hover:bg-primary/25 hover:shadow-[0_0_12px_hsl(var(--primary)/0.4)]"
+              >
+                <Images size={13} />
+                {label}
+              </a>
+            );
+          }
+
           const active = location.pathname === to;
           return (
             <Link
               key={to}
-              to={to}
+              to={to!}
               className={`text-ui transition-colors ${
                 active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
               }`}

@@ -31,6 +31,10 @@ const UserLayout = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   // Show profile banner on all pages except campaign detail/submission
   const showBanner = !location.pathname.startsWith('/campanha');
+  const isCampaignRoute = location.pathname.startsWith('/campanha');
+  const portalBackgroundClass = isCampaignRoute
+    ? 'bg-black'
+    : "bg-black bg-[linear-gradient(rgba(0,0,0,0.58),rgba(0,0,0,0.7)),url('/user-portal-bg-mobile.jpeg')] bg-cover bg-top bg-no-repeat md:bg-[linear-gradient(rgba(0,0,0,0.58),rgba(0,0,0,0.7)),url('/user-portal-bg.jpeg')]";
 
   useEffect(() => {
     if (!user) return;
@@ -78,13 +82,7 @@ const UserLayout = () => {
   };
 
   return (
-    <div
-      className="min-h-svh bg-black bg-cover bg-center bg-fixed bg-no-repeat"
-      style={{
-        backgroundImage:
-          "linear-gradient(rgba(0,0,0,0.58), rgba(0,0,0,0.7)), url('/user-portal-bg.png')",
-      }}
-    >
+    <div className="min-h-svh bg-black">
       {/* Popup overlay */}
       {activePopup && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/85 backdrop-blur-sm px-3 md:px-8">
@@ -114,8 +112,8 @@ const UserLayout = () => {
 
       {/* ── Mobile top bar ── */}
       <div
-        className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-black/65 backdrop-blur-md"
-        style={{ boxShadow: '0 1px 0 hsl(var(--primary) / 0.24)' }}
+        className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-background/90 backdrop-blur-md"
+        style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}
       >
         <Logo size="sm" />
         <Link to="/notificacoes" className="relative text-muted-foreground hover:text-foreground transition-colors">
@@ -131,8 +129,8 @@ const UserLayout = () => {
       {/* ── Mobile horizontal tab nav ── */}
       {showBanner && (
         <div
-          className="md:hidden sticky top-[49px] z-30 bg-black/65 backdrop-blur-md overflow-x-auto scrollbar-hide"
-          style={{ boxShadow: '0 1px 0 hsl(var(--primary) / 0.24)' }}
+          className="md:hidden sticky top-[49px] z-30 bg-background/90 backdrop-blur-md overflow-x-auto scrollbar-hide"
+          style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}
         >
           <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
           <div className="flex items-center px-2 min-w-max">
@@ -143,8 +141,6 @@ const UserLayout = () => {
                   <a
                     key={label}
                     href={href!}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="flex items-center gap-1.5 mx-1.5 my-1.5 px-3 py-1.5 text-[10px] font-bold whitespace-nowrap rounded-full border transition-colors bg-primary/15 text-primary border-primary/40 hover:bg-primary/25 hover:shadow-[0_0_12px_hsl(var(--primary)/0.4)]"
                   >
                     {Icon && <Icon size={12} />}
@@ -174,6 +170,10 @@ const UserLayout = () => {
       <DesktopHeader />
 
       {/* ── Profile banner (all main pages) ── */}
+      <div
+        className={`min-h-[calc(100svh-49px)] md:min-h-[calc(100svh-65px)] ${portalBackgroundClass}`}
+      >
+
       {showBanner && <UserProfileBanner />}
 
       <main className="pb-24 md:pb-8">
@@ -181,6 +181,7 @@ const UserLayout = () => {
       </main>
 
       <MobileNav />
+      </div>
 
       {user && user.acceptedTerms === false && (
         <TermsModal

@@ -59,8 +59,15 @@ const CampaignDetail = () => {
     }
   };
 
+  const detailBackground = campaign.imageUrl
+    ? {
+        backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.84) 38%, rgba(0,0,0,0.58) 72%, rgba(0,0,0,0.78) 100%), url(${campaign.imageUrl})`,
+      }
+    : undefined;
+
   return (
-    <div className="px-4 md:px-8 py-6 max-w-2xl mx-auto">
+    <div className="min-h-[calc(100svh-49px)] bg-black bg-cover bg-[center_right] bg-no-repeat md:min-h-[calc(100svh-65px)]" style={detailBackground}>
+      <div className="px-4 md:px-8 py-6 max-w-2xl mx-auto">
       <button onClick={() => navigate(-1)} className="text-muted-foreground text-sm mb-4 hover:text-foreground transition-colors">
         ← Voltar
       </button>
@@ -157,6 +164,7 @@ const CampaignDetail = () => {
       <p className="text-center text-muted-foreground text-xs mt-4">
         🏆 {campaign.winnersCount} ganhador{campaign.winnersCount > 1 ? 'es' : ''} · Prêmio: {campaign.prize}
       </p>
+      </div>
     </div>
   );
 };

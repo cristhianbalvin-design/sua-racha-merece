@@ -22,6 +22,8 @@ const sportIconFallback: Record<string, string> = {
 const CampaignCard = ({ campaign }: { campaign: Campaign }) => {
   const icon = campaign.sportIcon || sportIconFallback[campaign.sport] || '🏆';
 
+  const hasImage = !!campaign.imageUrl;
+
   const statusColor = campaign.status === 'Aberto'
     ? 'bg-success/20 text-success'
     : 'bg-muted text-muted-foreground';
@@ -30,7 +32,10 @@ const CampaignCard = ({ campaign }: { campaign: Campaign }) => {
     <motion.div
       whileHover={{ y: -4 }}
       transition={spring}
-      className="bg-card rounded-2xl p-4 card-shadow hover:card-shadow-hover transition-shadow flex flex-col"
+      className="bg-card rounded-2xl p-4 card-shadow hover:card-shadow-hover transition-shadow flex flex-col bg-cover bg-center overflow-hidden"
+      style={hasImage ? {
+        backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.72) 48%, rgba(0,0,0,0.28) 100%), url(${campaign.imageUrl})`,
+      } : undefined}
     >
       <div className="flex items-start justify-between mb-3">
         <span className="text-2xl">{icon}</span>
@@ -41,14 +46,14 @@ const CampaignCard = ({ campaign }: { campaign: Campaign }) => {
           <span className="text-ui text-xs text-secondary font-semibold">{campaign.sport}</span>
         </div>
       </div>
-      <h3 className="font-bold italic text-lg text-foreground mb-3 flex-1 line-clamp-2">
+      <h3 className="font-bold italic text-lg text-foreground mb-3 flex-1 line-clamp-2 drop-shadow-sm">
         {campaign.name || campaign.description || `Campanha de ${campaign.sport}`}
       </h3>
-      <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
+      <div className={`flex items-center gap-2 text-sm mb-1 ${hasImage ? 'text-white/85' : 'text-muted-foreground'}`}>
         <MapPin size={14} />
         <span>{campaign.city || '—'}{campaign.region ? ` — ${campaign.region}` : ''}</span>
       </div>
-      <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
+      <div className={`flex items-center gap-2 text-sm mb-2 ${hasImage ? 'text-white/85' : 'text-muted-foreground'}`}>
         <Calendar size={14} />
         <span>{campaign.startDate} até {campaign.endDate}</span>
       </div>

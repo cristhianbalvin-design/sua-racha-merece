@@ -97,11 +97,6 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* DEBUG: Temporary - shows raw data count */}
-        <div className="mb-2 text-xs text-muted-foreground bg-muted/50 rounded p-2">
-          🔍 Debug: {campaigns.length} campanha(s) carregada(s) da DB | {filteredCampaigns.length} após filtros
-        </div>
-
         {filteredCampaigns.length === 0 ? (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
