@@ -21,8 +21,8 @@ const MobileNav = () => {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-lg bg-background/90 md:hidden"
-      style={{ boxShadow: '0 -1px 0 hsl(var(--border))' }}
+      className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-lg bg-black/75 md:hidden"
+      style={{ boxShadow: '0 -1px 0 hsl(var(--primary) / 0.24)' }}
     >
       <div className="flex items-end justify-around px-2 pb-2 pt-1">
         {links.map(({ to, href, icon: Icon, label, badge, featured }) => {

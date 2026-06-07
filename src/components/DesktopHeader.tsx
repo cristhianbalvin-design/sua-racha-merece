@@ -25,8 +25,8 @@ const DesktopHeader = () => {
   ];
 
   return (
-    <header className="hidden md:flex items-center justify-between px-8 py-4 bg-card"
-      style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
+    <header className="hidden md:flex items-center justify-between px-8 py-4 bg-black/60 backdrop-blur-md"
+      style={{ boxShadow: '0 1px 0 hsl(var(--primary) / 0.24)' }}>
       <Link to="/dashboard">
         <Logo size="sm" />
       </Link>

@@ -78,7 +78,13 @@ const UserLayout = () => {
   };
 
   return (
-    <div className="min-h-svh bg-background">
+    <div
+      className="min-h-svh bg-black bg-cover bg-center bg-fixed bg-no-repeat"
+      style={{
+        backgroundImage:
+          "linear-gradient(rgba(0,0,0,0.58), rgba(0,0,0,0.7)), url('/user-portal-bg.png')",
+      }}
+    >
       {/* Popup overlay */}
       {activePopup && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/85 backdrop-blur-sm px-3 md:px-8">
@@ -108,8 +114,8 @@ const UserLayout = () => {
 
       {/* ── Mobile top bar ── */}
       <div
-        className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-background/90 backdrop-blur-md"
-        style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}
+        className="md:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 bg-black/65 backdrop-blur-md"
+        style={{ boxShadow: '0 1px 0 hsl(var(--primary) / 0.24)' }}
       >
         <Logo size="sm" />
         <Link to="/notificacoes" className="relative text-muted-foreground hover:text-foreground transition-colors">
@@ -125,8 +131,8 @@ const UserLayout = () => {
       {/* ── Mobile horizontal tab nav ── */}
       {showBanner && (
         <div
-          className="md:hidden sticky top-[49px] z-30 bg-background/90 backdrop-blur-md overflow-x-auto scrollbar-hide"
-          style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}
+          className="md:hidden sticky top-[49px] z-30 bg-black/65 backdrop-blur-md overflow-x-auto scrollbar-hide"
+          style={{ boxShadow: '0 1px 0 hsl(var(--primary) / 0.24)' }}
         >
           <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
           <div className="flex items-center px-2 min-w-max">
