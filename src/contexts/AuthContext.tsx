@@ -20,41 +20,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserProfile = async (authId: string) => {
+  const mapAndSetUser = (data: any) => {
+    const mappedUser: User = {
+      id: data.id,
+      name: data.name,
+      email: data.email,
+      city: data.city || '',
+      country: data.country || '',
+      sport: data.sport || '',
+      phone: data.phone || '',
+      gender: data.gender || '',
+      birthDate: data.birth_date || '',
+      avatar: data.avatar_url || '',
+      plan: data.plan as 'Freemium' | 'Premium',
+      userStatus: data.user_status as 'Ativo' | 'Desabilitado',
+      campaignsParticipated: data.campaigns_participated,
+      campaignsWon: data.campaigns_won,
+      photos: [],
+      acceptedTerms: data.accepted_terms,
+      acceptedTermsAt: data.accepted_terms_at,
+    };
+    setUser(mappedUser);
+    setIsAdmin(data.role === 'ADMIN' || data.email === 'admin@3buk.com');
+  };
+
+  const fetchUserProfile = async (authId: string, authUser?: { email?: string; user_metadata?: any }) => {
     try {
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', authId)
         .single();
-      
+
       if (error) {
+        // PGRST116 = no rows found — create profile for Google OAuth users
+        if (error.code === 'PGRST116' && authUser) {
+          const name =
+            authUser.user_metadata?.full_name ||
+            authUser.user_metadata?.name ||
+            authUser.email?.split('@')[0] ||
+            'Atleta';
+          const { data: newProfile, error: insertError } = await supabase
+            .from('users')
+            .insert({
+              id: authId,
+              name,
+              email: authUser.email || '',
+              role: 'USUARIO',
+              plan: 'Freemium',
+              user_status: 'Ativo',
+              campaigns_participated: 0,
+              campaigns_won: 0,
+              accepted_terms: false,
+            })
+            .select()
+            .single();
+          if (!insertError && newProfile) {
+            mapAndSetUser(newProfile);
+          } else {
+            console.error('Error creating profile:', insertError);
+          }
+          return;
+        }
         console.error('Error fetching profile:', error);
         return;
       }
-      
+
       if (data) {
-        const mappedUser: User = {
-          id: data.id,
-          name: data.name,
-          email: data.email,
-          city: data.city || '',
-          country: data.country || '',
-          sport: data.sport || '',
-          phone: data.phone || '',
-          gender: data.gender || '',
-          birthDate: data.birth_date || '',
-          avatar: data.avatar_url || '',
-          plan: data.plan as 'Freemium' | 'Premium',
-          userStatus: data.user_status as 'Ativo' | 'Desabilitado',
-          campaignsParticipated: data.campaigns_participated,
-          campaignsWon: data.campaigns_won,
-          photos: [],
-          acceptedTerms: data.accepted_terms,
-          acceptedTermsAt: data.accepted_terms_at,
-        };
-        setUser(mappedUser);
-        setIsAdmin(data.role === 'ADMIN' || data.email === 'admin@3buk.com');
+        mapAndSetUser(data);
       }
     } catch (err) {
       console.error(err);
@@ -67,7 +100,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        fetchUserProfile(session.user.id);
+        fetchUserProfile(session.user.id, session.user);
       } else {
         setLoading(false);
       }
@@ -76,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        fetchUserProfile(session.user.id);
+        fetchUserProfile(session.user.id, session.user);
       } else {
         setUser(null);
         setIsAdmin(false);
@@ -106,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Sua conta está desabilitada. Entre em contato com o administrador.');
       }
 
-      await fetchUserProfile(data.session.user.id);
+      await fetchUserProfile(data.session.user.id, data.session.user);
     }
   };
 
