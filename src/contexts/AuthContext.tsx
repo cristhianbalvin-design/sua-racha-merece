@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import type { User } from "../data/mockData";
 
 interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
+  isRecovery: boolean;
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
   register: (email: string, password?: string, name?: string, acceptedTerms?: boolean) => Promise<void>;
@@ -18,7 +19,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isRecovery, setIsRecovery] = useState(false);
   const [loading, setLoading] = useState(true);
+  const isRecoveryRef = useRef(false);
 
   const mapAndSetUser = (data: any) => {
     const mappedUser: User = {
@@ -97,18 +100,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchUserProfile(session.user.id, session.user);
-      } else {
-        setLoading(false);
-      }
-    });
-
-    // Listen for changes
+    // Register listener BEFORE getSession so the ref is set before getSession resolves
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
+        isRecoveryRef.current = true;
+        setIsRecovery(true);
         setLoading(false);
         return;
       }
@@ -117,6 +113,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setUser(null);
         setIsAdmin(false);
+        setIsRecovery(false);
+        setLoading(false);
+      }
+    });
+
+    // Check active session — skip if recovery event already fired
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        if (!isRecoveryRef.current) {
+          fetchUserProfile(session.user.id, session.user);
+        }
+      } else {
         setLoading(false);
       }
     });
@@ -185,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, login, register, loginWithGoogle, logout, updateUserContext }}>
+    <AuthContext.Provider value={{ user, isAdmin, isRecovery, loading, login, register, loginWithGoogle, logout, updateUserContext }}>
       {children}
     </AuthContext.Provider>
   );

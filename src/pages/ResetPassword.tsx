@@ -17,17 +17,17 @@ const ResetPassword = () => {
   const [isVerifying, setIsVerifying] = useState(true);
   const [success, setSuccess] = useState(false);
   
-  const { user } = useAuth();
+  const { user, isRecovery } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user) {
+    if (user && !isRecovery) {
       navigate('/dashboard');
     }
-  }, [user, navigate]);
+  }, [user, isRecovery, navigate]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsVerifying(false);
       } else if (event === 'SIGNED_IN') {
