@@ -8,6 +8,8 @@ import { initializeMockData } from "./lib/mockApi";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Register from "./pages/Register";
 import CompleteProfile from "./pages/CompleteProfile";
 import Dashboard from "./pages/Dashboard";
@@ -50,6 +52,8 @@ const AnimatedRoutes = () => {
       {/* Public */}
       <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
       <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
+      <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
+      <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
       <Route path="/registro" element={<PageTransition><Register /></PageTransition>} />
       {/* Plans are kept in code but hidden from the current onboarding flow. */}
       <Route path="/plano" element={<Navigate to="/completar-perfil" replace />} />

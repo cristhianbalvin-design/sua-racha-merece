@@ -91,6 +91,12 @@ const Login = () => {
           </motion.button>
         </form>
 
+        <div className="text-center mt-4">
+          <Link to="/forgot-password" className="text-muted-foreground text-sm hover:text-foreground transition-colors">
+            Esqueceu sua senha?
+          </Link>
+        </div>
+
         <p className="text-center text-muted-foreground text-sm mt-6">
           Não tem conta?{' '}
           <Link to="/registro" className="text-primary font-bold">Criar conta</Link>
