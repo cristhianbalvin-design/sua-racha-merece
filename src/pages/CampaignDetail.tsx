@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Instagram } from 'lucide-react';
+import { MapPin, Calendar, Instagram, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetCampaigns, apiAddParticipation, apiGetParticipations } from '@/lib/mockApi';
 
@@ -73,7 +73,9 @@ const CampaignDetail = () => {
       </button>
 
       <div className="mb-6">
-        <span className="text-4xl mb-2 block">{campaign.sportIcon}</span>
+        <div className="text-primary bg-primary/10 p-3 rounded-2xl border border-primary/20 w-fit mb-4">
+          <Trophy size={32} strokeWidth={2} />
+        </div>
         <h1 className="font-bold italic text-3xl md:text-4xl text-foreground mb-2">{campaign.name || campaign.description}</h1>
         <span className="text-base text-secondary font-bold uppercase">{campaign.sport}</span>
         {campaign.description && campaign.description !== campaign.name && (
@@ -161,9 +163,10 @@ const CampaignDetail = () => {
         </motion.div>
       )}
 
-      <p className="text-center text-muted-foreground text-xs mt-4">
-        🏆 {campaign.winnersCount} ganhador{campaign.winnersCount > 1 ? 'es' : ''} · Prêmio: {campaign.prize}
-      </p>
+      <div className="flex items-center justify-center gap-2 text-center text-muted-foreground text-xs mt-4">
+        <Trophy size={14} className="text-accent" />
+        <span>{campaign.winnersCount} ganhador{campaign.winnersCount > 1 ? 'es' : ''} · Prêmio: {campaign.prize}</span>
+      </div>
       </div>
     </div>
   );

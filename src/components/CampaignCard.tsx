@@ -49,7 +49,9 @@ const CampaignCard = ({ campaign }: { campaign: Campaign }) => {
 
       <div className="relative z-10 flex flex-col h-full flex-1">
         <div className="flex items-start justify-between mb-3">
-          <span className="text-2xl">{icon}</span>
+          <div className="text-primary bg-primary/10 p-2 rounded-xl border border-primary/20">
+            <Trophy size={20} strokeWidth={2} />
+          </div>
           <div className="flex items-center gap-2">
             <span className={`text-ui text-xs px-2 py-0.5 rounded-full font-bold ${statusColor}`}>
               {campaign.status?.toUpperCase() || 'ABERTO'}
