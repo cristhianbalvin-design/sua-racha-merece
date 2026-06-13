@@ -175,7 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const restApiKey = import.meta.env.VITE_ONESIGNAL_REST_API_KEY;
     if (restApiKey) {
       try {
-        await fetch("https://onesignal.com/api/v1/notifications", {
+        const res = await fetch("https://onesignal.com/api/v1/notifications", {
           method: "POST",
           headers: {
             "Content-Type": "application/json; charset=utf-8",
@@ -187,16 +187,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             filters: [
               { "field": "tag", "key": "role", "relation": "=", "value": "admin" }
             ],
-            contents: { 
-              "en": `Nuevo atleta registrado: ${name} (${email})`, 
-              "es": `Nuevo atleta registrado: ${name} (${email})` 
+            contents: {
+              "en": `Nuevo atleta registrado: ${name} (${email})`,
+              "es": `Nuevo atleta registrado: ${name} (${email})`
             },
-            headings: { 
-              "en": "¡Nuevo Registro 3BUK!", 
-              "es": "¡Nuevo Registro 3BUK!" 
+            headings: {
+              "en": "¡Nuevo Registro 3BUK!",
+              "es": "¡Nuevo Registro 3BUK!"
             }
           })
         });
+        const data = await res.json();
+        console.log("[OneSignal] status:", res.status, "response:", JSON.stringify(data));
       } catch (err) {
         console.error("Error enviando push a OneSignal", err);
       }
