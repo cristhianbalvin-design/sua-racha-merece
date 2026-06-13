@@ -22,9 +22,6 @@ const AdminLayout = () => {
         if (user?.email && typeof OneSignal !== 'undefined' && OneSignal.User) {
           await OneSignal.login(user.email);
           await OneSignal.User.addTag("role", "admin");
-          if (OneSignal.Notifications) {
-            await OneSignal.Notifications.requestPermission();
-          }
         }
       } catch (err) {
         console.error("OneSignal admin setup error:", err);
@@ -32,6 +29,16 @@ const AdminLayout = () => {
     };
     setupOneSignal();
   }, [user]);
+
+  const handleEnablePush = async () => {
+    try {
+      if (typeof OneSignal !== 'undefined' && OneSignal.Notifications) {
+        await OneSignal.Notifications.requestPermission();
+      }
+    } catch (err) {
+      console.error("Error al pedir permisos Push", err);
+    }
+  };
 
   const links = [
     { to: '/admin/dashboard', label: 'Dashboard' },
@@ -50,13 +57,16 @@ const AdminLayout = () => {
     <div className="min-h-svh bg-background">
       <header className="bg-admin-header px-4 md:px-8 py-4 flex items-center justify-between"
         style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           <Link to="/admin/usuarios">
             <Logo size="sm" />
           </Link>
-          <span className="text-ui bg-primary/20 text-primary-foreground px-3 py-1 rounded-md text-xs">
-            ADMIN
-          </span>
+          <button 
+            onClick={handleEnablePush}
+            className="text-[10px] md:text-xs bg-primary text-primary-foreground px-2 py-1.5 rounded-md font-bold whitespace-nowrap shadow-md hover:scale-105 active:scale-95 transition-transform border border-white/20"
+          >
+            🔔 Activar Push
+          </button>
         </div>
         <nav className="flex items-center gap-3 md:gap-6 overflow-x-auto">
           {links.map(({ to, label }) => {
