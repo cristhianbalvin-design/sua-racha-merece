@@ -171,37 +171,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     if (error) throw error;
 
-    // Enviar notificación Push al Administrador usando OneSignal
-    const restApiKey = import.meta.env.VITE_ONESIGNAL_REST_API_KEY;
-    if (restApiKey) {
-      try {
-        const res = await fetch("https://onesignal.com/api/v1/notifications", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            "Authorization": `Basic ${restApiKey}`
-          },
-          body: JSON.stringify({
-            app_id: "f4c2d37d-d6a4-4209-9814-cf2c9cce92e1",
-            target_channel: "push",
-            filters: [
-              { "field": "tag", "key": "role", "relation": "=", "value": "admin" }
-            ],
-            contents: {
-              "en": `Nuevo atleta registrado: ${name} (${email})`,
-              "es": `Nuevo atleta registrado: ${name} (${email})`
-            },
-            headings: {
-              "en": "¡Nuevo Registro 3BUK!",
-              "es": "¡Nuevo Registro 3BUK!"
-            }
-          })
-        });
-        const data = await res.json();
-        console.log("[OneSignal] status:", res.status, "response:", JSON.stringify(data));
-      } catch (err) {
-        console.error("Error enviando push a OneSignal", err);
-      }
+    // Enviar notificación Push al Administrador via Edge Function (evita CORS)
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("send-push-notification", {
+        body: { name, email },
+      });
+      console.log("[OneSignal] edge function response:", JSON.stringify(data), fnError);
+    } catch (err) {
+      console.error("Error enviando push via edge function", err);
     }
   };
 
