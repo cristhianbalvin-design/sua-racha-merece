@@ -77,62 +77,73 @@ const AdminLayout = () => {
 
   return (
     <div className="min-h-svh bg-background">
-      <header className="bg-admin-header px-4 md:px-8 py-4 flex items-center justify-between"
+      <header className="bg-admin-header flex flex-col"
         style={{ boxShadow: '0 1px 0 hsl(var(--border))' }}>
-        <div className="flex items-center gap-2 md:gap-4">
-          <Link to="/admin/usuarios">
-            <Logo size="sm" />
-          </Link>
-          <button
-            onClick={handleEnablePush}
-            disabled={pushEnabled}
-            className={`text-[10px] md:text-xs px-2 py-1.5 rounded-md font-bold whitespace-nowrap shadow-md transition-transform border border-white/20 ${
-              pushEnabled
-                ? 'bg-green-600 text-white cursor-default opacity-80'
-                : 'bg-primary text-primary-foreground hover:scale-105 active:scale-95'
-            }`}
-          >
-            {pushEnabled ? '✅ Push Activo' : '🔔 Activar Push'}
-          </button>
+        
+        {/* Top Section */}
+        <div className="flex items-center justify-between px-4 md:px-8 py-3 md:py-4">
+          <div className="flex items-center gap-2 md:gap-4">
+            <Link to="/admin/usuarios" className="flex-shrink-0">
+              <Logo size="sm" />
+            </Link>
+            <button
+              onClick={handleEnablePush}
+              disabled={pushEnabled}
+              className={`text-[10px] md:text-xs px-2 py-1.5 rounded-md font-bold whitespace-nowrap shadow-md transition-transform border border-white/20 ${
+                pushEnabled
+                  ? 'bg-green-600 text-white cursor-default opacity-80'
+                  : 'bg-primary text-primary-foreground hover:scale-105 active:scale-95'
+              }`}
+            >
+              {pushEnabled ? '✅ Push Activo' : '🔔 Activar Push'}
+            </button>
+          </div>
+          
+          {/* User profile & Logout */}
+          <div className="flex items-center gap-3">
+            <Link to="/admin/perfil" className="hidden md:flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <span className="text-sm font-bold text-foreground">{user?.name || (isAdmin ? 'Administrador' : 'Admin')}</span>
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={user.name}
+                  className="w-8 h-8 rounded-full object-cover img-outline bg-muted"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center img-outline">
+                  <UserIcon size={16} className="text-muted-foreground" />
+                </div>
+              )}
+            </Link>
+            <button
+              onClick={handleLogout}
+              title="Sair"
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
-        <nav className="flex items-center gap-3 md:gap-6 overflow-x-auto">
-          {links.map(({ to, label }) => {
-            const active = location.pathname === to;
-            return (
-              <Link
-                key={to}
-                to={to}
-                className={`text-ui text-xs md:text-sm transition-colors whitespace-nowrap ${
-                  active ? 'text-foreground' : 'text-foreground/60 hover:text-foreground'
-                }`}
-              >
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="flex items-center gap-3 hidden md:flex">
-          <Link to="/admin/perfil" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <span className="text-sm font-bold text-foreground">{user?.name || (isAdmin ? 'Administrador' : 'Admin')}</span>
-          {user?.avatar ? (
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-8 h-8 rounded-full object-cover img-outline bg-muted"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center img-outline">
-              <UserIcon size={16} className="text-muted-foreground" />
-            </div>
-          )}
-          </Link>
-          <button
-            onClick={handleLogout}
-            title="Sair"
-            className="ml-2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <LogOut size={16} />
-          </button>
+
+        {/* Navigation Section */}
+        <div className="border-t border-border/10">
+          <nav className="flex items-center px-2 md:px-6 overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+            {links.map(({ to, label }) => {
+              const active = location.pathname === to;
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  className={`text-[11px] md:text-sm font-bold transition-colors whitespace-nowrap px-3 py-3 border-b-2 ${
+                    active ? 'text-primary border-primary' : 'text-muted-foreground border-transparent hover:text-foreground'
+                  }`}
+                >
+                  {label.toUpperCase()}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       </header>
       <main className="p-4 md:p-8">
