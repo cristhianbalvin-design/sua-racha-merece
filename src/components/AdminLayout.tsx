@@ -10,7 +10,12 @@ const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAdmin, logout } = useAuth();
-  const [pushEnabled, setPushEnabled] = useState(false);
+  const nativePermission = () =>
+    typeof window !== 'undefined' && 'Notification' in window
+      ? window.Notification.permission
+      : 'default';
+
+  const [pushEnabled, setPushEnabled] = useState(nativePermission() === 'granted');
 
   const handleLogout = async () => {
     await OneSignal.logout();
@@ -19,35 +24,11 @@ const AdminLayout = () => {
   };
 
   useEffect(() => {
-    if (typeof OneSignal === 'undefined' || !OneSignal.Notifications) return;
-
-    const onPermissionChange = (granted: boolean) => {
-      setPushEnabled(granted);
-      if (granted) {
-        OneSignal.User?.addTag("role", "admin");
-        toast.success("Push activado", {
-          description: "Recibirás notificaciones de nuevos registros de atletas.",
-        });
-      } else {
-        toast.error("Permiso denegado", {
-          description: "Habilitá las notificaciones en la configuración del navegador.",
-        });
-      }
-    };
-
-    OneSignal.Notifications.addEventListener('permissionChange', onPermissionChange);
-    return () => {
-      OneSignal.Notifications.removeEventListener('permissionChange', onPermissionChange);
-    };
-  }, []);
-
-  useEffect(() => {
     const setupOneSignal = async () => {
       try {
         if (user?.email && typeof OneSignal !== 'undefined' && OneSignal.User) {
           await OneSignal.login(user.email);
           OneSignal.User.addTag("role", "admin");
-          setPushEnabled(!!OneSignal.Notifications?.permission);
         }
       } catch (err) {
         console.error("OneSignal admin setup error:", err);
@@ -56,9 +37,42 @@ const AdminLayout = () => {
     setupOneSignal();
   }, [user]);
 
-  const handleEnablePush = () => {
+  const handleEnablePush = async () => {
+    const current = nativePermission();
+
+    if (current === 'granted') {
+      toast.info("Push ya activo", {
+        description: "Las notificaciones ya están habilitadas en este dispositivo.",
+      });
+      setPushEnabled(true);
+      return;
+    }
+
+    if (current === 'denied') {
+      toast.error("Permiso bloqueado", {
+        description: "Habilitá las notificaciones desde la configuración del navegador.",
+      });
+      return;
+    }
+
     if (typeof OneSignal !== 'undefined' && OneSignal.Notifications) {
       OneSignal.Notifications.requestPermission();
+      // Escuchar la respuesta del diálogo del navegador
+      const onPermissionChange = (granted: boolean) => {
+        setPushEnabled(granted);
+        if (granted) {
+          OneSignal.User?.addTag("role", "admin");
+          toast.success("Push activado", {
+            description: "Recibirás notificaciones de nuevos registros de atletas.",
+          });
+        } else {
+          toast.error("Permiso denegado", {
+            description: "Habilitá las notificaciones en la configuración del navegador.",
+          });
+        }
+        OneSignal.Notifications.removeEventListener('permissionChange', onPermissionChange);
+      };
+      OneSignal.Notifications.addEventListener('permissionChange', onPermissionChange);
     }
   };
 
