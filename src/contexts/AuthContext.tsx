@@ -80,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .select()
             .single();
           if (!insertError && newProfile) {
+            sessionStorage.setItem('isNewUserFlow', 'true');
             mapAndSetUser(newProfile);
           } else {
             console.error('Error creating profile:', insertError);

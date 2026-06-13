@@ -38,6 +38,7 @@ const Register = () => {
     setErrorMsg('');
     try {
       await register(email, password, 'Atleta', acceptedTerms);
+      sessionStorage.setItem('isNewUserFlow', 'true');
       toast.success('Conta criada com sucesso!');
       navigate('/completar-perfil');
     } catch (error: any) {
