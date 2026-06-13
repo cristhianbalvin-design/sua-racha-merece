@@ -39,6 +39,8 @@ const DesktopHeader = () => {
               <a
                 key={href}
                 href={href}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-ui inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/15 px-3 py-1.5 text-primary transition-colors hover:bg-primary/25 hover:shadow-[0_0_12px_hsl(var(--primary)/0.4)]"
               >
                 <Images size={13} />

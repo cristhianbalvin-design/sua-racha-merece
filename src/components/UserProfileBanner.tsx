@@ -75,14 +75,14 @@ const UserProfileBanner = () => {
           </div>
 
           {/* Promo panel — 1/3 para alinhar com MINHAS FOTOS */}
-          <div className="w-1/3 shrink-0 border-l-2 border-primary/30 flex flex-col items-center justify-center gap-2 p-3 bg-[#E6F7EE]">
+          <a href="https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI" target="_blank" rel="noopener noreferrer" className="w-1/3 shrink-0 border-l-2 border-primary/30 flex flex-col items-center justify-center gap-2 p-3 bg-[#E6F7EE] hover:bg-[#d4f0df] transition-colors cursor-pointer">
             <div className="w-8 h-8 rounded-full bg-white border-2 border-primary/35 flex items-center justify-center shadow-[0_4px_10px_rgba(26,122,46,0.16)]">
               <Camera size={15} className="text-primary" />
             </div>
             <p className="text-[9px] text-center text-neutral-800 leading-snug font-bold">
               Em breve encontramos suas fotos
             </p>
-          </div>
+          </a>
         </div>
 
         {/* ── Desktop layout: split row ── */}
@@ -124,14 +124,14 @@ const UserProfileBanner = () => {
           </div>
 
           {/* Promo panel — 1/3, alinhado com MINHAS FOTOS */}
-          <div className="w-1/3 shrink-0 border-l-2 border-primary/30 flex flex-col items-center justify-center gap-3 p-6 bg-[#E6F7EE]">
+          <a href="https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI" target="_blank" rel="noopener noreferrer" className="w-1/3 shrink-0 border-l-2 border-primary/30 flex flex-col items-center justify-center gap-3 p-6 bg-[#E6F7EE] hover:bg-[#d4f0df] transition-colors cursor-pointer">
             <div className="w-12 h-12 rounded-full bg-white border-2 border-primary/35 flex items-center justify-center shadow-[0_4px_12px_rgba(26,122,46,0.16)]">
               <Camera size={22} className="text-primary" />
             </div>
             <p className="text-xs text-center text-neutral-800 leading-snug font-bold">
               Em breve encontramos suas fotos
             </p>
-          </div>
+          </a>
         </div>
 
         {/* ── Stats row (shared) ── */}

@@ -36,6 +36,8 @@ const MobileNav = () => {
               <a
                 key={label}
                 href={href!}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex flex-col items-center gap-1 -mt-5"
               >
                 <div
