@@ -3,12 +3,14 @@ import { User as UserIcon, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from './Logo';
 import OneSignal from 'react-onesignal';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAdmin, logout } = useAuth();
+  const [pushEnabled, setPushEnabled] = useState(false);
 
   const handleLogout = async () => {
     await OneSignal.logout();
@@ -17,11 +19,35 @@ const AdminLayout = () => {
   };
 
   useEffect(() => {
+    if (typeof OneSignal === 'undefined' || !OneSignal.Notifications) return;
+
+    const onPermissionChange = (granted: boolean) => {
+      setPushEnabled(granted);
+      if (granted) {
+        OneSignal.User?.addTag("role", "admin");
+        toast.success("Push activado", {
+          description: "Recibirás notificaciones de nuevos registros de atletas.",
+        });
+      } else {
+        toast.error("Permiso denegado", {
+          description: "Habilitá las notificaciones en la configuración del navegador.",
+        });
+      }
+    };
+
+    OneSignal.Notifications.addEventListener('permissionChange', onPermissionChange);
+    return () => {
+      OneSignal.Notifications.removeEventListener('permissionChange', onPermissionChange);
+    };
+  }, []);
+
+  useEffect(() => {
     const setupOneSignal = async () => {
       try {
         if (user?.email && typeof OneSignal !== 'undefined' && OneSignal.User) {
           await OneSignal.login(user.email);
-          await OneSignal.User.addTag("role", "admin");
+          OneSignal.User.addTag("role", "admin");
+          setPushEnabled(!!OneSignal.Notifications?.permission);
         }
       } catch (err) {
         console.error("OneSignal admin setup error:", err);
@@ -30,13 +56,9 @@ const AdminLayout = () => {
     setupOneSignal();
   }, [user]);
 
-  const handleEnablePush = async () => {
-    try {
-      if (typeof OneSignal !== 'undefined' && OneSignal.Notifications) {
-        await OneSignal.Notifications.requestPermission();
-      }
-    } catch (err) {
-      console.error("Error al pedir permisos Push", err);
+  const handleEnablePush = () => {
+    if (typeof OneSignal !== 'undefined' && OneSignal.Notifications) {
+      OneSignal.Notifications.requestPermission();
     }
   };
 
@@ -61,11 +83,16 @@ const AdminLayout = () => {
           <Link to="/admin/usuarios">
             <Logo size="sm" />
           </Link>
-          <button 
+          <button
             onClick={handleEnablePush}
-            className="text-[10px] md:text-xs bg-primary text-primary-foreground px-2 py-1.5 rounded-md font-bold whitespace-nowrap shadow-md hover:scale-105 active:scale-95 transition-transform border border-white/20"
+            disabled={pushEnabled}
+            className={`text-[10px] md:text-xs px-2 py-1.5 rounded-md font-bold whitespace-nowrap shadow-md transition-transform border border-white/20 ${
+              pushEnabled
+                ? 'bg-green-600 text-white cursor-default opacity-80'
+                : 'bg-primary text-primary-foreground hover:scale-105 active:scale-95'
+            }`}
           >
-            🔔 Activar Push
+            {pushEnabled ? '✅ Push Activo' : '🔔 Activar Push'}
           </button>
         </div>
         <nav className="flex items-center gap-3 md:gap-6 overflow-x-auto">
