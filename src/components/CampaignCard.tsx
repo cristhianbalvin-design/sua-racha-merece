@@ -22,7 +22,7 @@ const sportIconFallback: Record<string, string> = {
 const CampaignCard = ({ campaign }: { campaign: Campaign }) => {
   const icon = campaign.sportIcon || sportIconFallback[campaign.sport] || '🏆';
 
-  const hasImage = !!campaign.imageUrl;
+  const hasImage = !!(campaign.imageUrlMobile || campaign.imageUrl);
 
   const statusColor = campaign.status === 'Aberto'
     ? 'bg-success/20 text-success'
@@ -38,7 +38,7 @@ const CampaignCard = ({ campaign }: { campaign: Campaign }) => {
         <>
           <div 
             className="absolute inset-0 bg-cover bg-center grayscale group-hover:grayscale-0 transition-all duration-500 z-0"
-            style={{ backgroundImage: `url(${campaign.imageUrl})` }}
+            style={{ backgroundImage: `url(${campaign.imageUrlMobile || campaign.imageUrl})` }}
           />
           <div 
             className="absolute inset-0 z-0"

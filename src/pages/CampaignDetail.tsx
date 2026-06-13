@@ -59,14 +59,23 @@ const CampaignDetail = () => {
     }
   };
 
-  const detailBackground = campaign.imageUrl
-    ? {
-        backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.84) 38%, rgba(0,0,0,0.58) 72%, rgba(0,0,0,0.78) 100%), url(${campaign.imageUrl})`,
-      }
-    : undefined;
+  const hasImage = campaign.imageUrl || campaign.imageUrlMobile;
 
   return (
-    <div className="min-h-[calc(100svh-49px)] bg-black bg-cover bg-[center_right] bg-no-repeat md:min-h-[calc(100svh-65px)]" style={detailBackground}>
+    <>
+      {hasImage && (
+        <style>{`
+          .campaign-detail-bg {
+            background-image: linear-gradient(90deg, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.84) 38%, rgba(0,0,0,0.58) 72%, rgba(0,0,0,0.78) 100%), url(${campaign.imageUrlMobile || campaign.imageUrl});
+          }
+          @media (min-width: 768px) {
+            .campaign-detail-bg {
+              background-image: linear-gradient(90deg, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.84) 38%, rgba(0,0,0,0.58) 72%, rgba(0,0,0,0.78) 100%), url(${campaign.imageUrl || campaign.imageUrlMobile});
+            }
+          }
+        `}</style>
+      )}
+      <div className={`min-h-[calc(100svh-49px)] bg-black bg-cover bg-[center_right] bg-no-repeat md:min-h-[calc(100svh-65px)] ${hasImage ? 'campaign-detail-bg' : ''}`}>
       <div className="px-4 md:px-8 py-6 max-w-2xl mx-auto">
       <button onClick={() => navigate(-1)} className="text-muted-foreground text-sm mb-4 hover:text-foreground transition-colors">
         ← Voltar
@@ -169,6 +178,7 @@ const CampaignDetail = () => {
       </div>
       </div>
     </div>
+    </>
   );
 };
 

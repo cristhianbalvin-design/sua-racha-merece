@@ -51,6 +51,8 @@ const AdminCampaigns = () => {
   const [cPrize, setCPrize] = useState('');
   const [cImageFile, setCImageFile] = useState<File | null>(null);
   const [cImagePreview, setCImagePreview] = useState('');
+  const [cImageMobileFile, setCImageMobileFile] = useState<File | null>(null);
+  const [cImageMobilePreview, setCImageMobilePreview] = useState('');
 
   const [plan, setPlan] = useState<'Freemium'|'Premium'|'Ambos'>('Ambos');
   const [igOptional, setIgOptional] = useState(false);
@@ -75,11 +77,13 @@ const AdminCampaigns = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cImageFile || isSubmitting) return;
+    if (!cImageFile || !cImageMobileFile || isSubmitting) return;
 
     setIsSubmitting(true);
     const imageUrl = await apiUploadCampaignImage(cImageFile);
-    if (!imageUrl) {
+    const imageUrlMobile = await apiUploadCampaignImage(cImageMobileFile);
+
+    if (!imageUrl || !imageUrlMobile) {
       setIsSubmitting(false);
       return;
     }
@@ -97,6 +101,7 @@ const AdminCampaigns = () => {
       winnersCount: parseInt(cWinners, 10),
       prize: cPrize,
       imageUrl,
+      imageUrlMobile,
       plan,
       instagramOptional: igOptional,
       instagramHashtags: igHashtags,
@@ -116,7 +121,7 @@ const AdminCampaigns = () => {
     setTimeout(() => {
       setFormSubmitted(false);
       setShowCreate(false);
-      setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize(''); setCImageFile(null); setCImagePreview('');
+      setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize(''); setCImageFile(null); setCImagePreview(''); setCImageMobileFile(null); setCImageMobilePreview('');
       setPlan('Ambos'); setIgOptional(false); setIgHashtags('#3bukchallenge');
     }, 2500);
   };
@@ -125,6 +130,12 @@ const AdminCampaigns = () => {
     if (!file) return;
     setCImageFile(file);
     setCImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleImageMobileChange = (file?: File) => {
+    if (!file) return;
+    setCImageMobileFile(file);
+    setCImageMobilePreview(URL.createObjectURL(file));
   };
 
   const handleStatusChange = async (id: string, newStatus: CampaignStatus) => {
@@ -323,29 +334,56 @@ const AdminCampaigns = () => {
                     <textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all resize-none h-24" placeholder="Descreva o desafio..." required />
                   </div>
 
-                  <div>
-                    <label className="text-ui text-xs text-muted-foreground block mb-2">IMAGEM DA CAMPANHA</label>
-                    <label className="block cursor-pointer rounded-xl border border-dashed border-border bg-input/60 p-3 transition-colors hover:border-primary/70">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleImageChange(e.target.files?.[0])}
-                      />
-                      {cImagePreview ? (
-                        <img
-                          src={cImagePreview}
-                          alt="Preview da campanha"
-                          className="h-40 w-full rounded-lg object-cover"
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-ui text-xs text-muted-foreground block mb-2">IMAGEM DESKTOP</label>
+                      <label className="block cursor-pointer rounded-xl border border-dashed border-border bg-input/60 p-3 transition-colors hover:border-primary/70">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleImageChange(e.target.files?.[0])}
                         />
-                      ) : (
-                        <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg bg-background/40 text-muted-foreground">
-                          <ImageIcon size={26} className="text-primary" />
-                          <span className="text-sm font-bold">Adjuntar imagem</span>
-                          <span className="text-xs">Aparecera como fundo da campanha</span>
-                        </div>
-                      )}
-                    </label>
+                        {cImagePreview ? (
+                          <img
+                            src={cImagePreview}
+                            alt="Preview desktop"
+                            className="h-40 w-full rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-40 flex-col items-center justify-center gap-2 text-center rounded-lg bg-background/40 text-muted-foreground px-2">
+                            <ImageIcon size={26} className="text-primary" />
+                            <span className="text-sm font-bold">Adjuntar imagem</span>
+                            <span className="text-[10px] leading-tight">1920x1080px (16:9)</span>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="text-ui text-xs text-muted-foreground block mb-2">IMAGEM CELULAR</label>
+                      <label className="block cursor-pointer rounded-xl border border-dashed border-border bg-input/60 p-3 transition-colors hover:border-primary/70">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleImageMobileChange(e.target.files?.[0])}
+                        />
+                        {cImageMobilePreview ? (
+                          <img
+                            src={cImageMobilePreview}
+                            alt="Preview celular"
+                            className="h-40 w-full rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-40 flex-col items-center justify-center gap-2 text-center rounded-lg bg-background/40 text-muted-foreground px-2">
+                            <ImageIcon size={26} className="text-primary" />
+                            <span className="text-sm font-bold">Adjuntar imagem</span>
+                            <span className="text-[10px] leading-tight">1080x1920px (9:16)</span>
+                          </div>
+                        )}
+                      </label>
+                    </div>
                   </div>
 
                   {/* Plan */}
@@ -422,7 +460,7 @@ const AdminCampaigns = () => {
                     </motion.button>
                     <motion.button
                       type="submit"
-                      disabled={!cImageFile || isSubmitting}
+                      disabled={!cImageFile || !cImageMobileFile || isSubmitting}
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                       transition={spring}
