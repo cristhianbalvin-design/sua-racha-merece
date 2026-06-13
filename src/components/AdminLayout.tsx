@@ -2,6 +2,8 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { User as UserIcon, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import Logo from './Logo';
+import OneSignal from 'react-onesignal';
+import { useEffect } from 'react';
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -9,9 +11,19 @@ const AdminLayout = () => {
   const { user, isAdmin, logout } = useAuth();
 
   const handleLogout = async () => {
+    await OneSignal.logout();
     await logout();
     navigate('/');
   };
+
+  useEffect(() => {
+    if (user?.email) {
+      OneSignal.login(user.email).catch(console.error);
+      OneSignal.User.addTag("role", "admin").catch(console.error);
+      // Solicitar permisos de notificación nativamente a OneSignal
+      OneSignal.Slidedown.promptPush().catch(console.error);
+    }
+  }, [user]);
 
   const links = [
     { to: '/admin/dashboard', label: 'Dashboard' },

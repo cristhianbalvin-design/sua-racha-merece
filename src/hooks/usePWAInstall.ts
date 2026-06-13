@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -10,6 +11,7 @@ const DISMISSED_KEY = '3buk_pwa_dismissed_at';
 const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 export const usePWAInstall = () => {
+  const { isAdmin } = useAuth();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -28,15 +30,9 @@ export const usePWAInstall = () => {
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(ios);
 
-    if (ios) {
-      setTimeout(() => setShowPrompt(true), 2000);
-      return;
-    }
-
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setTimeout(() => setShowPrompt(true), 2000);
     };
 
     window.addEventListener('beforeinstallprompt', handler);
@@ -44,6 +40,20 @@ export const usePWAInstall = () => {
 
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  useEffect(() => {
+    if (isAdmin && !showPrompt) {
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (navigator as any).standalone === true;
+      const dismissedAt = localStorage.getItem(DISMISSED_KEY);
+      const isDismissed = dismissedAt && Date.now() - Number(dismissedAt) < COOLDOWN_MS;
+      
+      if (!isStandalone && !isDismissed && (deferredPrompt || isIOS)) {
+        setTimeout(() => setShowPrompt(true), 1500);
+      }
+    }
+  }, [isAdmin, deferredPrompt, isIOS, showPrompt]);
 
   const install = async () => {
     if (!deferredPrompt) return;

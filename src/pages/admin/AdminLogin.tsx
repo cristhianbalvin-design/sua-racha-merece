@@ -64,7 +64,8 @@ const AdminLogin = () => {
           </div>
 
           <motion.button
-            type="submit"
+            type="button"
+            onClick={handleSubmit}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             transition={spring}

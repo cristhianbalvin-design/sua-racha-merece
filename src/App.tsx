@@ -1,5 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import OneSignal from "react-onesignal";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -37,6 +39,7 @@ import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 initializeMockData();
 
@@ -94,18 +97,28 @@ const AnimatedRoutes = () => {
   );
 };
 
-const App = () => (
-  <BrowserRouter>
-    <QueryClientProvider client={queryClient}>
+const App = () => {
+  useEffect(() => {
+    OneSignal.init({
+      appId: "f4c2d37d-d6a4-4209-9814-cf2c9cce92e1",
+      allowLocalhostAsSecureOrigin: true,
+    }).catch(console.error);
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
           <Toaster />
           <Sonner />
+          <PWAInstallPrompt />
           <AnimatedRoutes />
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </BrowserRouter>
-);
+  );
+};
 
 export default App;

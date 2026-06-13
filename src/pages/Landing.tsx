@@ -99,17 +99,7 @@ const Landing = () => {
       <header className="flex items-center justify-between px-4 md:px-8 py-4">
         <Logo size="md" />
         <div className="flex items-center gap-4">
-          <Link to="/admin">
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              transition={spring}
-              className="text-ui text-xs text-muted-foreground flex items-center gap-1.5"
-            >
-              <Shield size={14} />
-              ADMIN
-            </motion.button>
-          </Link>
+
           <Link to="/login">
             <motion.button
               whileHover={{ scale: 1.03 }}
