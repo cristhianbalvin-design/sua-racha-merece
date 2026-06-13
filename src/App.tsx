@@ -101,6 +101,7 @@ const App = () => {
   useEffect(() => {
     OneSignal.init({
       appId: "f4c2d37d-d6a4-4209-9814-cf2c9cce92e1",
+      serviceWorkerPath: "sw.js",
       allowLocalhostAsSecureOrigin: true,
     }).catch(console.error);
   }, []);
