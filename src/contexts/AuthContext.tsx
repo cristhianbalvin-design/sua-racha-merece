@@ -173,10 +173,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Enviar notificación Push al Administrador via Edge Function (evita CORS)
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("send-push-notification", {
+      await supabase.functions.invoke("send-push-notification", {
         body: { name, email },
       });
-      console.log("[OneSignal] edge function response:", JSON.stringify(data), fnError);
     } catch (err) {
       console.error("Error enviando push via edge function", err);
     }

@@ -41,6 +41,9 @@ serve(async (req) => {
           en: "¡Nuevo Registro 3BUK!",
           es: "¡Nuevo Registro 3BUK!",
         },
+        chrome_web_icon: "https://www.3buk.com/pwa-192.svg",
+        chrome_web_badge: "https://www.3buk.com/pwa-192.svg",
+        large_icon: "https://www.3buk.com/pwa-512.svg",
       }),
     });
 

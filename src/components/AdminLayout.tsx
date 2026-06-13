@@ -29,8 +29,6 @@ const AdminLayout = () => {
         if (user?.email && typeof OneSignal !== 'undefined' && OneSignal.User) {
           await OneSignal.login(user.email);
           OneSignal.User.addTag("role", "admin");
-          console.log("[OneSignal] login + addTag(role=admin) ejecutado para:", user.email);
-          console.log("[OneSignal] permission:", OneSignal.Notifications?.permission, "| native:", window.Notification?.permission);
         }
       } catch (err) {
         console.error("OneSignal admin setup error:", err);
