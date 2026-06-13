@@ -18,7 +18,13 @@ const AdminLayout = () => {
   const [pushEnabled, setPushEnabled] = useState(nativePermission() === 'granted');
 
   const handleLogout = async () => {
-    await OneSignal.logout();
+    try {
+      if (typeof OneSignal !== 'undefined' && OneSignal.User) {
+        await OneSignal.logout();
+      }
+    } catch (err) {
+      console.error("OneSignal logout error:", err);
+    }
     await logout();
     navigate('/');
   };
@@ -62,12 +68,12 @@ const AdminLayout = () => {
         setPushEnabled(granted);
         if (granted) {
           OneSignal.User?.addTag("role", "admin");
-          toast.success("Push activado", {
-            description: "Recibirás notificaciones de nuevos registros de atletas.",
+          toast.success("Push ativado", {
+            description: "Você receberá notificações de novos registros de atletas.",
           });
         } else {
-          toast.error("Permiso denegado", {
-            description: "Habilitá las notificaciones en la configuración del navegador.",
+          toast.error("Permissão negada", {
+            description: "Habilite as notificações nas configurações do navegador.",
           });
         }
         OneSignal.Notifications.removeEventListener('permissionChange', onPermissionChange);
@@ -109,7 +115,7 @@ const AdminLayout = () => {
                   : 'bg-primary text-primary-foreground hover:scale-105 active:scale-95'
               }`}
             >
-              {pushEnabled ? '✅ Push Activo' : '🔔 Activar Push'}
+              {pushEnabled ? '✅ Push Ativo' : '🔔 Ativar Push'}
             </button>
           </div>
           

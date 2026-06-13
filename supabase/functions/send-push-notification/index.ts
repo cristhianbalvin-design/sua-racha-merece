@@ -34,16 +34,16 @@ serve(async (req) => {
         target_channel: "push",
         filters: [{ field: "tag", key: "role", relation: "=", value: "admin" }],
         contents: {
-          en: `Nuevo atleta registrado: ${name} (${email})`,
-          es: `Nuevo atleta registrado: ${name} (${email})`,
+          en: `Novo atleta registrado: ${name} (${email})`,
+          pt: `Novo atleta registrado: ${name} (${email})`,
         },
         headings: {
-          en: "¡Nuevo Registro 3BUK!",
-          es: "¡Nuevo Registro 3BUK!",
+          en: "Novo Registro 3BUK!",
+          pt: "Novo Registro 3BUK!",
         },
-        chrome_web_icon: "https://www.3buk.com/pwa-192.svg",
-        chrome_web_badge: "https://www.3buk.com/pwa-192.svg",
-        large_icon: "https://www.3buk.com/pwa-512.svg",
+        chrome_web_icon: "https://ljizlialjsonmmvppoqh.supabase.co/storage/v1/object/public/popups/assets/3buk-notification-icon.png",
+        chrome_web_badge: "https://ljizlialjsonmmvppoqh.supabase.co/storage/v1/object/public/popups/assets/3buk-notification-icon.png",
+        large_icon: "https://ljizlialjsonmmvppoqh.supabase.co/storage/v1/object/public/popups/assets/3buk-notification-icon.png",
       }),
     });
 

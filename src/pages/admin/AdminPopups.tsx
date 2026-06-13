@@ -87,10 +87,10 @@ const AdminPopups = () => {
   };
 
   const handleDelete = async (popup: HomePopup) => {
-    if (!window.confirm(`Eliminar o popup "${popup.name}"?`)) return;
+    if (!window.confirm(`Excluir o popup "${popup.name}"?`)) return;
     await apiDeleteHomePopup(popup.id);
     setPopups(prev => prev.filter(item => item.id !== popup.id));
-    toast.success('Popup eliminado.');
+    toast.success('Popup excluído.');
   };
 
   const handleCopy = async (url: string) => {
@@ -138,7 +138,7 @@ const AdminPopups = () => {
               ) : (
                 <div className="aspect-[4/3] flex flex-col items-center justify-center gap-3 text-muted-foreground">
                   <ImagePlus size={32} />
-                  <span className="text-sm font-bold">Subir imagem</span>
+                  <span className="text-sm font-bold">Enviar imagem</span>
                 </div>
               )}
             </label>
@@ -244,7 +244,7 @@ const AdminPopups = () => {
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => handleDelete(popup)}
-                          title="Eliminar popup"
+                          title="Excluir popup"
                           className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                         >
                           <Trash2 size={16} />

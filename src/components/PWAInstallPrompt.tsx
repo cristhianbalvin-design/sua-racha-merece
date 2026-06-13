@@ -43,34 +43,34 @@ const PWAInstallPrompt = () => {
               />
               <div>
                 <h2 className="font-bold italic text-2xl text-foreground uppercase">3BUK</h2>
-                <p className="text-xs text-muted-foreground">Sua racha é seu mérito</p>
+                <p className="text-xs text-muted-foreground">Seu esforço merece patrocínio</p>
               </div>
             </div>
 
             <h3 className="font-bold text-lg text-foreground mb-1">
-              ¡Instala la app!
+              Instale o app!
             </h3>
             <p className="text-sm text-muted-foreground mb-6">
-              Accede más rápido, recibe notificaciones y úsala sin conexión como una app nativa.
+              Acesse mais rápido, receba notificações e use sem conexão como um app nativo.
             </p>
 
             {isIOS ? (
               /* iOS: manual instructions */
               <div className="bg-muted rounded-2xl p-4 mb-4 space-y-2 text-sm text-foreground">
-                <p className="font-bold text-xs text-muted-foreground uppercase mb-3">Cómo instalar en iOS</p>
+                <p className="font-bold text-xs text-muted-foreground uppercase mb-3">Como instalar no iOS</p>
                 <div className="flex items-center gap-3">
                   <span className="bg-primary/10 text-primary rounded-xl p-2 flex-shrink-0">
                     <Share size={18} />
                   </span>
-                  <p>Toca el botón <strong>Compartir</strong> en Safari</p>
+                  <p>Toque o botão <strong>Compartilhar</strong> no Safari</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="bg-primary/10 text-primary rounded-xl p-2 flex-shrink-0 text-lg font-bold">+</span>
-                  <p>Selecciona <strong>"Agregar a inicio"</strong></p>
+                  <p>Selecione <strong>"Adicionar à tela inicial"</strong></p>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="bg-primary/10 text-primary rounded-xl p-2 flex-shrink-0 font-bold text-sm">OK</span>
-                  <p>Confirma tocando <strong>"Agregar"</strong></p>
+                  <p>Confirme tocando <strong>"Adicionar"</strong></p>
                 </div>
               </div>
             ) : (
@@ -83,7 +83,7 @@ const PWAInstallPrompt = () => {
                 className="w-full bg-primary text-primary-foreground font-bold py-3.5 rounded-2xl btn-shadow flex items-center justify-center gap-2 text-sm mb-3"
               >
                 <Download size={18} />
-                INSTALAR AHORA
+                INSTALAR AGORA
               </motion.button>
             )}
 
@@ -91,7 +91,7 @@ const PWAInstallPrompt = () => {
               onClick={dismiss}
               className="w-full text-muted-foreground text-sm py-2 hover:text-foreground transition-colors"
             >
-              Ahora no
+              Agora não
             </button>
           </motion.div>
         </>

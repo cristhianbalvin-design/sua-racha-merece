@@ -136,11 +136,11 @@ export const apiUpdateCampaign = async (id: string, updates: Partial<Campaign>) 
 }
 
 export const apiDeleteCampaign = async (id: string) => {
-  // Eliminar referencias para evitar fallos de llave foránea
+  // Remover referências para evitar falhas de chave estrangeira
   await supabase.from('notifications').delete().eq('campaign_id', id);
   await supabase.from('participations').delete().eq('campaign_id', id);
-  
-  // Eliminar la campaña
+
+  // Excluir a campanha
   const { error } = await supabase.from('campaigns').delete().eq('id', id);
   if (error) {
     console.error('Error delete campaign:', error);
@@ -650,11 +650,11 @@ export const apiActivateTermsVersion = async (id: string): Promise<boolean> => {
 
   if (activateError) {
     console.error('Error activating terms version:', activateError);
-    toast.error('Erro ao activar versão: ' + activateError.message);
+    toast.error('Erro ao ativar versão: ' + activateError.message);
     return false;
   }
 
-  toast.success('Versão dos Termos activada com sucesso!');
+  toast.success('Versão dos Termos ativada com sucesso!');
   return true;
 };
 

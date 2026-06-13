@@ -78,7 +78,7 @@ const Landing = () => {
                   transition={spring}
                   className="w-full rounded-xl bg-primary px-5 py-3 text-ui text-sm font-bold text-primary-foreground btn-shadow hover:btn-shadow-hover"
                 >
-                  REGISTRO NUEVO USUARIO
+                  REGISTRAR NOVO USUÁRIO
                 </motion.button>
               </Link>
               <Link to="/login" onClick={closePopup}>
@@ -257,12 +257,12 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Deportes */}
+      {/* Esportes */}
       <section className="px-4 md:px-8 pb-16 max-w-6xl mx-auto">
         <div className="bg-card border border-border rounded-2xl overflow-hidden card-shadow">
           <div className="grid lg:grid-cols-[1fr_1.6fr]">
             <div className="bg-foreground text-background p-8 md:p-10 flex flex-col justify-center">
-              <p className="text-ui text-xs text-primary font-bold mb-3">DEPORTES</p>
+              <p className="text-ui text-xs text-primary font-bold mb-3">ESPORTES</p>
               <h2 className="font-bold italic text-3xl md:text-4xl leading-tight mb-5">
                 Todos os esportes.
               </h2>
@@ -407,7 +407,7 @@ const Landing = () => {
       {/* Footer */}
       <footer className="px-4 md:px-8 py-12 text-center">
         <Logo size="md" />
-        <p className="text-muted-foreground text-sm mt-3">Sua racha é seu mérito.</p>
+        <p className="text-muted-foreground text-sm mt-3">Seu esforço merece patrocínio.</p>
         <p className="text-muted-foreground text-xs mt-2">#3bukchallenge</p>
       </footer>
     </div>

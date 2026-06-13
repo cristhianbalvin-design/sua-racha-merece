@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.ico", "pwa-192.svg", "pwa-512.svg"],
       devOptions: { enabled: true },
       manifest: {
-        name: "3BUK — Sua racha é seu mérito",
+        name: "3BUK — Seu esforço merece patrocínio",
         short_name: "3BUK",
         description: "3BUK é a plataforma para atletas amadores no Brasil. Participe de campanhas, mostre sua atitude e ganhe patrocínios reais.",
         theme_color: "#000000",

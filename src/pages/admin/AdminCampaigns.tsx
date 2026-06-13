@@ -145,7 +145,7 @@ const AdminCampaigns = () => {
   };
 
   const handleDeleteCampaign = async (id: string, campaignName: string) => {
-    if (window.confirm(`¿Estás seguro que deseas eliminar la campaña "${campaignName}"? Esto también borrará todas las participaciones vinculadas a la misma.`)) {
+    if (window.confirm(`Tem certeza que deseja excluir a campanha "${campaignName}"? Isso também irá excluir todas as participações vinculadas a ela.`)) {
       try {
         await apiDeleteCampaign(id);
         setCampaignsList(prev => prev.filter(c => c.id !== id));
@@ -254,7 +254,7 @@ const AdminCampaigns = () => {
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => handleDeleteCampaign(c.id, c.name || 'N/A')}
-                        title="Eliminar campaña"
+                        title="Excluir campanha"
                         className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                       >
                         <Trash2 size={16} />
@@ -353,7 +353,7 @@ const AdminCampaigns = () => {
                         ) : (
                           <div className="flex h-40 flex-col items-center justify-center gap-2 text-center rounded-lg bg-background/40 text-muted-foreground px-2">
                             <ImageIcon size={26} className="text-primary" />
-                            <span className="text-sm font-bold">Adjuntar imagem</span>
+                            <span className="text-sm font-bold">Anexar imagem</span>
                             <span className="text-[10px] leading-tight">1920x1080px (16:9)</span>
                           </div>
                         )}
@@ -378,7 +378,7 @@ const AdminCampaigns = () => {
                         ) : (
                           <div className="flex h-40 flex-col items-center justify-center gap-2 text-center rounded-lg bg-background/40 text-muted-foreground px-2">
                             <ImageIcon size={26} className="text-primary" />
-                            <span className="text-sm font-bold">Adjuntar imagem</span>
+                            <span className="text-sm font-bold">Anexar imagem</span>
                             <span className="text-[10px] leading-tight">1080x1920px (9:16)</span>
                           </div>
                         )}

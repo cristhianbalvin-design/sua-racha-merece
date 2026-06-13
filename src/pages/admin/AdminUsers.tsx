@@ -33,10 +33,10 @@ const AdminUsers = () => {
     try {
       await apiDeleteUser(userToDelete.id);
       setUserList(prev => prev.filter(u => u.id !== userToDelete.id));
-      toast.success(`Usuario "${userToDelete.name}" eliminado.`);
+      toast.success(`Usuário "${userToDelete.name}" excluído.`);
       setUserToDelete(null);
     } catch (err: any) {
-      toast.error('Error al eliminar: ' + err.message);
+      toast.error('Erro ao excluir: ' + err.message);
     } finally {
       setDeleting(false);
     }
@@ -140,7 +140,7 @@ const AdminUsers = () => {
                       : 'bg-success/20 text-success border border-success/40 text-ui text-xs px-4 py-2 rounded-xl'
                   }
                 >
-                  {user.userStatus === 'Ativo' ? 'DESACTIVAR' : 'ACTIVAR'}
+                  {user.userStatus === 'Ativo' ? 'DESATIVAR' : 'ATIVAR'}
                 </motion.button>
                 <motion.button
                   onClick={() => setSelectedUser(user)}
@@ -149,7 +149,7 @@ const AdminUsers = () => {
                   transition={spring}
                   className="bg-secondary/20 hover:bg-secondary/30 text-secondary text-ui text-xs px-4 py-2 rounded-xl"
                 >
-                  DETALLES
+                  DETALHES
                 </motion.button>
                 <motion.button
                   onClick={() => setUserToDelete(user)}
@@ -157,7 +157,7 @@ const AdminUsers = () => {
                   whileTap={{ scale: 0.9 }}
                   transition={spring}
                   className="text-muted-foreground hover:text-destructive transition-colors p-2 rounded-lg hover:bg-destructive/10"
-                  title="Eliminar usuario"
+                  title="Excluir usuário"
                 >
                   <Trash2 size={16} />
                 </motion.button>
@@ -180,12 +180,12 @@ const AdminUsers = () => {
                 <Trash2 size={18} className="text-destructive" />
               </div>
               <div>
-                <h3 className="font-bold text-foreground">Eliminar usuario</h3>
-                <p className="text-xs text-muted-foreground">Esta acción no se puede deshacer</p>
+                <h3 className="font-bold text-foreground">Excluir usuário</h3>
+                <p className="text-xs text-muted-foreground">Esta ação não pode ser desfeita</p>
               </div>
             </div>
             <p className="text-sm text-muted-foreground mb-6">
-              ¿Estás seguro que deseas eliminar a <span className="font-bold text-foreground">{userToDelete.name}</span>? Se borrarán su perfil, participaciones y cuenta de acceso.
+              Tem certeza que deseja excluir <span className="font-bold text-foreground">{userToDelete.name}</span>? O perfil, participações e conta de acesso serão excluídos.
             </p>
             <div className="flex gap-3">
               <motion.button
@@ -204,7 +204,7 @@ const AdminUsers = () => {
                 disabled={deleting}
                 className="flex-1 bg-destructive text-destructive-foreground text-ui text-xs py-2.5 rounded-xl disabled:opacity-60"
               >
-                {deleting ? 'ELIMINANDO...' : 'ELIMINAR'}
+                {deleting ? 'EXCLUINDO...' : 'EXCLUIR'}
               </motion.button>
             </div>
           </motion.div>

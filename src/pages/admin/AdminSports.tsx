@@ -117,12 +117,12 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
     if (this.state.hasError) {
       return (
         <div className="p-8 max-w-2xl mx-auto bg-destructive/10 text-destructive rounded-xl border border-destructive/20 mt-10 space-y-4">
-          <h2 className="text-xl font-bold">¡React Crash! (Error Boundary)</h2>
+          <h2 className="text-xl font-bold">Erro no React! (Error Boundary)</h2>
           <p className="text-sm font-mono whitespace-pre-wrap">{this.state.error?.toString()}</p>
           <pre className="text-xs opacity-70 whitespace-pre-wrap overflow-x-auto p-4 bg-background/50 rounded-lg">
             {this.state.error?.stack}
           </pre>
-          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg">Recargar página</button>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg">Recarregar página</button>
         </div>
       );
     }

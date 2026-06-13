@@ -12,8 +12,8 @@ const MobileNav = () => {
   const unreadCount = user ? notifications.filter((n) => n.userId === user.id && !n.read).length : 0;
 
   const links = [
-    { to: '/dashboard', icon: Home, label: 'Campañas' },
-    { to: '/participacoes', icon: Trophy, label: 'Participaciones' },
+    { to: '/dashboard', icon: Home, label: 'Campanhas' },
+    { to: '/participacoes', icon: Trophy, label: 'Participações' },
     { to: null, href: FOTOS_HREF, icon: Images, label: 'Fotos', featured: true },
     { to: '/notificacoes', icon: Bell, label: 'Avisos', badge: unreadCount },
     { to: '/perfil', icon: User, label: 'Perfil' },

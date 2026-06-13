@@ -22,7 +22,7 @@ const getVideoDuration = (file: File): Promise<number> => {
     };
     video.onerror = () => {
       window.URL.revokeObjectURL(video.src);
-      reject("Error cargando el video");
+      reject("Erro ao carregar o vídeo");
     };
     video.src = URL.createObjectURL(file);
   });
@@ -104,9 +104,9 @@ const UserParticipations = () => {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     const remaining = MAX_PHOTOS - photos.length;
-    if (remaining <= 0) { toast.error(`Máximo de ${MAX_PHOTOS} fotos alcanzado.`); return; }
+    if (remaining <= 0) { toast.error(`Máximo de ${MAX_PHOTOS} fotos atingido.`); return; }
     const toAdd = selected.slice(0, remaining);
-    if (selected.length > remaining) toast.warning(`Se añadió solo 1 foto.`);
+    if (selected.length > remaining) toast.warning(`Apenas 1 foto foi adicionada.`);
     setPhotos(prev => [...prev, ...toAdd]);
     setPhotoPreviews(prev => [...prev, ...toAdd.map(f => URL.createObjectURL(f))]);
     e.target.value = '';
@@ -115,26 +115,25 @@ const UserParticipations = () => {
   const handleVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
     const remaining = MAX_VIDEOS - videos.length;
-    if (remaining <= 0) { toast.error(`Máximo de ${MAX_VIDEOS} videos alcanzado.`); return; }
-    
+    if (remaining <= 0) { toast.error(`Máximo de ${MAX_VIDEOS} vídeos atingido.`); return; }
+
     const toProcess = selected.slice(0, remaining);
     const validFiles: File[] = [];
 
     for (const file of toProcess) {
       try {
         const duration = await getVideoDuration(file);
-        // Margen extra pequeño por redondeos de algunas cámaras
         if (duration > MAX_VIDEO_DURATION_SECONDS + 0.5) {
-          toast.error(`El video "${file.name}" supera los 10 segundos (dura aprox. ${Math.round(duration)}s).`);
+          toast.error(`O vídeo "${file.name}" ultrapassa 10 segundos (dura aprox. ${Math.round(duration)}s).`);
         } else {
           validFiles.push(file);
         }
       } catch (err) {
-        toast.error(`No se pudo verificar la duración del video "${file.name}".`);
+        toast.error(`Não foi possível verificar a duração do vídeo "${file.name}".`);
       }
     }
 
-    if (selected.length > remaining) toast.warning(`Solo se puede subir ${MAX_VIDEOS} video.`);
+    if (selected.length > remaining) toast.warning(`Só é possível enviar ${MAX_VIDEOS} vídeo.`);
     
     if (validFiles.length > 0) {
       setVideos(prev => [...prev, ...validFiles]);
@@ -157,15 +156,15 @@ const UserParticipations = () => {
     e.preventDefault();
     if (!showEvidenceModal || !user) return;
     if (photos.length === 0 || comment.trim() === '') {
-      toast.error('Adiciona una foto y un comentario para participar.');
+      toast.error('Adicione uma foto e um comentário para participar.');
       return;
     }
     if (instagram && !igScreenshot) {
-      toast.error('Por favor, añade la captura de pantalla de Instagram o desmarca la opción.');
+      toast.error('Por favor, adicione a captura de tela do Instagram ou desmarque a opção.');
       return;
     }
     setIsUploading(true);
-    toast.loading('Subiendo evidencia...', { id: 'upload-evidence' });
+    toast.loading('Enviando evidência...', { id: 'upload-evidence' });
 
     const [mediaUrls, igUrlResult] = await Promise.all([
       Promise.all(photos.map(file => apiUploadEvidence(file, user.id))),
@@ -176,7 +175,7 @@ const UserParticipations = () => {
     const igUrl = igUrlResult || undefined;
 
     if (uploadedUrls.length === 0 && !igUrl && (photos.length > 0 || (instagram && igScreenshot))) {
-      toast.error('Error al subir los archivos. Intenta nuevamente.', { id: 'upload-evidence' });
+      toast.error('Erro ao enviar os arquivos. Tente novamente.', { id: 'upload-evidence' });
       setIsUploading(false);
       return;
     }
@@ -190,7 +189,7 @@ const UserParticipations = () => {
       timestamp: new Date().toISOString()
     });
 
-    toast.success(`¡Archivos subidos exitosamente!`, { id: 'upload-evidence' });
+    toast.success(`Arquivos enviados com sucesso!`, { id: 'upload-evidence' });
     setIsUploading(false);
     setSubmitted(true);
     setTimeout(() => {
@@ -280,7 +279,7 @@ const UserParticipations = () => {
                       className="bg-primary text-primary-foreground text-ui text-xs px-3 py-1.5 rounded-xl btn-shadow flex items-center gap-1.5"
                     >
                       <Upload size={12} />
-                      REGISTRAR PARTICIPACIÓN
+                      REGISTRAR PARTICIPAÇÃO
                     </motion.button>
                   )}
                 </div>
@@ -313,17 +312,17 @@ const UserParticipations = () => {
             >
               {!submitted ? (
                 <form onSubmit={handleSubmitEvidence}>
-                  <h3 className="font-bold italic text-lg text-foreground mb-4 uppercase">Registrar Participación</h3>
+                  <h3 className="font-bold italic text-lg text-foreground mb-4 uppercase">Registrar Participação</h3>
 
                   {/* Photo upload */}
                   <div className="mb-4 mt-2">
                     <div className="flex justify-between items-end mb-1">
-                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">FOTOS <span className="text-destructive">(OBLIGATORIO)</span> <span className="text-primary ml-1">{photos.length}/{MAX_PHOTOS}</span></label>
+                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">FOTOS <span className="text-destructive">(OBRIGATÓRIO)</span> <span className="text-primary ml-1">{photos.length}/{MAX_PHOTOS}</span></label>
                       {photos.length < MAX_PHOTOS && (
-                        <button type="button" onClick={() => photoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><ImageIcon size={11} /> Para añadir</button>
+                        <button type="button" onClick={() => photoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><ImageIcon size={11} /> Para adicionar</button>
                       )}
                     </div>
-                    <p className="text-sm text-foreground mb-3 leading-snug">Sube una foto mostrando tu mejor actitud mientras practicas tu deporte favorito.</p>
+                    <p className="text-sm text-foreground mb-3 leading-snug">Envie uma foto mostrando sua melhor atitude enquanto pratica seu esporte favorito.</p>
                     <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
 
                     {photoPreviews.length > 0 ? (
@@ -343,7 +342,7 @@ const UserParticipations = () => {
                       <div onClick={() => photoInputRef.current?.click()}
                         className="w-full py-8 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer bg-muted/40 text-muted-foreground hover:bg-muted/80 transition-all border border-dashed border-border/50">
                         <ImageIcon size={24} />
-                        <span className="text-xs">Hasta 1 foto</span>
+                        <span className="text-xs">Até 1 foto</span>
                       </div>
                     )}
                   </div>
@@ -351,12 +350,12 @@ const UserParticipations = () => {
                   {/* Video upload */}
                   <div className="hidden">
                     <div className="flex justify-between items-end mb-1">
-                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">VIDEOS <span className="text-destructive">(OBLIGATORIO)</span> <span className="text-primary ml-1">{videos.length}/{MAX_VIDEOS}</span></label>
+                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">VÍDEOS <span className="text-destructive">(OBRIGATÓRIO)</span> <span className="text-primary ml-1">{videos.length}/{MAX_VIDEOS}</span></label>
                       {videos.length < MAX_VIDEOS && (
-                        <button type="button" onClick={() => videoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><Film size={11} /> Para añadir</button>
+                        <button type="button" onClick={() => videoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><Film size={11} /> Para adicionar</button>
                       )}
                     </div>
-                    <p className="text-sm text-foreground mb-3 leading-snug">Sube un video mostrando como vives tu deporte favorito <strong className="text-accent">(máximo 10 segundos)</strong>.</p>
+                    <p className="text-sm text-foreground mb-3 leading-snug">Envie um vídeo mostrando como você vive seu esporte favorito <strong className="text-accent">(máximo 10 segundos)</strong>.</p>
                     <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoChange} />
 
                     {videos.length > 0 ? (
@@ -374,25 +373,25 @@ const UserParticipations = () => {
                       <div onClick={() => videoInputRef.current?.click()}
                         className="w-full py-6 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer bg-muted/40 text-muted-foreground hover:bg-muted/80 transition-all border border-dashed border-border/50">
                         <Film size={20} />
-                        <span className="text-xs">Hasta 1 video (Máx 10s)</span>
+                        <span className="text-xs">Até 1 vídeo (Máx 10s)</span>
                       </div>
                     )}
                   </div>
 
                   {/* Comment */}
                   <div className="mb-4">
-                    <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 uppercase">COMENTARIO <span className="text-destructive">(OBLIGATORIO)</span></label>
+                    <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 uppercase">COMENTÁRIO <span className="text-destructive">(OBRIGATÓRIO)</span></label>
                     <textarea
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                       className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all resize-none h-20"
-                      placeholder="Ejemplo: ¡El mejor entrenamiento de la semana!"
+                      placeholder="Exemplo: O melhor treino da semana!"
                     />
                   </div>
 
                   {/* Timestamp */}
                   <div className="bg-card card-shadow border border-border/50 rounded-xl p-3 mb-4">
-                    <span className="text-ui text-xs text-muted-foreground font-bold uppercase">MARCA DE TIEMPO</span>
+                    <span className="text-ui text-xs text-muted-foreground font-bold uppercase">REGISTRO DE TEMPO</span>
                     <p className="text-foreground text-sm font-bold mt-1">{timestamp}</p>
                   </div>
 
@@ -406,7 +405,7 @@ const UserParticipations = () => {
                           {instagram && <Check size={14} className="text-primary-foreground font-bold" />}
                         </div>
                         <span className="text-foreground text-sm font-bold leading-tight">
-                          Lo publiqué en Instagram con el <span className="text-accent">hashtag {userParticipations.find(p => p.id === showEvidenceModal)?.campaign?.instagramHashtags || '#3bukchallenge'}</span>
+                          Publiquei no Instagram com a <span className="text-accent">hashtag {userParticipations.find(p => p.id === showEvidenceModal)?.campaign?.instagramHashtags || '#3bukchallenge'}</span>
                         </span>
                       </label>
 
@@ -419,7 +418,7 @@ const UserParticipations = () => {
                             exit={{ opacity: 0, height: 0 }}
                             className="mt-3 overflow-hidden"
                           >
-                            <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 mt-2 uppercase">CAPTURA DE PANTALLA DE INSTAGRAM (OPCIONAL)</label>
+                            <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 mt-2 uppercase">CAPTURA DE TELA DO INSTAGRAM (OPCIONAL)</label>
                             <input ref={igScreenshotRef} type="file" accept="image/*" className="hidden"
                               onChange={(e) => {
                                 const f = e.target.files?.[0];
@@ -441,7 +440,7 @@ const UserParticipations = () => {
                               <div onClick={() => igScreenshotRef.current?.click()}
                                 className="w-full py-5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-accent hover:bg-accent/10 transition-all border border-dashed border-accent">
                                 <Upload size={18} />
-                                <span className="text-sm font-bold">Adjunta una captura de pantalla de Instagram.</span>
+                                <span className="text-sm font-bold">Anexe uma captura de tela do Instagram.</span>
                               </div>
                             )}
                           </motion.div>
@@ -481,15 +480,15 @@ const UserParticipations = () => {
                           : 'bg-primary hover:btn-shadow-hover'
                       }`}
                     >
-                      {isUploading ? 'SUBIENDO...' : 'ENVÍA TU PARTICIPACIÓN'}
+                      {isUploading ? 'ENVIANDO...' : 'ENVIE SUA PARTICIPAÇÃO'}
                     </motion.button>
                   </div>
                 </form>
               ) : (
                 <div className="text-center py-8">
                   <span className="text-5xl block mb-3">🔥</span>
-                  <h3 className="font-bold italic text-2xl text-foreground mb-2">¡Participación enviada!</h3>
-                  <p className="text-muted-foreground text-sm">Ahora está en manos del administrador. ¡Buena suerte!</p>
+                  <h3 className="font-bold italic text-2xl text-foreground mb-2">Participação enviada!</h3>
+                  <p className="text-muted-foreground text-sm">Agora está nas mãos do administrador. Boa sorte!</p>
                 </div>
               )}
             </motion.div>

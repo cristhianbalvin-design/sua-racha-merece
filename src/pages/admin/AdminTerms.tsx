@@ -170,7 +170,7 @@ const AdminTerms = () => {
         await loadData();
       }
     } catch (err: any) {
-      setError('Erro ao activar versão: ' + (err?.message || 'Erro desconhecido'));
+      setError('Erro ao ativar versão: ' + (err?.message || 'Erro desconhecido'));
     } finally {
       setLoading(false);
     }
@@ -322,7 +322,7 @@ const AdminTerms = () => {
                     }}
                     className="text-xs text-destructive hover:underline cursor-pointer font-bold"
                   >
-                    Volver a activa
+                    Cancelar edição
                   </button>
                 )}
                 {activeTerms && (
@@ -352,7 +352,7 @@ const AdminTerms = () => {
                   disabled={saving}
                   className="mr-3 bg-card border border-border text-foreground hover:bg-muted/80 transform hover:scale-105 active:scale-95 transition-all duration-200 text-xs font-bold uppercase tracking-wider px-5 py-3 rounded-xl card-shadow cursor-pointer disabled:pointer-events-none"
                 >
-                  ACTIVAR ESTA VERSIÓN
+                  ATIVAR ESTA VERSÃO
                 </button>
               )}
               
@@ -369,12 +369,12 @@ const AdminTerms = () => {
                 ) : editingTerms ? (
                   <>
                     <Save size={16} />
-                    GUARDAR CAMBIOS
+                    SALVAR ALTERAÇÕES
                   </>
                 ) : (
                   <>
                     <Save size={16} />
-                    GUARDA Y PUBLICA
+                    SALVAR E PUBLICAR
                   </>
                 )}
               </button>
@@ -442,7 +442,7 @@ const AdminTerms = () => {
                       <td className="px-6 py-4">
                         {item.isActive ? (
                           <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-0.5 rounded-full bg-primary/20 text-primary-foreground animate-pulse">
-                            <CheckCircle2 size={12} /> Activo
+                            <CheckCircle2 size={12} /> Ativo
                           </span>
                         ) : (
                           <span className="inline-flex items-center text-xs px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
@@ -472,7 +472,7 @@ const AdminTerms = () => {
                             onClick={() => handleActivateVersion(item.id)}
                             className="px-3 py-1.5 bg-card hover:bg-muted/80 text-foreground text-xs font-bold rounded-lg transition-all cursor-pointer inline-flex items-center gap-1.5 border border-border"
                           >
-                            Activar
+                            Ativar
                           </button>
                         )}
                       </td>

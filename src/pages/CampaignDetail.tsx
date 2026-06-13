@@ -46,7 +46,7 @@ const CampaignDetail = () => {
     const result = await apiAddParticipation({
       userId: user.id,
       campaignId: id,
-      participationStatus: 'EM CURSO',
+      participationStatus: 'Em curso',
       photo: '',
       instagram: false,
     });
@@ -66,7 +66,7 @@ const CampaignDetail = () => {
       {hasImage && (
         <style>{`
           .campaign-detail-bg {
-            background-image: linear-gradient(90deg, rgba(0,0,0,0.96) 0%, rgba(0,0,0,0.84) 38%, rgba(0,0,0,0.58) 72%, rgba(0,0,0,0.78) 100%), url(${campaign.imageUrlMobile || campaign.imageUrl});
+            background-image: linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,0.95) 100%), url(${campaign.imageUrlMobile || campaign.imageUrl});
           }
           @media (min-width: 768px) {
             .campaign-detail-bg {
@@ -75,7 +75,7 @@ const CampaignDetail = () => {
           }
         `}</style>
       )}
-      <div className={`min-h-[calc(100svh-49px)] bg-black bg-cover bg-[center_right] bg-no-repeat md:min-h-[calc(100svh-65px)] ${hasImage ? 'campaign-detail-bg' : ''}`}>
+      <div className={`min-h-[calc(100svh-49px)] bg-black bg-cover bg-center md:bg-[center_right] bg-no-repeat md:min-h-[calc(100svh-65px)] ${hasImage ? 'campaign-detail-bg' : ''}`}>
       <div className="px-4 md:px-8 py-6 max-w-2xl mx-auto">
       <button onClick={() => navigate(-1)} className="text-muted-foreground text-sm mb-4 hover:text-foreground transition-colors">
         ← Voltar
@@ -107,30 +107,30 @@ const CampaignDetail = () => {
 
       {/* Instruções Numéricas */}
       <div className="mb-4">
-        <h3 className="text-foreground font-bold text-lg mb-4">Sigue estos pasos para validar tu participación:</h3>
+        <h3 className="text-foreground font-bold text-lg mb-4">Siga estes passos para validar sua participação:</h3>
       </div>
       <div className="space-y-4 mb-10">
         <div className="bg-primary/10 rounded-2xl p-5 flex flex-col sm:flex-row items-start gap-4">
           <div className="bg-primary text-primary-foreground font-bold rounded-full px-3 py-1 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs uppercase tracking-wide">
-            Paso 1
+            Passo 1
           </div>
           <p className="text-foreground font-bold text-base md:text-lg leading-snug">
-            Sube una foto a 3buk.com mostrando tu mejor actitud mientras practicas tu deporte favorito.
+            Envie uma foto em 3buk.com mostrando sua melhor atitude enquanto pratica seu esporte favorito.
           </p>
         </div>
 
         {campaign.instagramOptional && (
           <div className="bg-card rounded-2xl p-5 card-shadow flex flex-col sm:flex-row items-start gap-4 border border-secondary/20">
             <div className="bg-secondary text-secondary-foreground font-bold rounded-full px-3 py-1 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs uppercase tracking-wide">
-              Paso 2
+              Passo 2
             </div>
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Instagram size={24} className="text-secondary" />
-                <p className="text-foreground text-base md:text-lg font-bold">¡Gana puntos extra!</p>
+                <p className="text-foreground text-base md:text-lg font-bold">Ganhe pontos extras!</p>
               </div>
               <p className="text-muted-foreground text-base leading-snug">
-                Publica en Instagram con el hashtag <span className="text-accent font-bold">{campaign.instagramHashtags || '#3bukchallenge'}</span> para ganar puntos extra en la evaluación.
+                Publique no Instagram com a hashtag <span className="text-accent font-bold">{campaign.instagramHashtags || '#3bukchallenge'}</span> para ganhar pontos extras na avaliação.
               </p>
             </div>
           </div>
@@ -138,10 +138,10 @@ const CampaignDetail = () => {
 
         <div className="bg-card rounded-2xl p-5 card-shadow flex flex-col sm:flex-row items-start gap-4 border border-success/20">
           <div className="bg-success text-success-foreground font-bold rounded-full px-3 py-1 flex items-center justify-center flex-shrink-0 mt-0.5 text-xs uppercase tracking-wide">
-            Paso {campaign.instagramOptional ? '3' : '2'}
+            Passo {campaign.instagramOptional ? '3' : '2'}
           </div>
           <p className="text-foreground font-bold text-base md:text-lg leading-snug">
-            ¡Eso es todo! Ya has concluido tu participación. Ahora te toca esperar resultados. ¡Recuerda mantener siempre una excelente actitud!
+            É isso! Você concluiu sua participação. Agora é só aguardar os resultados. Lembre-se de manter sempre uma excelente atitude!
           </p>
         </div>
       </div>
@@ -154,7 +154,7 @@ const CampaignDetail = () => {
           transition={spring}
           className="w-full bg-primary text-primary-foreground text-ui py-5 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow text-lg md:text-xl font-bold"
         >
-          QUIERO PARTICIPAR
+          QUERO PARTICIPAR
         </motion.button>
       ) : (
         <motion.div

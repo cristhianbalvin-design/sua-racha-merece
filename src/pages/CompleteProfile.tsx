@@ -68,11 +68,11 @@ const CompleteProfile = () => {
         ...(finalAvatar && { avatar: finalAvatar })
       });
       
-      toast.success('¡Perfil completo!');
+      toast.success('Perfil concluído!');
       navigate('/dashboard');
     } catch (err) {
       console.error(err);
-      toast.error('Ocurrió un error al guardar tu perfil.');
+      toast.error('Ocorreu um erro ao salvar seu perfil.');
       setIsSubmitting(false);
     }
   };
@@ -83,8 +83,8 @@ const CompleteProfile = () => {
         <OnboardingStepper currentStep={2} />
         <div className="text-center mb-8">
           <Logo size="md" />
-          <h1 className="font-bold italic text-2xl text-foreground mt-4 uppercase">COMPLETA TU PERFIL</h1>
-          <p className="text-muted-foreground mt-2">¡Queremos conocerte mejor!</p>
+          <h1 className="font-bold italic text-2xl text-foreground mt-4 uppercase">COMPLETE SEU PERFIL</h1>
+          <p className="text-muted-foreground mt-2">Queremos te conhecer melhor!</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -121,19 +121,19 @@ const CompleteProfile = () => {
           </div>
 
           <div>
-            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">NOMBRE COMPLETO</label>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">NOME COMPLETO</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all"
-              placeholder="Su nombre completo"
+              placeholder="Seu nome completo"
               required
             />
           </div>
 
           <div>
-            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">CIUDAD</label>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">CIDADE</label>
             <input
               type="text"
               value={city}
@@ -152,7 +152,7 @@ const CompleteProfile = () => {
               className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all appearance-none"
               required
             >
-              <option value="">Seleccione su estado</option>
+              <option value="">Selecione seu estado</option>
               {regionsList.map((r) => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -160,14 +160,14 @@ const CompleteProfile = () => {
           </div>
 
           <div>
-            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">DEPORTE FAVORITO</label>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">ESPORTE FAVORITO</label>
             <select
               value={sport}
               onChange={(e) => setSport(e.target.value)}
               className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all appearance-none"
               required
             >
-              <option value="">Seleccionar</option>
+              <option value="">Selecionar</option>
               {sportsList.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
@@ -181,7 +181,7 @@ const CompleteProfile = () => {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all"
-              placeholder="Su número de celular"
+              placeholder="Seu número de celular"
               required
             />
           </div>
@@ -194,15 +194,15 @@ const CompleteProfile = () => {
               className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all appearance-none"
               required
             >
-              <option value="">Seleccionar</option>
+              <option value="">Selecionar</option>
               <option value="Masculino">Masculino</option>
-              <option value="Femenino">Femenino</option>
-              <option value="Otro">Otro</option>
+              <option value="Feminino">Feminino</option>
+              <option value="Outro">Outro</option>
             </select>
           </div>
 
           <div>
-            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">FECHA DE NACIMIENTO</label>
+            <label className="text-ui text-xs text-muted-foreground block mb-2 uppercase">DATA DE NASCIMENTO</label>
             <input
               type="date"
               value={birthDate}
@@ -220,7 +220,7 @@ const CompleteProfile = () => {
             transition={spring}
             className={`w-full text-primary-foreground text-ui py-3 rounded-xl font-bold btn-shadow transition-shadow ${isSubmitting ? 'bg-primary/70 cursor-not-allowed' : 'bg-primary hover:btn-shadow-hover'}`}
           >
-            {isSubmitting ? 'GUARDANDO...' : 'GUARDAR PERFIL'}
+            {isSubmitting ? 'SALVANDO...' : 'SALVAR PERFIL'}
           </motion.button>
         </form>
       </div>
