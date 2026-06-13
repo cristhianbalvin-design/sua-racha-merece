@@ -10,7 +10,7 @@ const fadeIn = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 } }
 const spring = { type: 'spring' as const, duration: 0.4, bounce: 0 };
 
 const UserProfile = () => {
-  const { user, updateUserContext, logout } = useAuth();
+  const { user, isAdmin, updateUserContext, logout } = useAuth();
   const navigate = useNavigate();
   const [sports, setSports] = useState<string[]>([]);
   const [regions, setRegions] = useState<string[]>([]);
@@ -281,7 +281,18 @@ const UserProfile = () => {
       )}
 
       {/* ── Logout ── */}
-      <div className="mt-12 flex justify-center">
+      <div className="mt-12 flex flex-col items-center gap-4">
+        {isAdmin && (
+          <motion.button
+            onClick={() => navigate('/admin/usuarios')}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            transition={spring}
+            className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold transition-colors shadow-lg"
+          >
+            PANEL DE ADMINISTRACIÓN
+          </motion.button>
+        )}
         <motion.button
           onClick={handleLogout}
           whileHover={{ scale: 1.05 }}
