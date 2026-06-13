@@ -22,8 +22,8 @@ const AdminLayout = () => {
         if (user?.email && typeof OneSignal !== 'undefined' && OneSignal.User) {
           await OneSignal.login(user.email);
           await OneSignal.User.addTag("role", "admin");
-          if (OneSignal.Slidedown) {
-            await OneSignal.Slidedown.promptPush();
+          if (OneSignal.Notifications) {
+            await OneSignal.Notifications.requestPermission();
           }
         }
       } catch (err) {
