@@ -44,7 +44,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       acceptedTermsAt: data.accepted_terms_at,
     };
     setUser(mappedUser);
-    setIsAdmin(data.role === 'ADMIN' || data.email === 'admin@3buk.com' || data.email === 'cristhianbalvin@gmail.com');
+    const userEmail = data.email?.toLowerCase() || '';
+    setIsAdmin(data.role === 'ADMIN' || userEmail === 'admin@3buk.com' || userEmail === 'cristhianbalvin@gmail.com');
   };
 
   const fetchUserProfile = async (authId: string, authUser?: { email?: string; user_metadata?: any }) => {

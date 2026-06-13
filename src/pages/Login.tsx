@@ -19,7 +19,11 @@ const Login = () => {
     try {
       await login(email, password);
       toast.success('Login bem-sucedido!');
-      navigate('/dashboard');
+      if (email.toLowerCase() === 'admin@3buk.com' || email.toLowerCase() === 'cristhianbalvin@gmail.com') {
+        navigate('/admin/usuarios');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       const msg = error?.message || 'Erro ao entrar. Verifique suas credenciais.';
       toast.error(msg);
