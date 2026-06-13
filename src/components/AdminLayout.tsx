@@ -17,12 +17,20 @@ const AdminLayout = () => {
   };
 
   useEffect(() => {
-    if (user?.email) {
-      OneSignal.login(user.email).catch(console.error);
-      OneSignal.User.addTag("role", "admin").catch(console.error);
-      // Solicitar permisos de notificación nativamente a OneSignal
-      OneSignal.Slidedown.promptPush().catch(console.error);
-    }
+    const setupOneSignal = async () => {
+      try {
+        if (user?.email && typeof OneSignal !== 'undefined' && OneSignal.User) {
+          await OneSignal.login(user.email);
+          await OneSignal.User.addTag("role", "admin");
+          if (OneSignal.Slidedown) {
+            await OneSignal.Slidedown.promptPush();
+          }
+        }
+      } catch (err) {
+        console.error("OneSignal admin setup error:", err);
+      }
+    };
+    setupOneSignal();
   }, [user]);
 
   const links = [
