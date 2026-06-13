@@ -36,6 +36,8 @@ const UserLayout = () => {
     ? 'bg-black'
     : "bg-black bg-[linear-gradient(rgba(0,0,0,0.58),rgba(0,0,0,0.7)),url('/user-portal-bg-mobile.jpeg')] bg-cover bg-top bg-no-repeat md:bg-[linear-gradient(rgba(0,0,0,0.58),rgba(0,0,0,0.7)),url('/user-portal-bg.jpeg')]";
 
+  const isHome = location.pathname === '/dashboard' || location.pathname === '/campanhas';
+
   useEffect(() => {
     if (!user) return;
     apiGetNotifications(user.id).then((notifs) => {
@@ -84,7 +86,7 @@ const UserLayout = () => {
   return (
     <div className="min-h-svh bg-black">
       {/* Popup overlay */}
-      {activePopup && (
+      {isHome && activePopup && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/85 backdrop-blur-sm px-3 md:px-8">
           <motion.div
             initial={{ opacity: 0, scale: 0.96 }}
@@ -99,13 +101,22 @@ const UserLayout = () => {
             >
               <X size={18} />
             </button>
-            <a href={activePopup.targetUrl} target="_blank" rel="noreferrer" onClick={closePopup}>
+            {activePopup.targetUrl ? (
+              <a href={activePopup.targetUrl} target="_blank" rel="noreferrer" onClick={closePopup}>
+                <img
+                  src={activePopup.imageUrl}
+                  alt={activePopup.name}
+                  className="w-full aspect-[4/3] max-h-[78vh] object-cover rounded-2xl border border-border card-shadow bg-card"
+                />
+              </a>
+            ) : (
               <img
                 src={activePopup.imageUrl}
                 alt={activePopup.name}
-                className="w-full aspect-[4/3] max-h-[78vh] object-cover rounded-2xl border border-border card-shadow bg-card"
+                onClick={closePopup}
+                className="w-full aspect-[4/3] max-h-[78vh] object-cover rounded-2xl border border-border card-shadow bg-card cursor-pointer"
               />
-            </a>
+            )}
           </motion.div>
         </div>
       )}

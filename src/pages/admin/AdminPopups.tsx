@@ -20,7 +20,6 @@ const isActivePopup = (popup: HomePopup) => {
 const AdminPopups = () => {
   const [popups, setPopups] = useState<HomePopup[]>([]);
   const [name, setName] = useState('');
-  const [targetUrl, setTargetUrl] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -39,7 +38,6 @@ const AdminPopups = () => {
 
   const resetForm = () => {
     setName('');
-    setTargetUrl('');
     setStartDate('');
     setEndDate('');
     setImageFile(null);
@@ -71,7 +69,7 @@ const AdminPopups = () => {
       const created = await apiAddHomePopup({
         name,
         imageUrl,
-        targetUrl,
+        targetUrl: '',
         startDate,
         endDate,
       });
@@ -172,18 +170,6 @@ const AdminPopups = () => {
             </div>
           </div>
 
-          <div>
-            <label className="text-ui text-xs text-muted-foreground block mb-2">URL DE DESTINO</label>
-            <input
-              type="url"
-              value={targetUrl}
-              onChange={(e) => setTargetUrl(e.target.value)}
-              className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all"
-              placeholder="https://..."
-              required
-            />
-          </div>
-
           <motion.button
             type="submit"
             disabled={submitting}
@@ -206,7 +192,6 @@ const AdminPopups = () => {
                 <tr className="border-b border-border">
                   <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">POPUP</th>
                   <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">PERÍODO</th>
-                  <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">URL</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -232,15 +217,6 @@ const AdminPopups = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{popup.startDate} até {popup.endDate}</td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleCopy(popup.targetUrl)}
-                          className="inline-flex items-center gap-2 text-xs text-secondary hover:underline max-w-44"
-                        >
-                          <Copy size={13} />
-                          <span className="truncate">{popup.targetUrl}</span>
-                        </button>
-                      </td>
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => handleDelete(popup)}
