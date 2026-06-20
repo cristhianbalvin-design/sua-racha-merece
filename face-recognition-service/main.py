@@ -1,9 +1,17 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+import os
+from fastapi import FastAPI, UploadFile, File, HTTPException, Header, Depends
 import numpy as np
 import cv2
 from insightface.app import FaceAnalysis
 
 app = FastAPI(title="Face Recognition Service")
+
+# Read the shared secret from environment variables
+SERVICE_SECRET = os.environ.get("SERVICE_SECRET", "dev_secret")
+
+async def verify_service_secret(x_service_secret: str = Header(None)):
+    if x_service_secret != SERVICE_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 # Initialize the model globally so it only loads once at startup
 print("Initializing FaceAnalysis model...")
@@ -30,7 +38,7 @@ def get_face_embedding(image_bytes: bytes) -> list[float]:
     # Return embedding as a standard python list of floats
     return face.embedding.tolist()
 
-@app.post("/embed")
+@app.post("/embed", dependencies=[Depends(verify_service_secret)])
 async def embed_face(file: UploadFile = File(...)):
     """
     Receives an image, returns its facial embedding.
@@ -40,7 +48,7 @@ async def embed_face(file: UploadFile = File(...)):
     embedding = get_face_embedding(contents)
     return {"embedding": embedding}
 
-@app.post("/compare")
+@app.post("/compare", dependencies=[Depends(verify_service_secret)])
 async def compare_face(file: UploadFile = File(...)):
     """
     Receives an image, generates its embedding in memory, and returns it.
