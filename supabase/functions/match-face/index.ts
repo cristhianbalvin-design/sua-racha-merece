@@ -92,8 +92,25 @@ serve(async (req) => {
       throw new Error("Failed to match event photos in database");
     }
 
+    let enrichedMatches = matches || [];
+    if (enrichedMatches.length > 0) {
+      const campaignIds = [...new Set(enrichedMatches.map((m) => m.campaign_id))];
+      const { data: campaigns, error: campError } = await supabaseAdmin
+        .from('campaigns')
+        .select('id, title')
+        .in('id', campaignIds);
+
+      if (!campError && campaigns) {
+        const campaignMap = new Map(campaigns.map((c) => [c.id, c.title]));
+        enrichedMatches = enrichedMatches.map((m) => ({
+          ...m,
+          campaign_title: campaignMap.get(m.campaign_id) || 'Evento Desconhecido'
+        }));
+      }
+    }
+
     // 6 & 7. Devolver las fotos. El embedding NO SE GUARDA en ningún lado.
-    return new Response(JSON.stringify({ matches }), {
+    return new Response(JSON.stringify({ matches: enrichedMatches }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 

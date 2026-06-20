@@ -35,6 +35,7 @@ import AdminProfile from "./pages/admin/AdminProfile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminPopups from "./pages/admin/AdminPopups";
 import AdminTerms from "./pages/admin/AdminTerms";
+import AdminEventPhotos from "./pages/admin/AdminEventPhotos";
 import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -90,6 +91,8 @@ const AnimatedRoutes = () => {
         <Route path="/admin/esportes" element={<AdminSports />} />
         <Route path="/admin/regioes" element={<AdminRegions />} />
         <Route path="/admin/termos" element={<AdminTerms />} />
+        {/* The component internally redirects if flag is off */}
+        <Route path="/admin/fotos" element={<AdminEventPhotos />} />
       </Route>
 
       <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />

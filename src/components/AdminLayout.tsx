@@ -5,6 +5,7 @@ import Logo from './Logo';
 import OneSignal from 'react-onesignal';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { SHOW_FACE_SEARCH } from '@/config/features';
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -86,6 +87,7 @@ const AdminLayout = () => {
     { to: '/admin/dashboard', label: 'Dashboard' },
     { to: '/admin/usuarios', label: 'Usuários' },
     { to: '/admin/campanhas', label: 'Campanhas' },
+    ...(SHOW_FACE_SEARCH ? [{ to: '/admin/fotos', label: 'Fotos Eventos' }] : []),
     { to: '/admin/participacoes', label: 'Participações' },
     { to: '/admin/qualificacao', label: 'Qualificação' },
     { to: '/admin/ganhadores', label: 'Ganhadores' },

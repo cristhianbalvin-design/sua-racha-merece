@@ -26,6 +26,7 @@ const mockSupabaseClient = {
   from: vi.fn(() => mockSupabaseClient),
   select: vi.fn(() => mockSupabaseClient),
   eq: vi.fn(() => mockSupabaseClient),
+  in: vi.fn(() => mockSupabaseClient),
   single: vi.fn(),
   insert: vi.fn(() => mockSupabaseClient),
   storage: {

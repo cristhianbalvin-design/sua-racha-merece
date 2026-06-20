@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { ImageIcon } from 'lucide-react';
 import { apiGetActiveHomePopup } from '@/lib/mockApi';
 import type { HomePopup } from '@/data/mockData';
+import { SHOW_FACE_SEARCH } from '@/config/features';
+import { FaceSearchSection } from '@/components/FaceSearchSection';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -48,6 +50,8 @@ const UserPhotos3buk = () => {
           </div>
         </motion.a>
       )}
+
+      {SHOW_FACE_SEARCH && <FaceSearchSection />}
     </div>
   );
 };
