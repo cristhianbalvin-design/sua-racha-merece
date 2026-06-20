@@ -7,10 +7,11 @@ from insightface.app import FaceAnalysis
 app = FastAPI(title="Face Recognition Service")
 
 # Read the shared secret from environment variables
-SERVICE_SECRET = os.environ.get("SERVICE_SECRET", "dev_secret")
+# Fail securely if not set in the environment
+SERVICE_SECRET = os.environ.get("SERVICE_SECRET")
 
 async def verify_service_secret(x_service_secret: str = Header(None)):
-    if x_service_secret != SERVICE_SECRET:
+    if not SERVICE_SECRET or x_service_secret != SERVICE_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 # Initialize the model globally so it only loads once at startup
