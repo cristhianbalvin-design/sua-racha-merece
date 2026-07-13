@@ -30,11 +30,12 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { 
-        status: 401, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Unauthorized", details: userError }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
@@ -97,11 +98,11 @@ serve(async (req) => {
       const campaignIds = [...new Set(enrichedMatches.map((m) => m.campaign_id))];
       const { data: campaigns, error: campError } = await supabaseAdmin
         .from('campaigns')
-        .select('id, title')
+        .select('id, name')
         .in('id', campaignIds);
 
       if (!campError && campaigns) {
-        const campaignMap = new Map(campaigns.map((c) => [c.id, c.title]));
+        const campaignMap = new Map(campaigns.map((c) => [c.id, c.name]));
         enrichedMatches = enrichedMatches.map((m) => ({
           ...m,
           campaign_title: campaignMap.get(m.campaign_id) || 'Evento Desconhecido'

@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, Trophy, User, Bell, Images } from 'lucide-react';
 import { notifications } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
+import { SHOW_FACE_SEARCH } from '@/config/features';
 
 const FOTOS_HREF = 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI';
 
@@ -14,7 +15,13 @@ const MobileNav = () => {
   const links = [
     { to: '/dashboard', icon: Home, label: 'Campanhas' },
     { to: '/participacoes', icon: Trophy, label: 'Participações' },
-    { to: null, href: FOTOS_HREF, icon: Images, label: 'Fotos', featured: true },
+    { 
+      to: SHOW_FACE_SEARCH ? '/fotografias-3buk' : null, 
+      href: SHOW_FACE_SEARCH ? undefined : FOTOS_HREF, 
+      icon: Images, 
+      label: 'Fotos', 
+      featured: true 
+    },
     { to: '/notificacoes', icon: Bell, label: 'Avisos', badge: unreadCount },
     { to: '/perfil', icon: User, label: 'Perfil' },
   ];
@@ -32,16 +39,31 @@ const MobileNav = () => {
               (to === '/dashboard' && location.pathname.startsWith('/campanha')));
 
           if (featured) {
+            const containerClass = "flex flex-col items-center gap-1 -mt-5";
+            const innerClass = "w-14 h-14 rounded-full flex items-center justify-center bg-primary shadow-[0_0_14px_hsl(var(--primary)/0.5)] transition-all duration-200 active:scale-95 hover:shadow-[0_0_20px_hsl(var(--primary)/0.7)]";
+            if (to) {
+              return (
+                <Link key={label} to={to} className={containerClass}>
+                  <div className={innerClass} style={{ border: '3px solid hsl(var(--background))' }}>
+                    <Icon size={22} className="text-primary-foreground" />
+                  </div>
+                  <span className="text-[9px] font-bold leading-none text-primary">
+                    {label}
+                  </span>
+                </Link>
+              );
+            }
+
             return (
               <a
                 key={label}
                 href={href!}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex flex-col items-center gap-1 -mt-5"
+                className={containerClass}
               >
                 <div
-                  className="w-14 h-14 rounded-full flex items-center justify-center bg-primary shadow-[0_0_14px_hsl(var(--primary)/0.5)] transition-all duration-200 active:scale-95 hover:shadow-[0_0_20px_hsl(var(--primary)/0.7)]"
+                  className={innerClass}
                   style={{ border: '3px solid hsl(var(--background))' }}
                 >
                   <Icon size={22} className="text-primary-foreground" />

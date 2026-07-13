@@ -11,6 +11,7 @@ import type { HomePopup } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { TermsModal } from './TermsModal';
 import { toast } from 'sonner';
+import { SHOW_FACE_SEARCH } from '@/config/features';
 
 const spring = { type: 'spring' as const, duration: 0.4, bounce: 0 };
 
@@ -19,7 +20,13 @@ const FOTOS_HREF = 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVi
 const mainTabs = [
   { to: '/dashboard', label: 'CAMPANHAS' },
   { to: '/participacoes', label: 'PARTICIPAÇÕES' },
-  { to: null, href: FOTOS_HREF, label: 'FOTOGRAFIAS 3BUK', icon: Images, featured: true },
+  { 
+    to: SHOW_FACE_SEARCH ? '/fotografias-3buk' : null, 
+    href: SHOW_FACE_SEARCH ? undefined : FOTOS_HREF, 
+    label: 'FOTOGRAFIAS 3BUK', 
+    icon: Images, 
+    featured: true 
+  },
   { to: '/ganhadores', label: 'GANHADORES' },
 ];
 
@@ -98,13 +105,22 @@ const UserLayout = () => {
             {mainTabs.map(({ to, href, label, icon: Icon, featured }) => {
               const isActive = to !== null && (location.pathname === to || (to === '/dashboard' && location.pathname === '/campanhas'));
               if (featured) {
+                const className = "flex items-center gap-1.5 mx-1.5 my-1.5 px-3 py-1.5 text-[10px] font-bold whitespace-nowrap rounded-full border transition-colors bg-primary/15 text-primary border-primary/40 hover:bg-primary/25 hover:shadow-[0_0_12px_hsl(var(--primary)/0.4)]";
+                if (to) {
+                  return (
+                    <Link key={label} to={to} className={className}>
+                      {Icon && <Icon size={12} />}
+                      {label}
+                    </Link>
+                  );
+                }
                 return (
                   <a
                     key={label}
                     href={href!}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 mx-1.5 my-1.5 px-3 py-1.5 text-[10px] font-bold whitespace-nowrap rounded-full border transition-colors bg-primary/15 text-primary border-primary/40 hover:bg-primary/25 hover:shadow-[0_0_12px_hsl(var(--primary)/0.4)]"
+                    className={className}
                   >
                     {Icon && <Icon size={12} />}
                     {label}

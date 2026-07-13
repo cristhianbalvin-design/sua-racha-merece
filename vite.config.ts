@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => ({
     },
     proxy: {
       "/supabase": {
-        target: "https://ljizlialjsonmmvppoqh.supabase.co",
+        target: "https://tmkhmndwmaxzozluqkme.supabase.co",
         changeOrigin: true,
         secure: true,
         rewrite: (proxyPath) => proxyPath.replace(/^\/supabase/, ""),

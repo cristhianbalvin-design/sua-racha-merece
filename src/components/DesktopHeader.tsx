@@ -4,6 +4,7 @@ import Logo from './Logo';
 import { Bell, Images, User as UserIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetNotifications } from '@/lib/mockApi';
+import { SHOW_FACE_SEARCH } from '@/config/features';
 
 const FOTOS_HREF = 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI';
 
@@ -22,7 +23,12 @@ const DesktopHeader = () => {
   const links = [
     { to: '/dashboard', label: 'Campanhas' },
     { to: '/participacoes', label: 'Participações' },
-    { href: FOTOS_HREF, label: 'Fotografias 3BUK' },
+    { 
+      to: SHOW_FACE_SEARCH ? '/fotografias-3buk' : undefined, 
+      href: SHOW_FACE_SEARCH ? undefined : FOTOS_HREF, 
+      label: 'Fotografias 3BUK', 
+      isSpecial: true 
+    },
     { to: '/ganhadores', label: 'Ganhadores' },
   ];
 
@@ -33,15 +39,24 @@ const DesktopHeader = () => {
         <Logo size="sm" />
       </Link>
       <nav className="flex items-center gap-8">
-        {links.map(({ to, href, label }) => {
-          if (href) {
+        {links.map(({ to, href, label, isSpecial }) => {
+          if (isSpecial) {
+            const className = "text-ui inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/15 px-3 py-1.5 text-primary transition-colors hover:bg-primary/25 hover:shadow-[0_0_12px_hsl(var(--primary)/0.4)]";
+            if (to) {
+              return (
+                <Link key={label} to={to} className={className}>
+                  <Images size={13} />
+                  {label}
+                </Link>
+              );
+            }
             return (
               <a
-                key={href}
+                key={label}
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-ui inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/15 px-3 py-1.5 text-primary transition-colors hover:bg-primary/25 hover:shadow-[0_0_12px_hsl(var(--primary)/0.4)]"
+                className={className}
               >
                 <Images size={13} />
                 {label}

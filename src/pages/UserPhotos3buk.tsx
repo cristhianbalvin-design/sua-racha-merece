@@ -5,6 +5,7 @@ import { apiGetActiveHomePopup } from '@/lib/mockApi';
 import type { HomePopup } from '@/data/mockData';
 import { SHOW_FACE_SEARCH } from '@/config/features';
 import { FaceSearchSection } from '@/components/FaceSearchSection';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -51,7 +52,11 @@ const UserPhotos3buk = () => {
         </motion.a>
       )}
 
-      {SHOW_FACE_SEARCH && <FaceSearchSection />}
+      {SHOW_FACE_SEARCH && (
+        <ErrorBoundary>
+          <FaceSearchSection />
+        </ErrorBoundary>
+      )}
     </div>
   );
 };

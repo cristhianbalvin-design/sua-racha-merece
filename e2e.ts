@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import FormData from 'form-data';
 
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://tmkhmndwmaxozluqkme.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://tmkhmndwmaxzozluqkme.supabase.co';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_SERVICE_ROLE_KEY) {
@@ -32,17 +32,8 @@ async function runE2E() {
   console.log("2. Granting ADMIN role in public.users...");
   await supabaseAdmin.from('users').upsert({ id: userId, email: email, name: 'Test Admin', role: 'ADMIN' });
 
-  console.log("3. Creating a dummy campaign...");
-  const { data: campaignData, error: campError } = await supabaseAdmin.from('campaigns').insert({
-    title: 'E2E Test Campaign',
-    status: 'ACTIVE'
-  }).select().single();
-  
-  if (campError) throw new Error(`Failed to create campaign: ${campError.message}`);
-  const campaignId = campaignData.id;
-
   // Sign in to get JWT
-  console.log("4. Signing in to obtain JWT...");
+  console.log("3. Signing in to obtain JWT as Admin...");
   const supabaseAnon = createClient(SUPABASE_URL, process.env.SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY);
   const { data: sessionData, error: loginError } = await supabaseAnon.auth.signInWithPassword({
     email,
@@ -50,6 +41,23 @@ async function runE2E() {
   });
   if (loginError) throw new Error(`Failed to sign in: ${loginError.message}`);
   const jwt = sessionData.session.access_token;
+
+  console.log("4. Creating a dummy campaign...");
+  const { data: campaignData, error: campError } = await supabaseAdmin.from('campaigns').insert({
+    name: 'Campanha Teste E2E',
+    status: 'Aberto',
+    sport: 'Crossfit',
+    city: 'Curitiba',
+    region: 'Sul',
+    start_date: new Date().toISOString(),
+    end_date: new Date(Date.now() + 86400000).toISOString(),
+    winners_count: 1,
+    description: 'Test Campaign',
+    prize: 'Test Prize'
+  }).select().single();
+  
+  if (campError) throw new Error(`Failed to create campaign: ${campError.message}`);
+  const campaignId = campaignData.id;
 
   // URLs for the deployed edge functions
   const UPLOAD_URL = `${SUPABASE_URL}/functions/v1/upload-event-photo`;
@@ -107,7 +115,6 @@ async function runE2E() {
 
   console.log("\nCleaning up...");
   await supabaseAdmin.from('event_photos').delete().eq('id', uploadJson.photo.id);
-  await supabaseAdmin.from('campaigns').delete().eq('id', campaignId);
   await supabaseAdmin.from('users').delete().eq('id', userId);
   await supabaseAdmin.auth.admin.deleteUser(userId);
   console.log("Cleanup complete.");

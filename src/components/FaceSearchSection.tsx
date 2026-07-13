@@ -110,12 +110,12 @@ export const FaceSearchSection = () => {
           {status === 'loading' ? (
             <>
               <Loader2 className="animate-spin" size={20} />
-              Analisando seu rosto...
+              <span>Analisando seu rosto...</span>
             </>
           ) : (
             <>
               <Upload size={20} />
-              Buscar Minhas Fotos
+              <span>Buscar Minhas Fotos</span>
             </>
           )}
         </button>
@@ -141,7 +141,7 @@ export const FaceSearchSection = () => {
         <div className="mt-12 pt-8 border-t border-border">
           <h3 className="font-bold text-xl mb-6 flex items-center gap-2">
             <ImageIcon className="text-primary" /> 
-            Encontramos {matches.length} {matches.length === 1 ? 'foto' : 'fotos'} suas!
+            <span>Encontramos {matches.length} {matches.length === 1 ? 'foto' : 'fotos'} suas!</span>
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {matches.map((match) => (

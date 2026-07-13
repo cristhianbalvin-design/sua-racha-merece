@@ -1,18 +1,22 @@
 import sys
+import argparse
 import requests
 import numpy as np
 
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: python test_api.py <path_ref> <path_act>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Test Face Recognition API")
+    parser.add_argument("path_ref", help="Path to reference image")
+    parser.add_argument("path_act", help="Path to action image")
+    parser.add_argument("--url", default="http://127.0.0.1:8000", help="Base URL of the API")
+    args = parser.parse_args()
 
-    ref_path = sys.argv[1]
-    act_path = sys.argv[2]
+    ref_path = args.path_ref
+    act_path = args.path_act
+    base_url = args.url.rstrip('/')
 
     # Test /embed endpoint for reference image
     with open(ref_path, "rb") as f:
-        resp_embed = requests.post("http://127.0.0.1:8000/embed", files={"file": f})
+        resp_embed = requests.post(f"{base_url}/embed", files={"file": f})
     
     if resp_embed.status_code != 200:
         print(f"Error calling /embed: {resp_embed.text}")
@@ -22,7 +26,7 @@ def main():
 
     # Test /compare endpoint for action image
     with open(act_path, "rb") as f:
-        resp_compare = requests.post("http://127.0.0.1:8000/compare", files={"file": f})
+        resp_compare = requests.post(f"{base_url}/compare", files={"file": f})
 
     if resp_compare.status_code != 200:
         print(f"Error calling /compare: {resp_compare.text}")

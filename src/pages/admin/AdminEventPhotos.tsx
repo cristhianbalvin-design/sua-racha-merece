@@ -7,7 +7,7 @@ import { Navigate } from 'react-router-dom';
 
 interface Campaign {
   id: string;
-  title: string;
+  name: string;
 }
 
 interface UploadJob {
@@ -30,7 +30,7 @@ const AdminEventPhotos = () => {
     const fetchCampaigns = async () => {
       const { data, error } = await supabase
         .from('campaigns')
-        .select('id, title')
+        .select('id, name')
         .order('created_at', { ascending: false });
       
       if (!error && data) {
@@ -145,7 +145,7 @@ const AdminEventPhotos = () => {
           >
             <option value="">-- Selecione uma campanha --</option>
             {campaigns.map(c => (
-              <option key={c.id} value={c.id}>{c.title}</option>
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
         </div>
