@@ -23,13 +23,7 @@ const UserPhotos3buk = () => {
         <p className="text-muted-foreground mt-2">Imagens ativas da 3BUK para atletas participantes.</p>
       </div>
 
-      {!popup ? (
-        <div className="bg-card/40 border border-dashed border-border rounded-2xl py-16 px-4 text-center">
-          <ImageIcon size={40} className="mx-auto text-muted-foreground mb-4" />
-          <h2 className="font-bold italic text-lg text-foreground mb-2">Nenhuma fotografia ativa.</h2>
-          <p className="text-sm text-muted-foreground">Quando houver um popup ativo, ele aparecerá aqui.</p>
-        </div>
-      ) : (
+      {popup && (
         <motion.a
           href={popup.targetUrl}
           target="_blank"
@@ -38,7 +32,7 @@ const UserPhotos3buk = () => {
           animate={{ opacity: 1, y: 0 }}
           whileHover={{ y: -4 }}
           transition={spring}
-          className="block bg-card rounded-2xl border border-border card-shadow overflow-hidden hover:card-shadow-hover transition-shadow"
+          className="block bg-card rounded-2xl border border-border card-shadow overflow-hidden hover:card-shadow-hover transition-shadow mb-6"
         >
           <img
             src={popup.imageUrl}

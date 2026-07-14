@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Upload, Check, ImageIcon, Film, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -84,6 +84,8 @@ const UserParticipations = () => {
   const igScreenshotRef = useRef<HTMLInputElement>(null);
 
   const [participations, setParticipations] = useState<(Participation & { campaign?: Campaign })[]>([]);
+  const location = useLocation();
+  const [autoPhotoProcessed, setAutoPhotoProcessed] = useState(false);
 
   useEffect(() => {
     const fetchParts = async () => {
@@ -100,6 +102,34 @@ const UserParticipations = () => {
   }, [user, showEvidenceModal]); // Refresh when modal closes
 
   const userParticipations = participations;
+
+  useEffect(() => {
+    if (userParticipations.length > 0 && location.state?.autoPhotoUrl && !autoPhotoProcessed) {
+      const url = location.state.autoPhotoUrl;
+      setAutoPhotoProcessed(true);
+      window.history.replaceState({}, document.title); // clear state
+      
+      toast.loading('Carregando foto...', { id: 'auto-photo' });
+      fetch(url).then(r => r.blob()).then(blob => {
+        const file = new File([blob], 'foto_3buk.jpg', { type: blob.type || 'image/jpeg' });
+        setPhotos([file]);
+        setPhotoPreviews([url]);
+        toast.dismiss('auto-photo');
+        
+        const emCursoParts = userParticipations.filter(p => p.participationStatus === 'Em curso' || p.participationStatus?.toLowerCase() === 'em curso');
+        if (emCursoParts.length === 1) {
+          setShowEvidenceModal(emCursoParts[0].id);
+          toast.success("Foto adicionada automaticamente!");
+        } else if (emCursoParts.length > 1) {
+          toast.success("Foto carregada! Clique em REGISTRAR PARTICIPAÇÃO na campanha desejada.");
+        } else {
+          toast.warning("Você não tem campanhas em curso para usar esta foto.");
+        }
+      }).catch(() => {
+        toast.error('Erro ao carregar a foto.', { id: 'auto-photo' });
+      });
+    }
+  }, [userParticipations, location.state, autoPhotoProcessed]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);

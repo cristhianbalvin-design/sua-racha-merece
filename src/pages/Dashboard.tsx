@@ -37,6 +37,7 @@ const Dashboard = () => {
   if (!user) return null;
 
   const filteredCampaigns = campaigns.filter((c) => {
+    if (c.isHidden) return false;
     if (joinedCampaignIds.has(c.id)) return false; // Hide already joined
     if (sportFilter !== 'Todos' && c.sport !== sportFilter) return false;
     if (statusFilter !== 'Todos' && c.status !== statusFilter) return false;

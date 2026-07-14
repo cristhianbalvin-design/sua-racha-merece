@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Check, Trash2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Check, Trash2, Image as ImageIcon, Edit, Eye, EyeOff } from 'lucide-react';
 import { apiGetCampaigns, apiAddCampaign, apiUpdateCampaign, apiDeleteCampaign, apiGetSports, apiGetRegions, apiUploadCampaignImage } from '@/lib/mockApi';
 import type { CampaignStatus, Campaign } from '@/data/mockData';
 
@@ -27,6 +27,7 @@ const AdminCampaigns = () => {
   const [monthFilter, setMonthFilter] = useState('Todos');
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [showCreate, setShowCreate] = useState(false);
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
 
   // List state
   const [campaignsList, setCampaignsList] = useState<Campaign[]>([]);
@@ -77,43 +78,74 @@ const AdminCampaigns = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cImageFile || !cImageMobileFile || isSubmitting) return;
+    const isEditing = !!editingCampaignId;
+    if ((!cImageFile || !cImageMobileFile) && !isEditing) return;
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
-    const imageUrl = await apiUploadCampaignImage(cImageFile);
-    const imageUrlMobile = await apiUploadCampaignImage(cImageMobileFile);
+    let imageUrl = '';
+    let imageUrlMobile = '';
 
-    if (!imageUrl || !imageUrlMobile) {
+    if (cImageFile) {
+      imageUrl = await apiUploadCampaignImage(cImageFile) || '';
+    }
+    if (cImageMobileFile) {
+      imageUrlMobile = await apiUploadCampaignImage(cImageMobileFile) || '';
+    }
+
+    if (!isEditing && (!imageUrl || !imageUrlMobile)) {
       setIsSubmitting(false);
       return;
     }
 
-    const newCamp: Campaign = {
-      id: `camp-${Date.now()}`,
-      name: cName,
-      sport: cSport,
-      sportIcon: '🏆',
-      city: cCity,
-      region: cRegion,
-      startDate: cStart,
-      endDate: cEnd,
-      description: cDesc,
-      winnersCount: parseInt(cWinners, 10),
-      prize: cPrize,
-      imageUrl,
-      imageUrlMobile,
-      plan,
-      instagramOptional: igOptional,
-      instagramHashtags: igHashtags,
-      status: 'Aberto',
-      createdAt: new Date().toISOString()
-    };
-    
-    const createdCampaign = await apiAddCampaign(newCamp);
-    if (!createdCampaign) {
-      setIsSubmitting(false);
-      return;
+    if (isEditing) {
+      const updates: Partial<Campaign> = {
+        name: cName,
+        sport: cSport,
+        city: cCity,
+        region: cRegion,
+        startDate: cStart,
+        endDate: cEnd,
+        description: cDesc,
+        winnersCount: parseInt(cWinners, 10),
+        prize: cPrize,
+        plan,
+        instagramOptional: igOptional,
+        instagramHashtags: igHashtags,
+      };
+      if (imageUrl) updates.imageUrl = imageUrl;
+      if (imageUrlMobile) updates.imageUrlMobile = imageUrlMobile;
+      
+      await apiUpdateCampaign(editingCampaignId, updates);
+    } else {
+      const newCamp: Campaign = {
+        id: `camp-${Date.now()}`,
+        name: cName,
+        sport: cSport,
+        sportIcon: '🏆',
+        city: cCity,
+        region: cRegion,
+        startDate: cStart,
+        endDate: cEnd,
+        description: cDesc,
+        winnersCount: parseInt(cWinners, 10),
+        prize: cPrize,
+        imageUrl,
+        imageUrlMobile,
+        plan,
+        instagramOptional: igOptional,
+        instagramHashtags: igHashtags,
+        status: 'Aberto',
+        createdAt: new Date().toISOString()
+      };
+      
+      const createdCampaign = await apiAddCampaign(newCamp);
+      if (!createdCampaign) {
+        setIsSubmitting(false);
+        return;
+      }
     }
+
     setCampaignsList(await apiGetCampaigns());
     setFormSubmitted(true);
     setIsSubmitting(false);
@@ -121,9 +153,40 @@ const AdminCampaigns = () => {
     setTimeout(() => {
       setFormSubmitted(false);
       setShowCreate(false);
+      setEditingCampaignId(null);
       setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize(''); setCImageFile(null); setCImagePreview(''); setCImageMobileFile(null); setCImageMobilePreview('');
       setPlan('Ambos'); setIgOptional(false); setIgHashtags('#3bukchallenge');
     }, 2500);
+  };
+
+  const handleEditClick = (campaign: Campaign) => {
+    setEditingCampaignId(campaign.id);
+    setCName(campaign.name);
+    setCSport(campaign.sport);
+    setCRegion(campaign.region);
+    setCCity(campaign.city);
+    setCStart(campaign.startDate);
+    setCEnd(campaign.endDate);
+    setCDesc(campaign.description);
+    setCWinners(campaign.winnersCount.toString());
+    setCPrize(campaign.prize);
+    setPlan(campaign.plan || 'Ambos');
+    setIgOptional(campaign.instagramOptional || false);
+    setIgHashtags(campaign.instagramHashtags || '#3bukchallenge');
+    
+    setCImagePreview(campaign.imageUrl || '');
+    setCImageMobilePreview(campaign.imageUrlMobile || '');
+    setCImageFile(null);
+    setCImageMobileFile(null);
+    
+    setShowCreate(true);
+  };
+
+  const handleToggleVisibility = async (id: string, currentHidden: boolean) => {
+    const nextHidden = !currentHidden;
+    // Optimistic
+    setCampaignsList(prev => prev.map(c => c.id === id ? { ...c, isHidden: nextHidden } : c));
+    await apiUpdateCampaign(id, { isHidden: nextHidden });
   };
 
   const handleImageChange = (file?: File) => {
@@ -160,7 +223,12 @@ const AdminCampaigns = () => {
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-bold italic text-2xl text-foreground">CAMPANHAS</h1>
         <motion.button
-          onClick={() => setShowCreate(true)}
+          onClick={() => {
+            setEditingCampaignId(null);
+            setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize(''); setCImageFile(null); setCImagePreview(''); setCImageMobileFile(null); setCImageMobilePreview('');
+            setPlan('Ambos'); setIgOptional(false); setIgHashtags('#3bukchallenge');
+            setShowCreate(true);
+          }}
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           transition={spring}
@@ -252,13 +320,29 @@ const AdminCampaigns = () => {
                       </select>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleDeleteCampaign(c.id, c.name || 'N/A')}
-                        title="Excluir campanha"
-                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => handleToggleVisibility(c.id, !!c.isHidden)}
+                          title={c.isHidden ? "Mostrar campanha" : "Ocultar campanha"}
+                          className={`p-1.5 rounded-md transition-colors ${c.isHidden ? 'text-muted-foreground hover:bg-muted' : 'text-primary hover:bg-primary/10'}`}
+                        >
+                          {c.isHidden ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                        <button
+                          onClick={() => handleEditClick(c)}
+                          title="Editar campanha"
+                          className="p-1.5 text-muted-foreground hover:text-accent hover:bg-accent/10 rounded-md transition-colors"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCampaign(c.id, c.name || 'N/A')}
+                          title="Excluir campanha"
+                          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -285,7 +369,9 @@ const AdminCampaigns = () => {
             >
               {!formSubmitted ? (
                 <form onSubmit={handleCreateSubmit} className="space-y-4">
-                  <h3 className="font-bold italic text-lg text-foreground mb-2">CRIAR CAMPANHA</h3>
+                  <h3 className="font-bold italic text-lg text-foreground mb-2">
+                    {editingCampaignId ? 'ATUALIZAR CAMPANHA' : 'CRIAR CAMPANHA'}
+                  </h3>
 
                   <div>
                     <label className="text-ui text-xs text-muted-foreground block mb-2">NOME DA CAMPANHA</label>
@@ -460,13 +546,13 @@ const AdminCampaigns = () => {
                     </motion.button>
                     <motion.button
                       type="submit"
-                      disabled={!cImageFile || !cImageMobileFile || isSubmitting}
+                      disabled={(!cImageFile || !cImageMobileFile) && !editingCampaignId || isSubmitting}
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                       transition={spring}
                       className="flex-1 bg-primary text-primary-foreground text-ui text-xs py-3 rounded-xl btn-shadow disabled:opacity-60 disabled:pointer-events-none"
                     >
-                      {isSubmitting ? 'PUBLICANDO...' : 'PUBLICAR CAMPANHA'}
+                      {isSubmitting ? 'SALVANDO...' : (editingCampaignId ? 'ATUALIZAR CAMPANHA' : 'PUBLICAR CAMPANHA')}
                     </motion.button>
                   </div>
                 </form>

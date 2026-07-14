@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Camera, Upload, Loader2, AlertCircle, ImageIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 
 interface Match {
@@ -11,6 +12,7 @@ interface Match {
 }
 
 export const FaceSearchSection = () => {
+  const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   const [matches, setMatches] = useState<Match[]>([]);
@@ -170,6 +172,12 @@ export const FaceSearchSection = () => {
                   >
                     Baixar Foto
                   </a>
+                  <button 
+                    onClick={() => navigate('/participacoes', { state: { autoPhotoUrl: match.image_url } })}
+                    className="mt-2 block w-full text-center bg-primary text-primary-foreground text-xs font-bold py-2 rounded-lg hover:bg-secondary hover:text-secondary-foreground transition-colors"
+                  >
+                    Usar na minha campanha
+                  </button>
                 </div>
               </div>
             ))}

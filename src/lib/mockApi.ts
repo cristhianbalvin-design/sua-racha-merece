@@ -89,6 +89,7 @@ const mapCampaign = (row: any): Campaign => ({
   instagramOptional: row.instagram_optional,
   instagramHashtags: row.instagram_hashtags,
   status: row.status,
+  isHidden: row.is_hidden,
   createdAt: row.created_at
 });
 
@@ -118,7 +119,8 @@ export const apiAddCampaign = async (c: Campaign): Promise<Campaign | null> => {
     plan_required: c.plan,
     instagram_optional: c.instagramOptional,
     instagram_hashtags: c.instagramHashtags,
-    status: c.status
+    status: c.status,
+    is_hidden: c.isHidden || false
   };
   const { data, error } = await supabase.from('campaigns').insert(row).select('*').single();
   if (error) {
@@ -131,7 +133,27 @@ export const apiAddCampaign = async (c: Campaign): Promise<Campaign | null> => {
 export const apiUpdateCampaign = async (id: string, updates: Partial<Campaign>) => {
   const row: any = {};
   if (updates.status) row.status = updates.status;
-  const { data } = await supabase.from('campaigns').update(row).eq('id', id).select('*').single();
+  if (updates.isHidden !== undefined) row.is_hidden = updates.isHidden;
+  if (updates.name) row.name = updates.name;
+  if (updates.sport) row.sport = updates.sport;
+  if (updates.city) row.city = updates.city;
+  if (updates.region) row.region = updates.region;
+  if (updates.startDate) row.start_date = updates.startDate;
+  if (updates.endDate) row.end_date = updates.endDate;
+  if (updates.description) row.description = updates.description;
+  if (updates.winnersCount !== undefined) row.winners_count = updates.winnersCount;
+  if (updates.prize) row.prize = updates.prize;
+  if (updates.imageUrl) row.image_url = updates.imageUrl;
+  if (updates.imageUrlMobile) row.image_url_mobile = updates.imageUrlMobile;
+  if (updates.plan) row.plan_required = updates.plan;
+  if (updates.instagramOptional !== undefined) row.instagram_optional = updates.instagramOptional;
+  if (updates.instagramHashtags !== undefined) row.instagram_hashtags = updates.instagramHashtags;
+
+  const { data, error } = await supabase.from('campaigns').update(row).eq('id', id).select('*').single();
+  if (error) {
+    console.error('Error updating campaign:', error);
+    toast.error('Erro ao atualizar: ' + error.message);
+  }
   return data ? mapCampaign(data) : null;
 }
 

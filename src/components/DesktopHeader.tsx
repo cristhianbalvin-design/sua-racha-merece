@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { apiGetNotifications } from '@/lib/mockApi';
 import { SHOW_FACE_SEARCH } from '@/config/features';
 
-const FOTOS_HREF = 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI';
+
 
 const DesktopHeader = () => {
   const location = useLocation();
@@ -24,8 +24,7 @@ const DesktopHeader = () => {
     { to: '/dashboard', label: 'Campanhas' },
     { to: '/participacoes', label: 'Participações' },
     { 
-      to: SHOW_FACE_SEARCH ? '/fotografias-3buk' : undefined, 
-      href: SHOW_FACE_SEARCH ? undefined : FOTOS_HREF, 
+      to: '/fotografias-3buk', 
       label: 'Fotografias 3BUK', 
       isSpecial: true 
     },

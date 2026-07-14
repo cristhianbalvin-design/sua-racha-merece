@@ -4,7 +4,7 @@ import { notifications } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { SHOW_FACE_SEARCH } from '@/config/features';
 
-const FOTOS_HREF = 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI';
+
 
 const MobileNav = () => {
   const location = useLocation();
@@ -16,8 +16,7 @@ const MobileNav = () => {
     { to: '/dashboard', icon: Home, label: 'Campanhas' },
     { to: '/participacoes', icon: Trophy, label: 'Participações' },
     { 
-      to: SHOW_FACE_SEARCH ? '/fotografias-3buk' : null, 
-      href: SHOW_FACE_SEARCH ? undefined : FOTOS_HREF, 
+      to: '/fotografias-3buk', 
       icon: Images, 
       label: 'Fotos', 
       featured: true 

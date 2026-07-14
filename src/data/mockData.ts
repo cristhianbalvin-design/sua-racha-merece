@@ -45,6 +45,7 @@ export interface Campaign {
   instagramOptional?: boolean;
   instagramHashtags?: string;
   status: CampaignStatus;
+  isHidden?: boolean;
   createdAt: string;
 }
 

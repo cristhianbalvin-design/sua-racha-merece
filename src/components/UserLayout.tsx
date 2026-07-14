@@ -15,14 +15,11 @@ import { SHOW_FACE_SEARCH } from '@/config/features';
 
 const spring = { type: 'spring' as const, duration: 0.4, bounce: 0 };
 
-const FOTOS_HREF = 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI';
-
 const mainTabs = [
   { to: '/dashboard', label: 'CAMPANHAS' },
   { to: '/participacoes', label: 'PARTICIPAÇÕES' },
   { 
-    to: SHOW_FACE_SEARCH ? '/fotografias-3buk' : null, 
-    href: SHOW_FACE_SEARCH ? undefined : FOTOS_HREF, 
+    to: '/fotografias-3buk', 
     label: 'FOTOGRAFIAS 3BUK', 
     icon: Images, 
     featured: true 
