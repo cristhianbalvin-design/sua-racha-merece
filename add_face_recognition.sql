@@ -65,3 +65,30 @@ BEGIN
   LIMIT match_count;
 END;
 $$;
+
+-- 3. Crear el bucket de Storage para las fotos del evento (si no existe)
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('event-photos', 'event-photos', true) 
+ON CONFLICT (id) DO NOTHING;
+
+-- Políticas de seguridad para el bucket
+CREATE POLICY "Public event-photos access" ON storage.objects 
+  FOR SELECT USING (bucket_id = 'event-photos');
+
+CREATE POLICY "Admins can upload event-photos" ON storage.objects 
+  FOR INSERT WITH CHECK (
+    bucket_id = 'event-photos' AND 
+    EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND users.role = 'ADMIN')
+  );
+
+CREATE POLICY "Admins can update event-photos" ON storage.objects 
+  FOR UPDATE USING (
+    bucket_id = 'event-photos' AND 
+    EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND users.role = 'ADMIN')
+  );
+
+CREATE POLICY "Admins can delete event-photos" ON storage.objects 
+  FOR DELETE USING (
+    bucket_id = 'event-photos' AND 
+    EXISTS (SELECT 1 FROM public.users WHERE users.id = auth.uid() AND users.role = 'ADMIN')
+  );

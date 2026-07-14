@@ -12,8 +12,9 @@ interface Campaign {
 
 interface UploadJob {
   file: File;
-  status: 'pending' | 'uploading' | 'success' | 'error';
+  status: 'pending' | 'uploading' | 'retrying' | 'success' | 'error';
   errorMsg?: string;
+  retryCount?: number;
 }
 
 const AdminEventPhotos = () => {
@@ -70,55 +71,70 @@ const AdminEventPhotos = () => {
 
     setIsUploading(true);
 
-    for (const { job, index } of pendingJobs) {
-      // Mark as uploading
-      setJobs(prev => {
-        const newJobs = [...prev];
-        newJobs[index].status = 'uploading';
-        return newJobs;
-      });
+    const CONCURRENCY_LIMIT = 3;
+    const MAX_RETRIES = 3;
 
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        if (!token) throw new Error("Sessão não encontrada");
+    const uploadSinglePhoto = async (job: UploadJob, index: number) => {
+      let attempt = 0;
+      let lastError: Error | null = null;
+      
+      while (attempt < MAX_RETRIES) {
+        try {
+          if (attempt === 0) {
+            setJobs(prev => { const n = [...prev]; n[index].status = 'uploading'; return n; });
+          } else {
+            setJobs(prev => { const n = [...prev]; n[index].status = 'retrying'; n[index].retryCount = attempt; return n; });
+          }
 
-        const formData = new FormData();
-        formData.append('file', job.file);
-        formData.append('campaign_id', selectedCampaign);
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+          if (!token) throw new Error("Sessão não encontrada");
 
-        // Fetch direct to functions URL since supabase.functions.invoke sometimes messes up FormData content-type boundary
-        const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-event-photo`;
-        const response = await fetch(functionUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
+          const formData = new FormData();
+          formData.append('file', job.file);
+          formData.append('campaign_id', selectedCampaign);
 
-        const result = await response.json();
+          const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-event-photo`;
+          const response = await fetch(functionUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            },
+            body: formData
+          });
 
-        if (!response.ok) {
-          throw new Error(result.error || result.message || "Erro desconhecido ao processar foto");
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || result.message || "Erro desconhecido ao processar foto");
+          }
+
+          setJobs(prev => { const n = [...prev]; n[index].status = 'success'; return n; });
+          return; // Success, exit retry loop
+
+        } catch (err: any) {
+          lastError = err;
+          attempt++;
+          if (attempt < MAX_RETRIES) {
+            // Wait 1.5 seconds before retrying to allow transient errors to clear
+            await new Promise(r => setTimeout(r, 1500));
+          }
         }
-
-        // Mark as success
-        setJobs(prev => {
-          const newJobs = [...prev];
-          newJobs[index].status = 'success';
-          return newJobs;
-        });
-
-      } catch (err: any) {
-        // Mark as error
-        setJobs(prev => {
-          const newJobs = [...prev];
-          newJobs[index].status = 'error';
-          newJobs[index].errorMsg = err.message;
-          return newJobs;
-        });
       }
+
+      // If we exit loop without returning, it means we failed all retries
+      setJobs(prev => {
+        const n = [...prev];
+        n[index].status = 'error';
+        n[index].errorMsg = lastError?.message || 'Erro após reintentos';
+        return n;
+      });
+    };
+
+    // Run uploads with concurrency limit by chunking
+    for (let i = 0; i < pendingJobs.length; i += CONCURRENCY_LIMIT) {
+      const chunk = pendingJobs.slice(i, i + CONCURRENCY_LIMIT);
+      await Promise.all(chunk.map(item => uploadSinglePhoto(item.job, item.index)));
     }
 
     setIsUploading(false);
@@ -196,6 +212,7 @@ const AdminEventPhotos = () => {
                       <td className="px-4 py-3">
                         {job.status === 'pending' && <span className="text-muted-foreground text-xs font-medium bg-muted px-2 py-1 rounded-full">Pendente</span>}
                         {job.status === 'uploading' && <span className="text-blue-500 text-xs font-medium bg-blue-500/10 px-2 py-1 rounded-full flex items-center gap-1 w-max"><Loader2 size={12} className="animate-spin" /> Enviando</span>}
+                        {job.status === 'retrying' && <span className="text-orange-500 text-xs font-medium bg-orange-500/10 px-2 py-1 rounded-full flex items-center gap-1 w-max"><Loader2 size={12} className="animate-spin" /> Reenviando ({job.retryCount}/3)</span>}
                         {job.status === 'success' && <span className="text-green-500 text-xs font-medium bg-green-500/10 px-2 py-1 rounded-full flex items-center gap-1 w-max"><CheckCircle size={12} /> Sucesso</span>}
                         {job.status === 'error' && (
                           <div className="flex items-center gap-1 text-red-500 text-xs font-medium bg-red-500/10 px-2 py-1 rounded-full w-max">
@@ -206,7 +223,7 @@ const AdminEventPhotos = () => {
                       <td className="px-4 py-3 text-right">
                         <button 
                           onClick={() => removeJob(index)}
-                          disabled={isUploading || job.status === 'uploading'}
+                          disabled={isUploading || job.status === 'uploading' || job.status === 'retrying'}
                           className="text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-50"
                         >
                           <X size={16} />
