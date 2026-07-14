@@ -1,0 +1,3 @@
+[build]
+builder = "docker"
+dockerfilePath = "face-recognition-service/Dockerfile"
