@@ -17,15 +17,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # to avoid compiling C++ extensions from scratch.
 RUN pip install --no-cache-dir --upgrade pip
 
-COPY requirements.txt .
+COPY face-recognition-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the model download script and run it so weights are baked into the image layer
-COPY download_model.py .
+COPY face-recognition-service/download_model.py .
 RUN python download_model.py
 
 # Copy application code
-COPY main.py .
+COPY face-recognition-service/main.py .
 
 EXPOSE 8000
 
