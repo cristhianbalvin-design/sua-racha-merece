@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Check, Trash2, Image as ImageIcon, Edit, Eye, EyeOff } from 'lucide-react';
-import { apiGetCampaigns, apiAddCampaign, apiUpdateCampaign, apiDeleteCampaign, apiGetSports, apiGetRegions, apiUploadCampaignImage } from '@/lib/mockApi';
+import { apiGetCampaigns, apiAddCampaign, apiUpdateCampaign, apiDeleteCampaign, apiGetSports, apiGetRegions, apiUploadCampaignImage, apiGetParticipationCountsByCampaign } from '@/lib/mockApi';
 import type { CampaignStatus, Campaign } from '@/data/mockData';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
@@ -33,11 +33,13 @@ const AdminCampaigns = () => {
   const [campaignsList, setCampaignsList] = useState<Campaign[]>([]);
   const [sportsList, setSportsList] = useState<string[]>([]);
   const [regionsList, setRegionsList] = useState<string[]>([]);
+  const [participantCounts, setParticipantCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     apiGetCampaigns().then(setCampaignsList);
     apiGetSports().then(setSportsList);
     apiGetRegions().then(setRegionsList);
+    apiGetParticipationCountsByCampaign().then(setParticipantCounts);
   }, []);
 
   // Create form state
@@ -290,6 +292,7 @@ const AdminCampaigns = () => {
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">CAMPANHA</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">ESPORTE</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">MÊS DA CAMPANHA</th>
+                <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">PARTICIPANTES</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">ESTADO DA CAMPANHA</th>
                 <th className="px-4 py-3"></th>
               </tr>
@@ -297,7 +300,7 @@ const AdminCampaigns = () => {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                     Nenhuma campanha encontrada.
                   </td>
                 </tr>
@@ -307,6 +310,11 @@ const AdminCampaigns = () => {
                     <td className="px-4 py-3 text-foreground font-bold">{c.name || 'N/A'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{c.sportIcon} {c.sport}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatCampMonth(c.startDate)}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex min-w-8 justify-center rounded-full bg-primary/15 px-2.5 py-1 text-xs font-bold text-primary">
+                        {participantCounts[c.id] || 0}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <select
                         value={c.status}

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Trash2 } from 'lucide-react';
+import { Download, Trash2 } from 'lucide-react';
 import PlanBadge from '@/components/PlanBadge';
 import { apiGetUsers, apiToggleUserStatus, apiDeleteUser } from '@/lib/mockApi';
 import { toast } from 'sonner';
 import { User } from '@/data/mockData';
+import { buildUsersCsv } from '@/lib/csv';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -35,8 +36,8 @@ const AdminUsers = () => {
       setUserList(prev => prev.filter(u => u.id !== userToDelete.id));
       toast.success(`Usuário "${userToDelete.name}" excluído.`);
       setUserToDelete(null);
-    } catch (err: any) {
-      toast.error('Erro ao excluir: ' + err.message);
+    } catch (err: unknown) {
+      toast.error('Erro ao excluir: ' + (err instanceof Error ? err.message : 'erro desconhecido'));
     } finally {
       setDeleting(false);
     }
@@ -55,9 +56,32 @@ const AdminUsers = () => {
     return true;
   });
 
+  const handleExportCsv = () => {
+    const csv = buildUsersCsv(userList);
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `usuarios-3buk-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="font-bold italic text-2xl text-foreground mb-6">USUÁRIOS REGISTRADOS</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-bold italic text-2xl text-foreground">USUÁRIOS REGISTRADOS</h1>
+        <button
+          type="button"
+          onClick={handleExportCsv}
+          disabled={userList.length === 0}
+          className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-50"
+        >
+          <Download size={15} />
+          EXPORTAR CSV
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <select
@@ -112,6 +136,11 @@ const AdminUsers = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-bold text-foreground">{user.name}</h3>
+                  {user.athleteNumber && (
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">
+                      Atleta #{user.athleteNumber}
+                    </span>
+                  )}
                   <PlanBadge plan={user.plan} />
                 </div>
                 <p className="text-xs text-muted-foreground">{user.city} · {user.country}</p>
@@ -229,6 +258,9 @@ const AdminUsers = () => {
                 <img src={selectedUser.avatar} alt={selectedUser.name} className="w-20 h-20 rounded-full object-cover img-outline" />
                 <div>
                   <h2 className="text-xl font-bold text-foreground">{selectedUser.name}</h2>
+                  {selectedUser.athleteNumber && (
+                    <p className="text-xs font-bold text-primary">Atleta #{selectedUser.athleteNumber}</p>
+                  )}
                   <p className="text-sm text-muted-foreground">{selectedUser.email || 'Sem email guardado'}</p>
                 </div>
               </div>

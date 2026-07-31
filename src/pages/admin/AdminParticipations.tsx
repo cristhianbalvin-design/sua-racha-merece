@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import PlanBadge from '@/components/PlanBadge';
 import { apiGetParticipations, apiGetUsers, apiGetCampaigns, apiGetSports } from '@/lib/mockApi';
 import { Participation, User, Campaign } from '@/data/mockData';
-import { X, ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Mail, Search, X } from 'lucide-react';
+import { shouldShowIncompleteEmailLink } from '@/lib/participationRules';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -37,7 +38,6 @@ const AdminParticipations = () => {
   const [monthFilter, setMonthFilter] = useState('Todos');
   const [partStatusFilter, setPartStatusFilter] = useState('Todos');
   const [campStatusFilter, setCampStatusFilter] = useState('Todos');
-  const [showDetail, setShowDetail] = useState<string | null>(null);
 
   const [parts, setParts] = useState<Participation[]>([]);
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -225,9 +225,19 @@ const AdminParticipations = () => {
                     <td className="px-4 py-3 text-muted-foreground">{p.campaign?.name || 'N/A'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatCampMonth(p.campaign?.startDate)}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${partStatusColor[p.participationStatus] || 'bg-muted text-muted-foreground'}`}>
-                        {p.participationStatus}
-                      </span>
+                      <div className="flex flex-col items-start gap-1.5">
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${partStatusColor[p.participationStatus] || 'bg-muted text-muted-foreground'}`}>
+                          {p.participationStatus}
+                        </span>
+                        {shouldShowIncompleteEmailLink(p.participationStatus) && p.user?.email && (
+                          <a
+                            href={`mailto:${p.user.email}`}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                          >
+                            <Mail size={12} /> Escrever email
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-bold px-3 py-1 rounded-full ${campStatusColor[p.campaign?.status || ''] || 'bg-muted text-muted-foreground'}`}>

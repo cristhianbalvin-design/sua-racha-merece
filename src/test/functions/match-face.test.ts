@@ -106,7 +106,11 @@ describe('match-face Edge Function', () => {
     expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('match_event_photos', {
       query_embedding: '[0.1,0.2,0.3]',
       match_threshold: 0.55,
-      match_count: 50
+      match_count: 50,
+      filter_region_id: null,
+      filter_sport_id: null,
+      filter_event_date: null,
+      filter_photographer_id: null,
     });
 
     // Ensure insert was NEVER called
