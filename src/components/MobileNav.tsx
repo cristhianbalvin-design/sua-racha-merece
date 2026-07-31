@@ -15,12 +15,20 @@ const MobileNav = () => {
   const links = [
     { to: '/dashboard', icon: Home, label: 'Campanhas' },
     { to: '/participacoes', icon: Trophy, label: 'Participações' },
-    { 
-      to: '/fotografias-3buk', 
-      icon: Images, 
-      label: 'Fotos', 
-      featured: true 
-    },
+    SHOW_FACE_SEARCH
+      ? { 
+          to: '/fotografias-3buk', 
+          icon: Images, 
+          label: 'Fotos', 
+          featured: true 
+        }
+      : {
+          to: null,
+          href: 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI',
+          icon: Images,
+          label: 'Fotos',
+          featured: true
+        },
     { to: '/notificacoes', icon: Bell, label: 'Avisos', badge: unreadCount },
     { to: '/perfil', icon: User, label: 'Perfil' },
   ];
