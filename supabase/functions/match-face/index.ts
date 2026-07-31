@@ -42,6 +42,11 @@ serve(async (req) => {
     // 2. Extraer multipart/form-data
     const formData = await req.formData();
     const file = formData.get("file");
+    const filterRegionId = formData.get("filter_region_id")?.toString() || null;
+    const filterSportId = formData.get("filter_sport_id")?.toString() || null;
+    const filterEventDate = formData.get("filter_event_date")?.toString() || null;
+    const filterPhotographerId = formData.get("filter_photographer_id")?.toString() || null;
+
     if (!file || !(file instanceof File)) {
       return new Response(JSON.stringify({ error: "No image file provided" }), { 
         status: 400, 
@@ -85,7 +90,11 @@ serve(async (req) => {
     const { data: matches, error: matchError } = await supabaseAdmin.rpc("match_event_photos", {
       query_embedding: `[${embedding.join(',')}]`, // pgvector string format
       match_threshold: threshold,
-      match_count: 50
+      match_count: 50,
+      filter_region_id: filterRegionId,
+      filter_sport_id: filterSportId,
+      filter_event_date: filterEventDate,
+      filter_photographer_id: filterPhotographerId
     });
 
     if (matchError) {

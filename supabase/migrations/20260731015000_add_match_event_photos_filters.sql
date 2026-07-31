@@ -1,6 +1,16 @@
+BEGIN;
+
 DROP FUNCTION IF EXISTS public.match_event_photos(vector, double precision, integer);
 
-CREATE OR REPLACE FUNCTION public.match_event_photos(query_embedding vector, match_threshold double precision, match_count integer)
+CREATE OR REPLACE FUNCTION public.match_event_photos(
+  query_embedding vector,
+  match_threshold double precision,
+  match_count integer,
+  filter_region_id uuid DEFAULT null,
+  filter_sport_id uuid DEFAULT null,
+  filter_event_date date DEFAULT null,
+  filter_photographer_id uuid DEFAULT null
+)
 RETURNS TABLE(
   id uuid,
   campaign_id uuid,
@@ -28,7 +38,13 @@ BEGIN
     1 - (ep.embedding <=> query_embedding) AS similarity
   FROM public.event_photos ep
   WHERE 1 - (ep.embedding <=> query_embedding) > match_threshold
+    AND (filter_region_id IS NULL OR ep.region_id = filter_region_id)
+    AND (filter_sport_id IS NULL OR ep.sport_id = filter_sport_id)
+    AND (filter_event_date IS NULL OR ep.event_date = filter_event_date)
+    AND (filter_photographer_id IS NULL OR ep.photographer_id = filter_photographer_id)
   ORDER BY ep.embedding <=> query_embedding
   LIMIT match_count;
 END;
 $function$;
+
+COMMIT;
