@@ -7,8 +7,9 @@ interface Match {
   id: string;
   image_url: string;
   similarity: number;
-  campaign_id: string;
-  campaign_title: string;
+  campaign_id?: string;
+  event_label?: string;
+  photographer_name?: string | null;
 }
 
 export const FaceSearchSection = () => {
@@ -158,9 +159,14 @@ export const FaceSearchSection = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <div className="p-4">
-                  <p className="font-bold text-sm text-foreground truncate" title={match.campaign_title}>
-                    {match.campaign_title}
+                  <p className="font-bold text-sm text-foreground truncate" title={match.event_label}>
+                    {match.event_label}
                   </p>
+                  {match.photographer_name && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate" title={`Foto: ${match.photographer_name}`}>
+                      Foto: {match.photographer_name}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Match: {Math.round(match.similarity * 100)}%
                   </p>

@@ -88,6 +88,7 @@ const AdminLayout = () => {
     { to: '/admin/usuarios', label: 'Usuários' },
     { to: '/admin/campanhas', label: 'Campanhas' },
     ...(SHOW_FACE_SEARCH ? [{ to: '/admin/fotos', label: 'Fotos Eventos' }] : []),
+    ...(SHOW_FACE_SEARCH ? [{ to: '/admin/fotografos', label: 'Fotógrafos' }] : []),
     { to: '/admin/participacoes', label: 'Participações' },
     { to: '/admin/qualificacao', label: 'Qualificação' },
     { to: '/admin/ganhadores', label: 'Ganhadores' },

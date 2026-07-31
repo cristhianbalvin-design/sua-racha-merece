@@ -4,11 +4,8 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { SHOW_FACE_SEARCH } from '@/config/features';
 import { Navigate } from 'react-router-dom';
+import { apiGetRegionsWithId, apiGetSportsWithId, apiGetUniqueCities, apiGetPhotographers, Photographer } from '@/lib/mockApi';
 
-interface Campaign {
-  id: string;
-  name: string;
-}
 
 interface UploadJob {
   file: File;
@@ -22,24 +19,30 @@ const AdminEventPhotos = () => {
     return <Navigate to="/admin/dashboard" />;
   }
 
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [selectedCampaign, setSelectedCampaign] = useState('');
   const [jobs, setJobs] = useState<UploadJob[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
+  // New states for optional fields
+  const [regions, setRegions] = useState<{id: string, name: string}[]>([]);
+  const [sports, setSports] = useState<{id: string, name: string}[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
+  const [photographers, setPhotographers] = useState<Photographer[]>([]);
+
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [selectedSport, setSelectedSport] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedPhotographer, setSelectedPhotographer] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
+
+
   useEffect(() => {
-    const fetchCampaigns = async () => {
-      const { data, error } = await supabase
-        .from('campaigns')
-        .select('id, name')
-        .order('created_at', { ascending: false });
-      
-      if (!error && data) {
-        setCampaigns(data);
-      }
-    };
-    fetchCampaigns();
+    // Fetch lists
+    apiGetRegionsWithId().then(setRegions).catch(console.error);
+    apiGetSportsWithId().then(setSports).catch(console.error);
+    apiGetUniqueCities().then(setCities).catch(console.error);
+    apiGetPhotographers().then(setPhotographers).catch(console.error);
   }, []);
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -57,11 +60,6 @@ const AdminEventPhotos = () => {
   };
 
   const startUpload = async () => {
-    if (!selectedCampaign) {
-      toast.error('Selecione uma campanha primeiro');
-      return;
-    }
-
     const pendingJobs = jobs.map((job, index) => ({ job, index })).filter(j => j.job.status === 'pending' || j.job.status === 'error');
     
     if (pendingJobs.length === 0) {
@@ -92,7 +90,11 @@ const AdminEventPhotos = () => {
 
           const formData = new FormData();
           formData.append('file', job.file);
-          formData.append('campaign_id', selectedCampaign);
+          formData.append('region_id', selectedRegion);
+          formData.append('sport_id', selectedSport);
+          formData.append('city', selectedCity);
+          formData.append('photographer_id', selectedPhotographer);
+          formData.append('event_date', selectedDate);
 
           const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-event-photo`;
           const response = await fetch(functionUrl, {
@@ -151,22 +153,91 @@ const AdminEventPhotos = () => {
       </div>
 
       <div className="bg-card border border-border rounded-lg shadow-sm p-6 space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-foreground mb-2">Campanha / Evento</label>
-          <select 
-            className="w-full max-w-md bg-background border border-input rounded-md px-3 py-2 focus:ring-2 focus:ring-primary focus:border-transparent"
-            value={selectedCampaign}
-            onChange={(e) => setSelectedCampaign(e.target.value)}
-            disabled={isUploading}
-          >
-            <option value="">-- Selecione uma campanha --</option>
-            {campaigns.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Detalhes do Evento</h3>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Data do Evento <span className="text-red-500">*</span></label>
+            <input 
+              type="date"
+              className="w-full bg-background border border-input rounded-md px-3 py-2 focus:ring-2 focus:ring-primary"
+              value={selectedDate}
+              max={new Date().toISOString().split('T')[0]}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              disabled={isUploading}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Região <span className="text-red-500">*</span></label>
+            <select 
+              className="w-full bg-background border border-input rounded-md px-3 py-2 focus:ring-2 focus:ring-primary"
+              value={selectedRegion}
+              onChange={(e) => setSelectedRegion(e.target.value)}
+              disabled={isUploading}
+            >
+              <option value="">-- Nenhuma --</option>
+              {regions.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Esporte <span className="text-red-500">*</span></label>
+            <select 
+              className="w-full bg-background border border-input rounded-md px-3 py-2 focus:ring-2 focus:ring-primary"
+              value={selectedSport}
+              onChange={(e) => setSelectedSport(e.target.value)}
+              disabled={isUploading}
+            >
+              <option value="">-- Nenhum --</option>
+              {sports.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Cidade <span className="text-red-500">*</span></label>
+            <input 
+              type="text"
+              list="cities-list"
+              className="w-full bg-background border border-input rounded-md px-3 py-2 focus:ring-2 focus:ring-primary"
+              placeholder="Ex: São Paulo"
+              value={selectedCity}
+              onChange={(e) => setSelectedCity(e.target.value)}
+              disabled={isUploading}
+            />
+            <datalist id="cities-list">
+              {cities.map((city, i) => (
+                <option key={i} value={city} />
+              ))}
+            </datalist>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Fotógrafo <span className="text-red-500">*</span></label>
+            <div className="flex gap-2">
+              <select 
+                className="w-full bg-background border border-input rounded-md px-3 py-2 focus:ring-2 focus:ring-primary"
+                value={selectedPhotographer}
+                onChange={(e) => setSelectedPhotographer(e.target.value)}
+                disabled={isUploading}
+              >
+                <option value="">-- Nenhum --</option>
+                {photographers.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+
+            </div>
+          </div>
         </div>
 
-        <div>
+        <div className="border-t border-border pt-4">
           <label className="block text-sm font-medium text-foreground mb-2">Selecionar Fotos</label>
           <div className="flex items-center gap-4">
             <label className={`cursor-pointer inline-flex items-center gap-2 bg-secondary text-secondary-foreground px-4 py-2 rounded-md hover:bg-secondary/80 transition-colors font-medium ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -238,7 +309,7 @@ const AdminEventPhotos = () => {
             <div className="p-4 bg-muted/30 border-t border-border flex justify-end">
               <button
                 onClick={startUpload}
-                disabled={isUploading || jobs.every(j => j.status === 'success')}
+                disabled={isUploading || jobs.every(j => j.status === 'success') || !selectedRegion || !selectedSport || !selectedCity || !selectedPhotographer || !selectedDate}
                 className="bg-primary text-primary-foreground font-bold px-6 py-2 rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 shadow-sm"
               >
                 {isUploading ? 'Processando...' : 'Iniciar Upload'}
@@ -247,6 +318,8 @@ const AdminEventPhotos = () => {
           </div>
         )}
       </div>
+
+
     </div>
   );
 };
