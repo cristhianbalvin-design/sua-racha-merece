@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Edit, Check } from 'lucide-react';
-import { apiGetPhotographers, apiAddPhotographer, apiUpdatePhotographer, apiDeletePhotographer, Photographer } from '@/lib/mockApi';
+import { Camera, Plus, Trash2, Edit, X } from 'lucide-react';
+import { apiGetPhotographers, apiAddPhotographer, apiUpdatePhotographer, apiDeletePhotographer, apiUploadPhotographerPhoto, Photographer } from '@/lib/mockApi';
 import { SHOW_FACE_SEARCH } from '@/config/features';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -15,10 +15,6 @@ const formatDate = (dateStr?: string) => {
 };
 
 const AdminPhotographers = () => {
-  if (!SHOW_FACE_SEARCH) {
-    return <Navigate to="/admin/dashboard" />;
-  }
-
   const [photographers, setPhotographers] = useState<Photographer[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -27,11 +23,13 @@ const AdminPhotographers = () => {
   const [pName, setPName] = useState('');
   const [pEmail, setPEmail] = useState('');
   const [pPhone, setPPhone] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
 
   useEffect(() => {
-    fetchPhotographers();
+    if (SHOW_FACE_SEARCH) fetchPhotographers();
   }, []);
 
   const fetchPhotographers = async () => {
@@ -41,6 +39,16 @@ const AdminPhotographers = () => {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const resetForm = () => {
+    setEditingId(null);
+    setPName('');
+    setPEmail('');
+    setPPhone('');
+    setPhotoFile(null);
+    setPhotoPreview('');
+    setFormSubmitted(false);
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -55,15 +63,21 @@ const AdminPhotographers = () => {
     setIsSubmitting(true);
 
     try {
+      let photoUrl = photoPreview || undefined;
+      if (photoFile) {
+        photoUrl = await apiUploadPhotographerPhoto(photoFile) || undefined;
+        if (!photoUrl) return;
+      }
       if (editingId) {
         await apiUpdatePhotographer(editingId, { 
           name: pName.trim(), 
           email: pEmail.trim(), 
-          phone: pPhone.trim() 
+          phone: pPhone.trim(),
+          photo_url: photoUrl || '',
         });
         toast.success('Fotógrafo atualizado com sucesso!');
       } else {
-        await apiAddPhotographer(pName.trim(), pEmail.trim(), pPhone.trim());
+        await apiAddPhotographer(pName.trim(), pEmail.trim(), pPhone.trim(), photoUrl);
         toast.success('Fotógrafo adicionado com sucesso!');
       }
 
@@ -71,11 +85,8 @@ const AdminPhotographers = () => {
       setFormSubmitted(true);
       
       setTimeout(() => {
-        setFormSubmitted(false);
-        setEditingId(null);
-        setPName('');
-        setPEmail('');
-        setPPhone('');
+        setShowCreate(false);
+        resetForm();
       }, 1500);
 
     } catch (err) {
@@ -90,9 +101,15 @@ const AdminPhotographers = () => {
     setPName(p.name);
     setPEmail(p.email || '');
     setPPhone(p.phone || '');
+    setPhotoFile(null);
+    setPhotoPreview(p.photo_url || '');
     setFormSubmitted(false);
     setShowCreate(true);
   };
+
+  if (!SHOW_FACE_SEARCH) {
+    return <Navigate to="/admin/dashboard" />;
+  }
 
   const handleDeleteClick = async (id: string, name: string) => {
     if (window.confirm(`Tem certeza que deseja excluir o fotógrafo "${name}"?\n\nAs fotos já atribuídas a este fotógrafo não serão apagadas, apenas ficarão sem fotógrafo associado.`)) {
@@ -115,11 +132,7 @@ const AdminPhotographers = () => {
         </div>
         <motion.button
           onClick={() => {
-            setEditingId(null);
-            setPName('');
-            setPEmail('');
-            setPPhone('');
-            setFormSubmitted(false);
+            resetForm();
             setShowCreate(true);
           }}
           whileHover={{ scale: 1.03 }}
@@ -137,6 +150,7 @@ const AdminPhotographers = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
+                <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">FOTO</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">NOME</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">EMAIL</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">TELEFONE</th>
@@ -147,13 +161,22 @@ const AdminPhotographers = () => {
             <tbody className="divide-y divide-border">
               {photographers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                     Nenhum fotógrafo cadastrado.
                   </td>
                 </tr>
               ) : (
                 photographers.map((p) => (
                   <tr key={p.id}>
+                    <td className="px-4 py-3">
+                      {p.photo_url ? (
+                        <img src={p.photo_url} alt={p.name} className="h-11 w-11 rounded-full object-cover ring-2 ring-primary/25" />
+                      ) : (
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                          <Camera size={18} />
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-foreground font-bold">{p.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.email || '—'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.phone || '—'}</td>
@@ -206,6 +229,45 @@ const AdminPhotographers = () => {
                   </h3>
 
                   <div>
+                    <label className="text-ui text-xs text-muted-foreground block mb-2">FOTO DE PERFIL (OPCIONAL)</label>
+                    <div className="flex items-center gap-4">
+                      <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground ring-2 ring-primary/25">
+                        {photoPreview ? (
+                          <img src={photoPreview} alt="Prévia do fotógrafo" className="h-full w-full object-cover" />
+                        ) : (
+                          <Camera size={24} />
+                        )}
+                        {photoPreview && (
+                          <button
+                            type="button"
+                            onClick={() => { setPhotoFile(null); setPhotoPreview(''); }}
+                            className="absolute right-0 top-0 rounded-full bg-background/85 p-1 text-destructive"
+                            aria-label="Remover foto"
+                          >
+                            <X size={13} />
+                          </button>
+                        )}
+                      </div>
+                      <label className="cursor-pointer rounded-xl border border-border bg-muted px-4 py-2.5 text-xs font-bold text-foreground hover:bg-muted/80">
+                        ESCOLHER IMAGEM
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) {
+                              setPhotoFile(file);
+                              setPhotoPreview(URL.createObjectURL(file));
+                            }
+                            event.target.value = '';
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
                     <label className="text-ui text-xs text-muted-foreground block mb-2">NOME *</label>
                     <input 
                       type="text" 
@@ -243,7 +305,7 @@ const AdminPhotographers = () => {
                   <div className="flex gap-3 pt-2">
                     <motion.button
                       type="button"
-                      onClick={() => setShowCreate(false)}
+                      onClick={() => { setShowCreate(false); resetForm(); }}
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                       transition={spring}

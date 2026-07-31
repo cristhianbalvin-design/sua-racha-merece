@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiGetSports, apiGetRegions, apiUpdateUser, apiUploadAvatar, apiGetParticipations } from '@/lib/mockApi';
+import { apiGetSports, apiGetRegions, apiUpdateUser, apiUploadAvatar, apiGetParticipations, apiGetAthleteNumber } from '@/lib/mockApi';
 import { Pencil, Save, X, Camera, LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,6 +17,7 @@ const UserProfile = () => {
   const [participatedCount, setParticipatedCount] = useState(0);
   const [wonCount, setWonCount] = useState(0);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [athleteNumber, setAthleteNumber] = useState<number | null>(null);
 
   useEffect(() => {
     apiGetSports().then(setSports);
@@ -34,6 +35,7 @@ const UserProfile = () => {
 
   useEffect(() => {
     if (user) {
+      apiGetAthleteNumber(user.id).then(setAthleteNumber);
       setName(user.name);
       setCity(user.city);
       setCountry(user.country);
@@ -104,6 +106,13 @@ const UserProfile = () => {
 
   return (
     <div className="px-4 md:px-8 py-4 max-w-2xl mx-auto">
+      {athleteNumber !== null && (
+        <div className="mb-4 text-center">
+          <span className="inline-flex rounded-full bg-primary/15 px-4 py-1.5 text-sm font-bold text-primary">
+            Atleta #{athleteNumber}
+          </span>
+        </div>
+      )}
       {/* ── Edit form ── */}
       <motion.div {...fadeIn} transition={spring} className="mb-6">
         {!editing ? (

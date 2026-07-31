@@ -51,6 +51,7 @@ export interface Campaign {
 
 export interface User {
   id: string;
+  athleteNumber?: number;
   name: string;
   email?: string;
   city: string;

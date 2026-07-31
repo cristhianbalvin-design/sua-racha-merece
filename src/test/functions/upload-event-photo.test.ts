@@ -16,7 +16,7 @@ global.Deno = {
   }
 } as any;
 
-vi.spyOn(crypto, 'randomUUID').mockReturnValue('1234-5678-uuid');
+vi.spyOn(crypto, 'randomUUID').mockReturnValue('12345678-1234-1234-1234-123456789abc');
 
 // 2. Mock Supabase Client
 const mockSupabaseClient = {
@@ -54,6 +54,14 @@ const evalContext = new Function('serve', 'createClient', 'Deno', 'fetch', 'Form
 evalContext(serveMock, createClientMock, global.Deno, global.fetch, FormData, File, global.crypto);
 
 describe('upload-event-photo Edge Function', () => {
+  const appendRequiredMetadata = (formData: FormData) => {
+    formData.append('region_id', 'region-123');
+    formData.append('sport_id', 'sport-123');
+    formData.append('city', 'São Paulo');
+    formData.append('photographer_id', 'photographer-123');
+    formData.append('event_date', '2026-07-31');
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     
@@ -99,7 +107,7 @@ describe('upload-event-photo Edge Function', () => {
   it('completes the happy path correctly', async () => {
     const formData = new FormData();
     formData.append('file', new File(['test'], 'test.jpg', { type: 'image/jpeg' }));
-    formData.append('campaign_id', 'camp-123');
+    appendRequiredMetadata(formData);
     const req = new Request('http://localhost', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer token' }
@@ -116,13 +124,18 @@ describe('upload-event-photo Edge Function', () => {
     }));
 
     // Check storage upload
-    expect(mockSupabaseClient.storage.upload).toHaveBeenCalledWith('camp-123/1234-5678-uuid.jpg', expect.any(File), { contentType: 'image/jpeg', upsert: false });
+    expect(mockSupabaseClient.storage.upload).toHaveBeenCalledWith('2026-07-31/12345678-1234-1234-1234-123456789abc.jpg', expect.any(File), { contentType: 'image/jpeg', upsert: false });
 
     // Check DB insert
     expect(mockSupabaseClient.insert).toHaveBeenCalledWith({
-      campaign_id: 'camp-123',
+      campaign_id: null,
       image_url: 'http://bucket/test.jpg',
-      embedding: '[0.1,0.2,0.3]'
+      embedding: '[0.1,0.2,0.3]',
+      region_id: 'region-123',
+      sport_id: 'sport-123',
+      city: 'São Paulo',
+      photographer_id: 'photographer-123',
+      event_date: '2026-07-31',
     });
   });
 
@@ -136,7 +149,7 @@ describe('upload-event-photo Edge Function', () => {
 
     const formData = new FormData();
     formData.append('file', new File(['test'], 'test.jpg', { type: 'image/jpeg' }));
-    formData.append('campaign_id', 'camp-123');
+    appendRequiredMetadata(formData);
     const req = new Request('http://localhost', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer token' }
@@ -149,6 +162,6 @@ describe('upload-event-photo Edge Function', () => {
     expect(res.status).toBe(500);
 
     // Ensure rollback was called
-    expect(mockSupabaseClient.storage.remove).toHaveBeenCalledWith(['camp-123/1234-5678-uuid.jpg']);
+    expect(mockSupabaseClient.storage.remove).toHaveBeenCalledWith(['2026-07-31/12345678-1234-1234-1234-123456789abc.jpg']);
   });
 });

@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, Instagram, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetCampaigns, apiAddParticipation, apiGetParticipations } from '@/lib/mockApi';
+import type { Campaign } from '@/data/mockData';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const CampaignDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const readOnly = Boolean(location.state?.readOnly);
   const { user } = useAuth();
-  const [campaign, setCampaign] = useState<any>(null);
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [participated, setParticipated] = useState(false);
 
   useEffect(() => {
@@ -146,7 +149,7 @@ const CampaignDetail = () => {
         </div>
       </div>
 
-      {!participated ? (
+      {!participated && !readOnly ? (
         <motion.button
           onClick={handleParticipate}
           whileHover={{ scale: 1.03 }}
@@ -156,7 +159,7 @@ const CampaignDetail = () => {
         >
           QUERO PARTICIPAR
         </motion.button>
-      ) : (
+      ) : participated ? (
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -170,7 +173,7 @@ const CampaignDetail = () => {
             🟢 EM CURSO
           </div>
         </motion.div>
-      )}
+      ) : null}
 
       <div className="flex items-center justify-center gap-2 text-center text-muted-foreground text-xs mt-4">
         <Trophy size={14} className="text-accent" />

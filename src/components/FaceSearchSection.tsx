@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Camera, Upload, Loader2, AlertCircle, ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 interface Match {
   id: string;
@@ -29,6 +30,37 @@ export const FaceSearchSection = () => {
   const [selectedSport, setSelectedSport] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedPhotographer, setSelectedPhotographer] = useState('');
+
+  const handleDownload = async (matchId: string, imageUrl: string) => {
+    try {
+      toast.loading('Verificando permissão...', { id: 'download' });
+      const { data, error } = await supabase.rpc('check_and_register_download', { p_event_photo_id: matchId });
+      if (error) throw error;
+
+      if (data.allowed) {
+        toast.success('Download iniciado!', { id: 'download' });
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.target = '_blank';
+        link.download = `foto_${matchId}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        toast('Limite atingido', {
+           id: 'download',
+           description: 'Você já usou suas 3 descargas grátis. Participe de uma campanha ativa para continuar baixando sem limites.',
+           action: {
+             label: 'Ver Campanhas',
+             onClick: () => navigate('/dashboard')
+           },
+           duration: 6000,
+        });
+      }
+    } catch (err: any) {
+      toast.error('Erro ao verificar permissão.', { id: 'download' });
+    }
+  };
 
   useEffect(() => {
     const fetchFilters = async () => {
@@ -119,12 +151,12 @@ export const FaceSearchSection = () => {
       </div>
 
       <div className="max-w-md mx-auto space-y-6">
-        
+
         {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-bold mb-1">Região *</label>
-            <select 
+            <select
               value={selectedRegion}
               onChange={e => setSelectedRegion(e.target.value)}
               className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
@@ -135,7 +167,7 @@ export const FaceSearchSection = () => {
           </div>
           <div>
             <label className="block text-sm font-bold mb-1">Esporte *</label>
-            <select 
+            <select
               value={selectedSport}
               onChange={e => setSelectedSport(e.target.value)}
               className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
@@ -146,7 +178,7 @@ export const FaceSearchSection = () => {
           </div>
           <div>
             <label className="block text-sm font-bold mb-1">Data do Evento *</label>
-            <select 
+            <select
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
               className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
@@ -160,7 +192,7 @@ export const FaceSearchSection = () => {
           </div>
           <div>
             <label className="block text-sm font-bold mb-1">Fotógrafo</label>
-            <select 
+            <select
               value={selectedPhotographer}
               onChange={e => setSelectedPhotographer(e.target.value)}
               className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
@@ -173,10 +205,10 @@ export const FaceSearchSection = () => {
 
         {/* Upload Area */}
         <div className="relative border-2 border-dashed border-primary/30 rounded-xl p-8 text-center hover:bg-primary/5 transition-colors">
-          <input 
-            type="file" 
-            accept="image/*" 
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+          <input
+            type="file"
+            accept="image/*"
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             onChange={handleFileChange}
           />
           {file ? (
@@ -226,9 +258,18 @@ export const FaceSearchSection = () => {
         )}
 
         {status === 'empty' && (
-          <div className="bg-secondary/50 rounded-lg p-6 text-center border border-border">
+          <div className="bg-secondary/50 rounded-lg p-6 text-center border border-border flex flex-col items-center">
             <p className="font-medium text-foreground">Nenhuma foto encontrada</p>
-            <p className="text-sm text-muted-foreground mt-1">Não encontramos fotos correspondentes na combinação selecionada.</p>
+            <p className="text-sm text-muted-foreground mt-1 mb-4">Não encontramos fotos correspondentes na combinação selecionada.</p>
+            <div className="bg-card p-4 rounded-xl border border-primary/20 shadow-sm w-full">
+              <p className="font-bold text-sm mb-3">Ainda quer participar e ganhar patrocínio esportivo?</p>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="bg-primary text-primary-foreground text-xs font-bold py-2 px-4 rounded-lg hover:bg-secondary transition-colors"
+              >
+                VER CAMPANHAS DISPONÍVEIS
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -237,19 +278,24 @@ export const FaceSearchSection = () => {
       {status === 'success' && matches.length > 0 && (
         <div className="mt-12 pt-8 border-t border-border">
           <h3 className="font-bold text-xl mb-6 flex items-center gap-2">
-            <ImageIcon className="text-primary" /> 
+            <ImageIcon className="text-primary" />
             <span>Encontramos {matches.length} {matches.length === 1 ? 'foto' : 'fotos'} suas!</span>
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {matches.map((match) => (
               <div key={match.id} className="group relative rounded-xl overflow-hidden border border-border bg-card">
-                <div className="aspect-[4/3] bg-muted relative">
-                  <img 
-                    src={match.image_url} 
-                    alt="Sua foto" 
+                <div className="aspect-[4/3] bg-muted relative overflow-hidden group-hover:opacity-90">
+                  <img
+                    src={match.image_url}
+                    alt="Sua foto"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     loading="lazy"
                   />
+                  <div className="absolute inset-0 pointer-events-none opacity-20 flex flex-wrap content-start justify-center gap-4 p-4 -rotate-12 scale-150 select-none">
+                    {Array.from({ length: 20 }).map((_, i) => (
+                      <span key={i} className="text-white font-black text-2xl tracking-widest drop-shadow-md">3BUK</span>
+                    ))}
+                  </div>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <div className="p-4">
@@ -264,15 +310,13 @@ export const FaceSearchSection = () => {
                   <p className="text-xs text-muted-foreground mt-1">
                     Match: {Math.round(match.similarity * 100)}%
                   </p>
-                  <a 
-                    href={match.image_url} 
-                    target="_blank" 
-                    rel="noreferrer"
+                  <button
+                    onClick={() => handleDownload(match.id, match.image_url)}
                     className="mt-3 block w-full text-center bg-secondary text-secondary-foreground text-xs font-bold py-2 rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors"
                   >
                     Baixar Foto
-                  </a>
-                  <button 
+                  </button>
+                  <button
                     onClick={() => navigate('/participacoes', { state: { autoPhotoUrl: match.image_url } })}
                     className="mt-2 block w-full text-center bg-primary text-primary-foreground text-xs font-bold py-2 rounded-lg hover:bg-secondary hover:text-secondary-foreground transition-colors"
                   >

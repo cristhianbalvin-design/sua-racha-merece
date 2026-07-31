@@ -25,8 +25,25 @@ const mapUser = (row: any): User => ({
 });
 
 export const apiGetUsers = async (): Promise<User[]> => {
-  const { data } = await supabase.from('users').select('*').neq('role', 'ADMIN');
-  return (data || []).map(mapUser);
+  const [{ data }, { data: numberRows, error: numberError }] = await Promise.all([
+    supabase.from('users').select('*').neq('role', 'ADMIN'),
+    supabase.rpc('get_user_athlete_numbers'),
+  ]);
+  if (numberError) console.error('Error loading athlete numbers:', numberError);
+  const athleteNumbers = new Map<string, number>(
+    (numberRows || []).map((row: { user_id: string; athlete_number: number }) => [row.user_id, Number(row.athlete_number)])
+  );
+  return (data || []).map((row) => ({ ...mapUser(row), athleteNumber: athleteNumbers.get(row.id) }));
+};
+
+export const apiGetAthleteNumber = async (userId: string): Promise<number | null> => {
+  const { data, error } = await supabase.rpc('get_user_athlete_numbers');
+  if (error) {
+    console.error('Error loading athlete number:', error);
+    return null;
+  }
+  const match = (data || []).find((row: { user_id: string }) => row.user_id === userId);
+  return match ? Number(match.athlete_number) : null;
 };
 
 export const apiUpdateUser = async (userId: string, updates: Partial<User>) => {
@@ -214,6 +231,18 @@ export const apiGetParticipations = async (): Promise<Participation[]> => {
   return (data || []).map(mapPart);
 };
 
+export const apiGetParticipationCountsByCampaign = async (): Promise<Record<string, number>> => {
+  const { data, error } = await supabase.from('participations').select('campaign_id');
+  if (error) {
+    console.error('Error loading campaign participation counts:', error);
+    return {};
+  }
+  return (data || []).reduce<Record<string, number>>((counts, row) => {
+    if (row.campaign_id) counts[row.campaign_id] = (counts[row.campaign_id] || 0) + 1;
+    return counts;
+  }, {});
+};
+
 // Map app-level uppercase status to DB constraint values
 const toDbStatus = (s: string): string => {
   const map: Record<string, string> = {
@@ -276,6 +305,45 @@ export const apiUpdateParticipation = async (id: string, updates: Partial<Partic
     toast.error('Erro ao atualizar participação: ' + error.message);
   }
   return data ? mapPart(data) : null;
+};
+
+interface ParticipationEvidenceUpdate {
+  comment: string;
+  instagram: boolean;
+  photo: string[];
+  instagramPhoto?: string;
+}
+
+export const apiSaveOwnParticipationEvidence = async (
+  id: string,
+  userId: string,
+  expectedStatus: 'Em curso' | 'Concluído',
+  evidence: ParticipationEvidenceUpdate
+): Promise<Participation> => {
+  const photoUrl = JSON.stringify({
+    media: evidence.photo,
+    igScreenshot: evidence.instagramPhoto,
+    prizeDelivered: false,
+  });
+  const { data, error } = await supabase
+    .from('participations')
+    .update({
+      status: 'Concluído',
+      comment: evidence.comment,
+      instagram_posted: evidence.instagram,
+      photo_url: photoUrl,
+    })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .eq('status', expectedStatus)
+    .select('*')
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) {
+    throw new Error('A participação mudou de estado e não pode mais ser editada.');
+  }
+  return mapPart(data);
 };
 
 // Masters API
@@ -714,6 +782,7 @@ export interface Photographer {
   name: string;
   email?: string;
   phone?: string;
+  photo_url?: string;
   created_at: string;
 }
 
@@ -722,8 +791,8 @@ export const apiGetPhotographers = async (): Promise<Photographer[]> => {
   return data || [];
 };
 
-export const apiAddPhotographer = async (name: string, email?: string, phone?: string): Promise<Photographer | null> => {
-  const { data, error } = await supabase.from('photographers').insert({ name, email: email || null, phone: phone || null }).select('*').single();
+export const apiAddPhotographer = async (name: string, email?: string, phone?: string, photoUrl?: string): Promise<Photographer | null> => {
+  const { data, error } = await supabase.from('photographers').insert({ name, email: email || null, phone: phone || null, photo_url: photoUrl || null }).select('*').single();
   if (error) {
     console.error("Erro ao adicionar fotógrafo:", error);
     toast.error('Erro ao adicionar fotógrafo: ' + error.message);
@@ -737,6 +806,7 @@ export const apiUpdatePhotographer = async (id: string, updates: Partial<Photogr
   if (updates.name !== undefined) row.name = updates.name;
   if (updates.email !== undefined) row.email = updates.email || null;
   if (updates.phone !== undefined) row.phone = updates.phone || null;
+  if (updates.photo_url !== undefined) row.photo_url = updates.photo_url || null;
 
   const { data, error } = await supabase.from('photographers').update(row).eq('id', id).select('*').single();
   if (error) {
@@ -745,6 +815,22 @@ export const apiUpdatePhotographer = async (id: string, updates: Partial<Photogr
     throw new Error(error.message);
   }
   return data;
+};
+
+export const apiUploadPhotographerPhoto = async (file: File): Promise<string | null> => {
+  const extension = file.name.split('.').pop() || 'jpg';
+  const fileName = `photographers/${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage.from('avatars').upload(fileName, file, {
+    cacheControl: '3600',
+    upsert: false,
+  });
+  if (error) {
+    console.error('Error uploading photographer photo:', error);
+    toast.error('Erro ao enviar foto: ' + error.message);
+    return null;
+  }
+  const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
+  return data.publicUrl;
 };
 
 export const apiDeletePhotographer = async (id: string): Promise<void> => {

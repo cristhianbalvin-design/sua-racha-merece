@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Upload, Check, ImageIcon, Film, X } from 'lucide-react';
+import { Upload, Check, ImageIcon, Film, Pencil, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiGetParticipations, apiGetCampaigns, apiUpdateParticipation, apiUploadEvidence } from '@/lib/mockApi';
+import { apiGetParticipations, apiGetCampaigns, apiSaveOwnParticipationEvidence, apiUploadEvidence } from '@/lib/mockApi';
 import { Participation, Campaign } from '@/data/mockData';
+import { canEditParticipationEvidence } from '@/lib/participationRules';
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 const MAX_PHOTOS = 1;
 const MAX_VIDEOS = 1;
@@ -69,11 +70,13 @@ const UserParticipations = () => {
   const [instagram, setInstagram] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isEditingEvidence, setIsEditingEvidence] = useState(false);
 
   // Multi-file state
   const [photos, setPhotos] = useState<File[]>([]);
   const [videos, setVideos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const [existingPhotoUrls, setExistingPhotoUrls] = useState<string[]>([]);
   const [videoPreviews, setVideoPreviews] = useState<string[]>([]);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -81,11 +84,14 @@ const UserParticipations = () => {
   // Instagram screenshot
   const [igScreenshot, setIgScreenshot] = useState<File | null>(null);
   const [igScreenshotPreview, setIgScreenshotPreview] = useState<string | null>(null);
+  const [existingIgScreenshotUrl, setExistingIgScreenshotUrl] = useState<string | null>(null);
   const igScreenshotRef = useRef<HTMLInputElement>(null);
 
   const [participations, setParticipations] = useState<(Participation & { campaign?: Campaign })[]>([]);
   const location = useLocation();
+  const navigate = useNavigate();
   const [autoPhotoProcessed, setAutoPhotoProcessed] = useState(false);
+  const allPhotoPreviews = [...existingPhotoUrls, ...photoPreviews];
 
   useEffect(() => {
     const fetchParts = async () => {
@@ -117,23 +123,27 @@ const UserParticipations = () => {
         toast.dismiss('auto-photo');
         
         const emCursoParts = userParticipations.filter(p => p.participationStatus === 'Em curso' || p.participationStatus?.toLowerCase() === 'em curso');
-        if (emCursoParts.length === 1) {
-          setShowEvidenceModal(emCursoParts[0].id);
-          toast.success("Foto adicionada automaticamente!");
-        } else if (emCursoParts.length > 1) {
+        if (emCursoParts.length >= 1) {
           toast.success("Foto carregada! Clique em REGISTRAR PARTICIPAÇÃO na campanha desejada.");
         } else {
-          toast.warning("Você não tem campanhas em curso para usar esta foto.");
+          toast('Sem campanhas em curso', {
+            description: 'Você não tem campanhas em curso para usar esta foto. Participe de uma nova campanha primeiro.',
+            action: {
+              label: 'Ver Campanhas',
+              onClick: () => navigate('/dashboard')
+            },
+            duration: 5000,
+          });
         }
       }).catch(() => {
         toast.error('Erro ao carregar a foto.', { id: 'auto-photo' });
       });
     }
-  }, [userParticipations, location.state, autoPhotoProcessed]);
+  }, [userParticipations, location.state, autoPhotoProcessed, navigate]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
-    const remaining = MAX_PHOTOS - photos.length;
+    const remaining = MAX_PHOTOS - existingPhotoUrls.length - photos.length;
     if (remaining <= 0) { toast.error(`Máximo de ${MAX_PHOTOS} fotos atingido.`); return; }
     const toAdd = selected.slice(0, remaining);
     if (selected.length > remaining) toast.warning(`Apenas 1 foto foi adicionada.`);
@@ -173,8 +183,13 @@ const UserParticipations = () => {
   };
 
   const removePhoto = (i: number) => {
-    setPhotos(prev => prev.filter((_, idx) => idx !== i));
-    setPhotoPreviews(prev => prev.filter((_, idx) => idx !== i));
+    if (i < existingPhotoUrls.length) {
+      setExistingPhotoUrls((prev) => prev.filter((_, idx) => idx !== i));
+      return;
+    }
+    const newPhotoIndex = i - existingPhotoUrls.length;
+    setPhotos(prev => prev.filter((_, idx) => idx !== newPhotoIndex));
+    setPhotoPreviews(prev => prev.filter((_, idx) => idx !== newPhotoIndex));
   };
 
   const removeVideo = (i: number) => {
@@ -182,14 +197,60 @@ const UserParticipations = () => {
     setVideoPreviews(prev => prev.filter((_, idx) => idx !== i));
   };
 
+  const resetEvidenceForm = () => {
+    setShowEvidenceModal(null);
+    setIsEditingEvidence(false);
+    setSubmitted(false);
+    setComment('');
+    setInstagram(false);
+    setPhotos([]);
+    setPhotoPreviews([]);
+    setExistingPhotoUrls([]);
+    setVideos([]);
+    setVideoPreviews([]);
+    setIgScreenshot(null);
+    setIgScreenshotPreview(null);
+    setExistingIgScreenshotUrl(null);
+  };
+
+  const openNewEvidence = (participationId: string) => {
+    setIsEditingEvidence(false);
+    setExistingPhotoUrls([]);
+    setExistingIgScreenshotUrl(null);
+    setShowEvidenceModal(participationId);
+  };
+
+  const openEvidenceEditor = (participation: Participation) => {
+    if (!canEditParticipationEvidence(participation.participationStatus)) return;
+    const currentPhotos = participation.photo
+      ? (Array.isArray(participation.photo) ? participation.photo : [participation.photo])
+      : [];
+    setIsEditingEvidence(true);
+    setPhotos([]);
+    setPhotoPreviews([]);
+    setExistingPhotoUrls(currentPhotos);
+    setComment(participation.comment || '');
+    setInstagram(Boolean(participation.instagram));
+    setIgScreenshot(null);
+    setExistingIgScreenshotUrl(participation.instagramPhoto || null);
+    setIgScreenshotPreview(participation.instagramPhoto || null);
+    setShowEvidenceModal(participation.id);
+  };
+
   const handleSubmitEvidence = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!showEvidenceModal || !user) return;
-    if (photos.length === 0 || comment.trim() === '') {
+    const activeParticipation = userParticipations.find((p) => p.id === showEvidenceModal);
+    const expectedStatus = isEditingEvidence ? 'Concluído' : 'Em curso';
+    if (!activeParticipation || activeParticipation.participationStatus !== expectedStatus) {
+      toast.error('Esta participação mudou de estado e não pode ser editada.');
+      return;
+    }
+    if (existingPhotoUrls.length + photos.length === 0 || comment.trim() === '') {
       toast.error('Adicione uma foto e um comentário para participar.');
       return;
     }
-    if (instagram && !igScreenshot) {
+    if (instagram && !igScreenshot && !existingIgScreenshotUrl) {
       toast.error('Por favor, adicione a captura de tela do Instagram ou desmarque a opção.');
       return;
     }
@@ -204,34 +265,33 @@ const UserParticipations = () => {
     const uploadedUrls = mediaUrls.filter((url): url is string => url !== null);
     const igUrl = igUrlResult || undefined;
 
-    if (uploadedUrls.length === 0 && !igUrl && (photos.length > 0 || (instagram && igScreenshot))) {
+    if ((photos.length > 0 && uploadedUrls.length === 0) || (instagram && igScreenshot && !igUrl)) {
       toast.error('Erro ao enviar os arquivos. Tente novamente.', { id: 'upload-evidence' });
       setIsUploading(false);
       return;
     }
 
-    await apiUpdateParticipation(showEvidenceModal, {
-      participationStatus: 'Concluído',
-      comment,
-      instagram,
-      photo: uploadedUrls,
-      instagramPhoto: igUrl,
-      timestamp: new Date().toISOString()
-    });
+    try {
+      await apiSaveOwnParticipationEvidence(showEvidenceModal, user.id, expectedStatus, {
+        comment: comment.trim(),
+        instagram,
+        photo: [...existingPhotoUrls, ...uploadedUrls],
+        instagramPhoto: instagram ? (igUrl || existingIgScreenshotUrl || undefined) : undefined,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Erro ao atualizar participação.', { id: 'upload-evidence' });
+      setIsUploading(false);
+      return;
+    }
 
-    toast.success(`Arquivos enviados com sucesso!`, { id: 'upload-evidence' });
+    toast.success(isEditingEvidence ? 'Evidência atualizada com sucesso!' : 'Arquivos enviados com sucesso!', { id: 'upload-evidence' });
     setIsUploading(false);
     setSubmitted(true);
     setTimeout(() => {
-      setSubmitted(false);
-      setShowEvidenceModal(null);
-      setComment('');
-      setInstagram(false);
-      setPhotos([]);
-      setPhotoPreviews([]);
-      setIgScreenshot(null);
-      setIgScreenshotPreview(null);
-    }, 2500);
+      const shouldRedirect = !isEditingEvidence;
+      resetEvidenceForm();
+      if (shouldRedirect) navigate('/perfil');
+    }, isEditingEvidence ? 1200 : 2500);
   };
 
   const now = new Date();
@@ -267,10 +327,19 @@ const UserParticipations = () => {
           {userParticipations.map((p, i) => (
             <motion.div
               key={p.id}
+              role={p.campaign ? 'link' : undefined}
+              tabIndex={p.campaign ? 0 : undefined}
+              onClick={() => p.campaign && navigate(`/campanha/${p.campaign.id}`, { state: { readOnly: true } })}
+              onKeyDown={(event) => {
+                if (p.campaign && (event.key === 'Enter' || event.key === ' ')) {
+                  event.preventDefault();
+                  navigate(`/campanha/${p.campaign.id}`, { state: { readOnly: true } });
+                }
+              }}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ ...spring, delay: i * 0.06 }}
-              className="bg-card rounded-2xl p-4 card-shadow"
+              className="bg-card rounded-2xl p-4 card-shadow cursor-pointer hover:ring-2 hover:ring-primary/30 transition-shadow"
             >
               <div className="flex items-center gap-4">
                 {p.photo ? (() => {
@@ -302,7 +371,10 @@ const UserParticipations = () => {
                   </span>
                   {normalizeStatus(p.participationStatus) === 'EM CURSO' && (
                     <motion.button
-                      onClick={() => setShowEvidenceModal(p.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openNewEvidence(p.id);
+                      }}
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.97 }}
                       transition={spring}
@@ -310,6 +382,21 @@ const UserParticipations = () => {
                     >
                       <Upload size={12} />
                       REGISTRAR PARTICIPAÇÃO
+                    </motion.button>
+                  )}
+                  {canEditParticipationEvidence(p.participationStatus) && (
+                    <motion.button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openEvidenceEditor(p);
+                      }}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={spring}
+                      className="flex items-center gap-1.5 rounded-xl bg-secondary/20 px-3 py-1.5 text-xs font-bold text-secondary"
+                    >
+                      <Pencil size={12} />
+                      EDITAR EVIDÊNCIA
                     </motion.button>
                   )}
                 </div>
@@ -342,22 +429,24 @@ const UserParticipations = () => {
             >
               {!submitted ? (
                 <form onSubmit={handleSubmitEvidence}>
-                  <h3 className="font-bold italic text-lg text-foreground mb-4 uppercase">Registrar Participação</h3>
+                  <h3 className="font-bold italic text-lg text-foreground mb-4 uppercase">
+                    {isEditingEvidence ? 'Editar evidência' : 'Registrar participação'}
+                  </h3>
 
                   {/* Photo upload */}
                   <div className="mb-4 mt-2">
                     <div className="flex justify-between items-end mb-1">
-                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">FOTOS <span className="text-destructive">(OBRIGATÓRIO)</span> <span className="text-primary ml-1">{photos.length}/{MAX_PHOTOS}</span></label>
-                      {photos.length < MAX_PHOTOS && (
+                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">FOTOS <span className="text-destructive">(OBRIGATÓRIO)</span> <span className="text-primary ml-1">{allPhotoPreviews.length}/{MAX_PHOTOS}</span></label>
+                      {allPhotoPreviews.length < MAX_PHOTOS && (
                         <button type="button" onClick={() => photoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><ImageIcon size={11} /> Para adicionar</button>
                       )}
                     </div>
                     <p className="text-sm text-foreground mb-3 leading-snug">Envie uma foto mostrando sua melhor atitude enquanto pratica seu esporte favorito.</p>
                     <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
 
-                    {photoPreviews.length > 0 ? (
+                    {allPhotoPreviews.length > 0 ? (
                       <div className="grid grid-cols-1 gap-1.5 mb-1">
-                        {photoPreviews.map((src, i) => (
+                        {allPhotoPreviews.map((src, i) => (
                           <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                             className="relative h-48 rounded-xl overflow-hidden group border border-border/50">
                             <img src={src} className="w-full h-full object-cover" alt={`photo-${i}`} />
@@ -461,7 +550,7 @@ const UserParticipations = () => {
                             {igScreenshotPreview ? (
                               <div className="relative rounded-xl overflow-hidden h-40 border border-border/50">
                                 <img src={igScreenshotPreview} className="w-full h-full object-cover" alt="Instagram screenshot" />
-                                <button type="button" onClick={() => { setIgScreenshot(null); setIgScreenshotPreview(null); }}
+                                <button type="button" onClick={() => { setIgScreenshot(null); setIgScreenshotPreview(null); setExistingIgScreenshotUrl(null); }}
                                   className="absolute top-2 right-2 bg-background/80 text-destructive rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <X size={16} />
                                 </button>
@@ -482,15 +571,7 @@ const UserParticipations = () => {
                   <div className="flex gap-3">
                     <motion.button
                       type="button"
-                      onClick={() => {
-                        setShowEvidenceModal(null);
-                        setPhotos([]);
-                        setPhotoPreviews([]);
-                        setIgScreenshot(null);
-                        setIgScreenshotPreview(null);
-                        setComment('');
-                        setInstagram(false);
-                      }}
+                      onClick={resetEvidenceForm}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       transition={spring}
@@ -500,25 +581,29 @@ const UserParticipations = () => {
                     </motion.button>
                     <motion.button
                       type="submit"
-                      disabled={isUploading || photos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)}
+                      disabled={isUploading || allPhotoPreviews.length === 0 || comment.trim() === '' || (instagram && !igScreenshot && !existingIgScreenshotUrl)}
                       whileHover={!isUploading ? { scale: 1.02 } : {}}
                       whileTap={!isUploading ? { scale: 0.98 } : {}}
                       transition={spring}
                       className={`flex-[0.6] text-primary-foreground text-ui text-xs py-3 rounded-xl font-bold btn-shadow ${
-                        isUploading || photos.length === 0 || comment.trim() === '' || (instagram && !igScreenshot)
+                        isUploading || allPhotoPreviews.length === 0 || comment.trim() === '' || (instagram && !igScreenshot && !existingIgScreenshotUrl)
                           ? 'bg-primary/50 cursor-not-allowed'
                           : 'bg-primary hover:btn-shadow-hover'
                       }`}
                     >
-                      {isUploading ? 'ENVIANDO...' : 'ENVIE SUA PARTICIPAÇÃO'}
+                      {isUploading ? 'ENVIANDO...' : (isEditingEvidence ? 'SALVAR ALTERAÇÕES' : 'ENVIE SUA PARTICIPAÇÃO')}
                     </motion.button>
                   </div>
                 </form>
               ) : (
                 <div className="text-center py-8">
                   <span className="text-5xl block mb-3">🔥</span>
-                  <h3 className="font-bold italic text-2xl text-foreground mb-2">Participação enviada!</h3>
-                  <p className="text-muted-foreground text-sm">Agora está nas mãos do administrador. Boa sorte!</p>
+                  <h3 className="font-bold italic text-2xl text-foreground mb-2">
+                    {isEditingEvidence ? 'Evidência atualizada!' : 'Participação enviada!'}
+                  </h3>
+                  <p className="text-muted-foreground text-sm">
+                    {isEditingEvidence ? 'Suas alterações foram salvas.' : 'Agora está nas mãos do administrador. Boa sorte!'}
+                  </p>
                 </div>
               )}
             </motion.div>
