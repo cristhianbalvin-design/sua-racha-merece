@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Camera, Upload, Loader2, AlertCircle, ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -7,8 +7,9 @@ interface Match {
   id: string;
   image_url: string;
   similarity: number;
-  campaign_id: string;
-  campaign_title: string;
+  campaign_id?: string;
+  event_label?: string;
+  photographer_name?: string | null;
 }
 
 export const FaceSearchSection = () => {
@@ -17,6 +18,42 @@ export const FaceSearchSection = () => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   const [matches, setMatches] = useState<Match[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Filters state
+  const [regions, setRegions] = useState<{id: string, name: string}[]>([]);
+  const [sports, setSports] = useState<{id: string, name: string}[]>([]);
+  const [dates, setDates] = useState<string[]>([]);
+  const [photographers, setPhotographers] = useState<{id: string, name: string}[]>([]);
+
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [selectedSport, setSelectedSport] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedPhotographer, setSelectedPhotographer] = useState('');
+
+  useEffect(() => {
+    const fetchFilters = async () => {
+      const { data, error } = await supabase.rpc('get_search_filters');
+      if (data) {
+        const uniqueRegions = new Map();
+        const uniqueSports = new Map();
+        const uniqueDates = new Set<string>();
+        const uniquePhotographers = new Map();
+
+        data.forEach((row: any) => {
+          if (row.region_id && row.region_name) uniqueRegions.set(row.region_id, row.region_name);
+          if (row.sport_id && row.sport_name) uniqueSports.set(row.sport_id, row.sport_name);
+          if (row.event_date) uniqueDates.add(row.event_date);
+          if (row.photographer_id && row.photographer_name) uniquePhotographers.set(row.photographer_id, row.photographer_name);
+        });
+
+        setRegions(Array.from(uniqueRegions, ([id, name]) => ({ id, name })));
+        setSports(Array.from(uniqueSports, ([id, name]) => ({ id, name })));
+        setDates(Array.from(uniqueDates).sort());
+        setPhotographers(Array.from(uniquePhotographers, ([id, name]) => ({ id, name })));
+      }
+    };
+    fetchFilters();
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -27,7 +64,7 @@ export const FaceSearchSection = () => {
   };
 
   const handleSearch = async () => {
-    if (!file) return;
+    if (!file || !selectedRegion || !selectedSport || !selectedDate) return;
 
     setStatus('loading');
     setErrorMsg('');
@@ -39,6 +76,10 @@ export const FaceSearchSection = () => {
 
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('filter_region_id', selectedRegion);
+      formData.append('filter_sport_id', selectedSport);
+      formData.append('filter_event_date', selectedDate);
+      if (selectedPhotographer) formData.append('filter_photographer_id', selectedPhotographer);
 
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/match-face`;
       const response = await fetch(functionUrl, {
@@ -68,14 +109,68 @@ export const FaceSearchSection = () => {
     }
   };
 
+  const isSearchDisabled = !file || status === 'loading' || !selectedRegion || !selectedSport || !selectedDate;
+
   return (
     <div className="mt-12 bg-card border border-border rounded-2xl p-6 md:p-8 card-shadow">
       <div className="text-center mb-8">
         <h2 className="font-bold italic text-2xl text-foreground mb-2">Busca por Reconhecimento Facial</h2>
-        <p className="text-muted-foreground">Envie uma selfie para encontrarmos suas fotos nos eventos da 3BUK.</p>
+        <p className="text-muted-foreground">Preencha os dados do evento e envie uma selfie para encontrarmos suas fotos.</p>
       </div>
 
       <div className="max-w-md mx-auto space-y-6">
+        
+        {/* Filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-bold mb-1">Região *</label>
+            <select 
+              value={selectedRegion}
+              onChange={e => setSelectedRegion(e.target.value)}
+              className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+            >
+              <option value="">Selecione...</option>
+              {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-bold mb-1">Esporte *</label>
+            <select 
+              value={selectedSport}
+              onChange={e => setSelectedSport(e.target.value)}
+              className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+            >
+              <option value="">Selecione...</option>
+              {sports.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-bold mb-1">Data do Evento *</label>
+            <select 
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+            >
+              <option value="">Selecione...</option>
+              {dates.map(d => {
+                const [y, m, day] = d.split('-');
+                return <option key={d} value={d}>{`${day}/${m}/${y}`}</option>
+              })}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-bold mb-1">Fotógrafo</label>
+            <select 
+              value={selectedPhotographer}
+              onChange={e => setSelectedPhotographer(e.target.value)}
+              className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+            >
+              <option value="">Todos (Opcional)</option>
+              {photographers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        </div>
+
         {/* Upload Area */}
         <div className="relative border-2 border-dashed border-primary/30 rounded-xl p-8 text-center hover:bg-primary/5 transition-colors">
           <input 
@@ -106,7 +201,7 @@ export const FaceSearchSection = () => {
         {/* Action Button */}
         <button
           onClick={handleSearch}
-          disabled={!file || status === 'loading'}
+          disabled={isSearchDisabled}
           className="w-full bg-primary text-primary-foreground font-bold py-3 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0 flex justify-center items-center gap-2"
         >
           {status === 'loading' ? (
@@ -133,7 +228,7 @@ export const FaceSearchSection = () => {
         {status === 'empty' && (
           <div className="bg-secondary/50 rounded-lg p-6 text-center border border-border">
             <p className="font-medium text-foreground">Nenhuma foto encontrada</p>
-            <p className="text-sm text-muted-foreground mt-1">Não encontramos fotos correspondentes ao seu rosto nos nossos eventos recentes.</p>
+            <p className="text-sm text-muted-foreground mt-1">Não encontramos fotos correspondentes na combinação selecionada.</p>
           </div>
         )}
       </div>
@@ -158,9 +253,14 @@ export const FaceSearchSection = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 <div className="p-4">
-                  <p className="font-bold text-sm text-foreground truncate" title={match.campaign_title}>
-                    {match.campaign_title}
+                  <p className="font-bold text-sm text-foreground truncate" title={match.event_label}>
+                    {match.event_label}
                   </p>
+                  {match.photographer_name && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate" title={`Foto: ${match.photographer_name}`}>
+                      Foto: {match.photographer_name}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Match: {Math.round(match.similarity * 100)}%
                   </p>

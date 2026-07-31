@@ -283,6 +283,10 @@ export const apiGetSports = async (): Promise<string[]> => {
   const { data } = await supabase.from('sports').select('name').order('name');
   return (data || []).map(d => d.name);
 };
+export const apiGetSportsWithId = async (): Promise<{id: string, name: string}[]> => {
+  const { data } = await supabase.from('sports').select('id, name').order('name');
+  return data || [];
+};
 export const apiAddSport = async (name: string) => {
   const { error } = await supabase.from('sports').insert({ name });
   if (error) {
@@ -298,6 +302,10 @@ export const apiRemoveSport = async (name: string) => {
 export const apiGetRegions = async (): Promise<string[]> => {
   const { data } = await supabase.from('regions').select('name').order('name');
   return (data || []).map(d => d.name);
+};
+export const apiGetRegionsWithId = async (): Promise<{id: string, name: string}[]> => {
+  const { data } = await supabase.from('regions').select('id, name').order('name');
+  return data || [];
 };
 export const apiAddRegion = async (name: string) => {
   const { error } = await supabase.from('regions').insert({ name });
@@ -695,4 +703,62 @@ export const apiAcceptTermsForOAuthUser = async (userId: string): Promise<boolea
     return false;
   }
   return true;
+};
+
+// ──────────────────────────────────────────────
+// Additional specific APIs for Admin Event Photos
+// ──────────────────────────────────────────────
+
+export interface Photographer {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  created_at: string;
+}
+
+export const apiGetPhotographers = async (): Promise<Photographer[]> => {
+  const { data } = await supabase.from('photographers').select('*').order('name');
+  return data || [];
+};
+
+export const apiAddPhotographer = async (name: string, email?: string, phone?: string): Promise<Photographer | null> => {
+  const { data, error } = await supabase.from('photographers').insert({ name, email: email || null, phone: phone || null }).select('*').single();
+  if (error) {
+    console.error("Erro ao adicionar fotógrafo:", error);
+    toast.error('Erro ao adicionar fotógrafo: ' + error.message);
+    throw new Error(error.message);
+  }
+  return data;
+};
+
+export const apiUpdatePhotographer = async (id: string, updates: Partial<Photographer>): Promise<Photographer | null> => {
+  const row: any = {};
+  if (updates.name !== undefined) row.name = updates.name;
+  if (updates.email !== undefined) row.email = updates.email || null;
+  if (updates.phone !== undefined) row.phone = updates.phone || null;
+
+  const { data, error } = await supabase.from('photographers').update(row).eq('id', id).select('*').single();
+  if (error) {
+    console.error("Erro ao atualizar fotógrafo:", error);
+    toast.error('Erro ao atualizar fotógrafo: ' + error.message);
+    throw new Error(error.message);
+  }
+  return data;
+};
+
+export const apiDeletePhotographer = async (id: string): Promise<void> => {
+  const { error } = await supabase.from('photographers').delete().eq('id', id);
+  if (error) {
+    console.error("Erro ao remover fotógrafo:", error);
+    toast.error('Erro ao remover fotógrafo: ' + error.message);
+    throw new Error(error.message);
+  }
+};
+
+export const apiGetUniqueCities = async (): Promise<string[]> => {
+  const { data } = await supabase.from('users').select('city').not('city', 'is', null);
+  if (!data) return [];
+  const uniqueCities = Array.from(new Set(data.map(d => d.city).filter(Boolean)));
+  return uniqueCities.sort() as string[];
 };

@@ -47,13 +47,32 @@ serve(async (req) => {
     // 2. Extraer multipart/form-data
     const formData = await req.formData();
     const file = formData.get("file");
-    const campaignId = formData.get("campaign_id");
+    
+    // Extraer campos obligatorios
+    const regionId = formData.get("region_id");
+    const sportId = formData.get("sport_id");
+    const city = formData.get("city");
+    const photographerId = formData.get("photographer_id");
+    const eventDate = formData.get("event_date");
     
     if (!file || !(file instanceof File)) {
       return new Response(JSON.stringify({ error: "No image file provided" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    if (!campaignId || typeof campaignId !== 'string') {
-      return new Response(JSON.stringify({ error: "No campaign_id provided" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    
+    if (!regionId || typeof regionId !== 'string') {
+      return new Response(JSON.stringify({ error: "Missing required field: region_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!sportId || typeof sportId !== 'string') {
+      return new Response(JSON.stringify({ error: "Missing required field: sport_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!city || typeof city !== 'string') {
+      return new Response(JSON.stringify({ error: "Missing required field: city" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!photographerId || typeof photographerId !== 'string') {
+      return new Response(JSON.stringify({ error: "Missing required field: photographer_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!eventDate || typeof eventDate !== 'string') {
+      return new Response(JSON.stringify({ error: "Missing required field: event_date" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // 3. Obtener Embedding desde Railway (/embed)
@@ -87,7 +106,8 @@ serve(async (req) => {
 
     // 4. Subir a Supabase Storage (event-photos)
     const fileExt = file.name.split('.').pop();
-    const filePath = `${campaignId}/${crypto.randomUUID()}.${fileExt}`;
+    const folderName = eventDate || 'general';
+    const filePath = `${folderName}/${crypto.randomUUID()}.${fileExt}`;
 
     const { data: uploadData, error: uploadError } = await supabaseAdmin
       .storage
@@ -109,9 +129,14 @@ serve(async (req) => {
     const { data: insertData, error: insertError } = await supabaseAdmin
       .from('event_photos')
       .insert({
-        campaign_id: campaignId,
+        campaign_id: null,
         image_url: imageUrl,
-        embedding: `[${embedding.join(',')}]`
+        embedding: `[${embedding.join(',')}]`,
+        region_id: regionId,
+        sport_id: sportId,
+        city: city,
+        photographer_id: photographerId,
+        event_date: eventDate
       })
       .select()
       .single();

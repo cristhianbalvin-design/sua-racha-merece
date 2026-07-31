@@ -42,6 +42,11 @@ serve(async (req) => {
     // 2. Extraer multipart/form-data
     const formData = await req.formData();
     const file = formData.get("file");
+    const filterRegionId = formData.get("filter_region_id")?.toString() || null;
+    const filterSportId = formData.get("filter_sport_id")?.toString() || null;
+    const filterEventDate = formData.get("filter_event_date")?.toString() || null;
+    const filterPhotographerId = formData.get("filter_photographer_id")?.toString() || null;
+
     if (!file || !(file instanceof File)) {
       return new Response(JSON.stringify({ error: "No image file provided" }), { 
         status: 400, 
@@ -85,7 +90,11 @@ serve(async (req) => {
     const { data: matches, error: matchError } = await supabaseAdmin.rpc("match_event_photos", {
       query_embedding: `[${embedding.join(',')}]`, // pgvector string format
       match_threshold: threshold,
-      match_count: 50
+      match_count: 50,
+      filter_region_id: filterRegionId,
+      filter_sport_id: filterSportId,
+      filter_event_date: filterEventDate,
+      filter_photographer_id: filterPhotographerId
     });
 
     if (matchError) {
@@ -95,19 +104,49 @@ serve(async (req) => {
 
     let enrichedMatches = matches || [];
     if (enrichedMatches.length > 0) {
-      const campaignIds = [...new Set(enrichedMatches.map((m) => m.campaign_id))];
-      const { data: campaigns, error: campError } = await supabaseAdmin
-        .from('campaigns')
-        .select('id, name')
-        .in('id', campaignIds);
+      const campaignIds = [...new Set(enrichedMatches.map(m => m.campaign_id).filter(Boolean))];
+      const regionIds = [...new Set(enrichedMatches.map(m => m.region_id).filter(Boolean))];
+      const sportIds = [...new Set(enrichedMatches.map(m => m.sport_id).filter(Boolean))];
+      const photographerIds = [...new Set(enrichedMatches.map(m => m.photographer_id).filter(Boolean))];
 
-      if (!campError && campaigns) {
-        const campaignMap = new Map(campaigns.map((c) => [c.id, c.name]));
-        enrichedMatches = enrichedMatches.map((m) => ({
+      const [
+        { data: campaigns },
+        { data: regions },
+        { data: sports },
+        { data: photographers }
+      ] = await Promise.all([
+        campaignIds.length ? supabaseAdmin.from('campaigns').select('id, name').in('id', campaignIds) : Promise.resolve({ data: [] }),
+        regionIds.length ? supabaseAdmin.from('regions').select('id, name').in('id', regionIds) : Promise.resolve({ data: [] }),
+        sportIds.length ? supabaseAdmin.from('sports').select('id, name').in('id', sportIds) : Promise.resolve({ data: [] }),
+        photographerIds.length ? supabaseAdmin.from('photographers').select('id, name').in('id', photographerIds) : Promise.resolve({ data: [] })
+      ]);
+
+      const campaignMap = new Map((campaigns || []).map(c => [c.id, c.name]));
+      const regionMap = new Map((regions || []).map(r => [r.id, r.name]));
+      const sportMap = new Map((sports || []).map(s => [s.id, s.name]));
+      const photographerMap = new Map((photographers || []).map(p => [p.id, p.name]));
+
+      enrichedMatches = enrichedMatches.map((m) => {
+        let event_label = '';
+        if (m.campaign_id) {
+          event_label = campaignMap.get(m.campaign_id) || 'Evento Desconhecido';
+        } else {
+          let dateStr = null;
+          if (m.event_date) {
+            const [y, mth, d] = m.event_date.split('-');
+            dateStr = `${d}/${mth}/${y}`;
+          }
+          const sportName = sportMap.get(m.sport_id);
+          const parts = [sportName, m.city, dateStr].filter(Boolean);
+          event_label = parts.length > 0 ? parts.join(' — ') : 'Evento Desconhecido';
+        }
+
+        return {
           ...m,
-          campaign_title: campaignMap.get(m.campaign_id) || 'Evento Desconhecido'
-        }));
-      }
+          event_label,
+          photographer_name: photographerMap.get(m.photographer_id) || null
+        };
+      });
     }
 
     // 6 & 7. Devolver las fotos. El embedding NO SE GUARDA en ningún lado.

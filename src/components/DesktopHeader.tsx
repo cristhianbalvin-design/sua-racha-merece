@@ -23,11 +23,18 @@ const DesktopHeader = () => {
   const links = [
     { to: '/dashboard', label: 'Campanhas' },
     { to: '/participacoes', label: 'Participações' },
-    { 
-      to: '/fotografias-3buk', 
-      label: 'Fotografias 3BUK', 
-      isSpecial: true 
-    },
+    SHOW_FACE_SEARCH
+      ? { 
+          to: '/fotografias-3buk', 
+          label: 'Fotografias', 
+          isSpecial: true 
+        }
+      : {
+          to: null,
+          href: 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI',
+          label: 'Fotografias',
+          isSpecial: true
+        },
     { to: '/ganhadores', label: 'Ganhadores' },
   ];
 

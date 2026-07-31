@@ -18,12 +18,20 @@ const spring = { type: 'spring' as const, duration: 0.4, bounce: 0 };
 const mainTabs = [
   { to: '/dashboard', label: 'CAMPANHAS' },
   { to: '/participacoes', label: 'PARTICIPAÇÕES' },
-  { 
-    to: '/fotografias-3buk', 
-    label: 'FOTOGRAFIAS 3BUK', 
-    icon: Images, 
-    featured: true 
-  },
+  SHOW_FACE_SEARCH 
+    ? { 
+        to: '/fotografias-3buk', 
+        label: 'FOTOGRAFIAS', 
+        icon: Images, 
+        featured: true 
+      }
+    : {
+        to: null,
+        href: 'https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI',
+        label: 'FOTOGRAFIAS',
+        icon: Images,
+        featured: true
+      },
   { to: '/ganhadores', label: 'GANHADORES' },
 ];
 
