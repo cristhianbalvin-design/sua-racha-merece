@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import CampaignCard from '@/components/CampaignCard';
 import { useAuth } from '@/contexts/AuthContext';
-import { apiGetCampaigns, apiGetSports, apiGetRegions, apiGetParticipations } from '@/lib/mockApi';
+import { apiGetAvailableCampaigns, apiGetSports, apiGetRegions, apiGetParticipations } from '@/lib/mockApi';
 import { Campaign, Participation } from '@/data/mockData';
 
 const fadeIn = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 } };
@@ -11,42 +11,52 @@ const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 const Dashboard = () => {
   const { user } = useAuth();
   const [sportFilter, setSportFilter] = useState('Todos');
-  const [statusFilter, setStatusFilter] = useState('Todos');
   const [regionFilter, setRegionFilter] = useState('Todos');
   
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [joinedCampaignIds, setJoinedCampaignIds] = useState<Set<string>>(new Set());
   const [sportsMaster, setSportsMaster] = useState<string[]>([]);
   const [regionsMaster, setRegionsMaster] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    apiGetCampaigns().then(setCampaigns);
-    apiGetSports().then(setSportsMaster);
-    apiGetRegions().then(setRegionsMaster);
-  }, []);
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const [camps, sports, regions] = await Promise.all([
+          apiGetAvailableCampaigns(),
+          apiGetSports(),
+          apiGetRegions()
+        ]);
 
-  useEffect(() => {
-    if (user) {
-      apiGetParticipations().then((parts: Participation[]) => {
-        const ids = new Set(parts.filter(p => p.userId === user.id).map(p => p.campaignId));
-        setJoinedCampaignIds(ids);
-      });
-    }
+        setCampaigns(camps);
+        setSportsMaster(sports);
+        setRegionsMaster(regions);
+
+        if (user) {
+          const parts = await apiGetParticipations();
+          const ids = new Set(parts.filter((p: Participation) => p.userId === user.id).map((p: Participation) => p.campaignId));
+          setJoinedCampaignIds(ids);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
   }, [user]);
 
-  if (!user) return null;
+  if (!user || isLoading) return null;
 
   const filteredCampaigns = campaigns.filter((c) => {
     if (c.isHidden) return false;
     if (joinedCampaignIds.has(c.id)) return false; // Hide already joined
     if (sportFilter !== 'Todos' && c.sport !== sportFilter) return false;
-    if (statusFilter !== 'Todos' && c.status !== statusFilter) return false;
     if (regionFilter !== 'Todos' && c.region !== regionFilter) return false;
     return true;
   });
 
   const availableSports = ['Todos', ...sportsMaster];
-  const campaignStatuses = ['Todos', 'Aberto', 'Concluído'];
   const availableRegions = ['Todos', ...regionsMaster];
 
   return (
@@ -75,17 +85,8 @@ const Dashboard = () => {
               </motion.button>
             ))}
           </div>
-          {/* Status & Region filters */}
+          {/* Region filter */}
           <div className="flex gap-3">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-input text-foreground rounded-lg px-3 py-2 text-xs input-shadow focus:ring-2 focus:ring-ring outline-none transition-all appearance-none"
-            >
-              {campaignStatuses.map((s) => (
-                <option key={s} value={s}>{s === 'Todos' ? 'Todos os estados' : s}</option>
-              ))}
-            </select>
             <select
               value={regionFilter}
               onChange={(e) => setRegionFilter(e.target.value)}
@@ -110,7 +111,7 @@ const Dashboard = () => {
             <h3 className="font-bold italic text-xl text-foreground mb-3">NENHUMA CAMPANHA ENCONTRADA</h3>
             <p className="text-muted-foreground mb-6">Não achamos nenhuma campanha com os filtros atuais. Que tal explorar outras opções?</p>
             <motion.button
-              onClick={() => { setSportFilter('Todos'); setStatusFilter('Todos'); setRegionFilter('Todos'); }}
+              onClick={() => { setSportFilter('Todos'); setRegionFilter('Todos'); }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               className="bg-primary/20 text-primary hover:bg-primary hover:text-primary-foreground text-ui px-6 py-2.5 rounded-full transition-colors"

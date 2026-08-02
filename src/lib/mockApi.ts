@@ -119,6 +119,34 @@ export const apiGetCampaigns = async (): Promise<Campaign[]> => {
   return (data || []).map(mapCampaign);
 };
 
+const getTodayInSaoPaulo = (): string => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
+export const apiGetAvailableCampaigns = async (): Promise<Campaign[]> => {
+  const { data, error } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('status', 'Aberto')
+    .gte('end_date', getTodayInSaoPaulo())
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error get available campaigns:', error);
+    toast.error('Erro bd: ' + error.message);
+  }
+
+  return (data || []).map(mapCampaign);
+};
+
 export const apiAddCampaign = async (c: Campaign): Promise<Campaign | null> => {
   const row = {
     name: c.name,
