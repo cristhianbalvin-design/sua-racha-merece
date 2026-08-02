@@ -388,7 +388,55 @@ export const apiRemoveRegion = async (name: string) => {
 };
 
 export const apiGetWinners = async () => {
-  const { data } = await supabase
+  const { data, error } = await supabase
+    .from('public_winners')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error get public winners:', error);
+    return [];
+  }
+
+  if (!data) return [];
+
+  return data.map((p: any, idx) => {
+    const user: User = {
+      id: p.user_id,
+      name: p.user_name,
+      city: p.user_city || '',
+      country: '',
+      sport: p.user_sport || '',
+      plan: 'Freemium',
+      avatar: p.user_avatar_url || '',
+      campaignsParticipated: 0,
+      campaignsWon: 0,
+      userStatus: 'Ativo',
+      photos: [],
+    };
+    const camp = mapCampaign({
+      id: p.campaign_id,
+      sport: p.campaign_sport,
+      city: p.campaign_city,
+      start_date: p.campaign_start_date,
+      prize: p.campaign_prize,
+    });
+    const medals = ['🥇', '🥈', '🥉'];
+    return {
+      id: p.id,
+      user,
+      camp,
+      photo: p.winner_photo_url,
+      prize: camp.prize,
+      medal: medals[idx % 3],
+      campaignMonth: camp.startDate ? new Date(camp.startDate).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : 'N/A',
+      justification: `Nota Total: ${p.total_score || 0}. Excelente atitude e compromisso.`
+    };
+  });
+};
+
+export const apiGetAdminWinners = async () => {
+  const { data, error } = await supabase
     .from('participations')
     .select(`
       *,
@@ -397,9 +445,14 @@ export const apiGetWinners = async () => {
     `)
     .eq('status', 'Ganhador')
     .order('created_at', { ascending: true });
-    
+
+  if (error) {
+    console.error('Error get admin winners:', error);
+    return [];
+  }
+
   if (!data) return [];
-  
+
   return data.map((p: any, idx) => {
     const user = mapUser(p.users);
     const camp = mapCampaign(p.campaigns);
@@ -408,13 +461,13 @@ export const apiGetWinners = async () => {
       id: p.id,
       user,
       camp,
-      photo: Array.isArray(parseMedia(p.photo_url).photo) 
-        ? parseMedia(p.photo_url).photo[0] 
+      photo: Array.isArray(parseMedia(p.photo_url).photo)
+        ? parseMedia(p.photo_url).photo[0]
         : parseMedia(p.photo_url).photo,
       prize: camp.prize,
       medal: medals[idx % 3],
-      prizeDelivered: p.prize_delivered !== null && p.prize_delivered !== undefined 
-        ? p.prize_delivered 
+      prizeDelivered: p.prize_delivered !== null && p.prize_delivered !== undefined
+        ? p.prize_delivered
         : parseMedia(p.photo_url).prizeDelivered,
       campaignMonth: camp.startDate ? new Date(camp.startDate).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : 'N/A',
       justification: `Nota Total: ${p.total_score || 0}. Excelente atitude e compromisso.`
