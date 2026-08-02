@@ -3,6 +3,7 @@ import { Camera, Upload, Loader2, AlertCircle, ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import PhotoCampaignModal from '@/components/PhotoCampaignModal';
 
 interface Match {
   id: string;
@@ -19,6 +20,7 @@ export const FaceSearchSection = () => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   const [matches, setMatches] = useState<Match[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
+  const [campaignPhoto, setCampaignPhoto] = useState<{ id: string; imageUrl: string } | null>(null);
 
   // Filters state
   const [regions, setRegions] = useState<{id: string, name: string}[]>([]);
@@ -317,7 +319,7 @@ export const FaceSearchSection = () => {
                     Baixar Foto
                   </button>
                   <button
-                    onClick={() => navigate('/participacoes', { state: { autoPhotoUrl: match.image_url } })}
+                    onClick={() => setCampaignPhoto({ id: match.id, imageUrl: match.image_url })}
                     className="mt-2 block w-full text-center bg-primary text-primary-foreground text-xs font-bold py-2 rounded-lg hover:bg-secondary hover:text-secondary-foreground transition-colors"
                   >
                     Usar na minha campanha
@@ -328,6 +330,8 @@ export const FaceSearchSection = () => {
           </div>
         </div>
       )}
+
+      <PhotoCampaignModal photo={campaignPhoto} onClose={() => setCampaignPhoto(null)} />
     </div>
   );
 };

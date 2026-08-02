@@ -58,7 +58,7 @@ const CampaignDetail = () => {
       setParticipated(false);
       console.error('Failed to insert participation');
     } else {
-      navigate('/participacoes');
+      navigate('/participacoes', { state: { autoOpenNewParticipationForCampaign: id } });
     }
   };
 
