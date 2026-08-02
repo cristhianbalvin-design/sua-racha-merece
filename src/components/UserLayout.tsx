@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Bell, X, Images } from 'lucide-react';
 import DesktopHeader from './DesktopHeader';
@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { TermsModal } from './TermsModal';
 import { toast } from 'sonner';
 import { SHOW_FACE_SEARCH } from '@/config/features';
+import { consumeAuthRedirect } from '@/lib/authRedirect';
 
 const spring = { type: 'spring' as const, duration: 0.4, bounce: 0 };
 
@@ -37,6 +38,7 @@ const mainTabs = [
 
 const UserLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, updateUserContext } = useAuth();
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -66,6 +68,15 @@ const UserLayout = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!user || user.acceptedTerms === false) return;
+
+    const redirectTo = consumeAuthRedirect();
+    if (redirectTo && redirectTo !== `${location.pathname}${location.search}`) {
+      navigate(redirectTo, { replace: true });
+    }
+  }, [user, location.pathname, location.search, navigate]);
+
   const handleAcceptTerms = async () => {
     if (!user) return;
     try {
@@ -74,6 +85,10 @@ const UserLayout = () => {
         updateUserContext({ acceptedTerms: true });
         setShowTermsModal(false);
         toast.success('Termos e Condições aceitos com sucesso!');
+        const redirectTo = consumeAuthRedirect();
+        if (redirectTo && redirectTo !== `${location.pathname}${location.search}`) {
+          navigate(redirectTo, { replace: true });
+        }
       }
     } catch (e: any) {
       console.error('Accept terms error:', e);

@@ -1,27 +1,30 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { OnboardingStepper } from '@/components/OnboardingStepper';
 import { TermsModal } from '@/components/TermsModal';
+import { clearAuthRedirect, getAuthRedirectFromState } from '@/lib/authRedirect';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const Register = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const redirectTo = getAuthRedirectFromState(location.state);
 
   const { register, loginWithGoogle } = useAuth();
 
   const handleGoogleLogin = async () => {
     try {
-      await loginWithGoogle();
+      await loginWithGoogle(redirectTo || undefined);
     } catch (error: any) {
       console.error('Google auth error:', error);
       toast.error('Erro ao entrar com Google: ' + (error?.message || 'Tente novamente.'));
@@ -39,8 +42,11 @@ const Register = () => {
     try {
       await register(email, password, 'Atleta', acceptedTerms);
       sessionStorage.setItem('isNewUserFlow', 'true');
+      clearAuthRedirect();
       toast.success('Conta criada com sucesso!');
-      navigate('/completar-perfil');
+      navigate('/completar-perfil', {
+        state: redirectTo ? { redirectTo } : undefined,
+      });
     } catch (error: any) {
       console.error("Erro no signUp:", error);
       toast.error(`Erro ao criar conta: ${error.message || 'Tente novamente.'}`);
@@ -136,7 +142,13 @@ const Register = () => {
 
         <p className="text-center text-muted-foreground text-sm mt-6">
           Já tem conta?{' '}
-          <Link to="/login" className="text-primary font-bold">Entrar</Link>
+          <Link
+            to="/login"
+            state={redirectTo ? { redirectTo } : undefined}
+            className="text-primary font-bold"
+          >
+            Entrar
+          </Link>
         </p>
       </div>
 

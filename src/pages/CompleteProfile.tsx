@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Logo from '@/components/Logo';
 import { Camera } from 'lucide-react';
@@ -7,12 +7,15 @@ import { OnboardingStepper } from '@/components/OnboardingStepper';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiUpdateUser, apiUploadAvatar, apiGetSports, apiGetRegions } from '@/lib/mockApi';
 import { toast } from 'sonner';
+import { clearAuthRedirect, getAuthRedirectFromState } from '@/lib/authRedirect';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
 const CompleteProfile = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, updateUserContext } = useAuth();
+  const redirectTo = getAuthRedirectFromState(location.state);
   
   const [sportsList, setSportsList] = useState<string[]>([]);
   const [regionsList, setRegionsList] = useState<string[]>([]);
@@ -69,7 +72,8 @@ const CompleteProfile = () => {
       });
       
       toast.success('Perfil concluído!');
-      navigate('/dashboard');
+      clearAuthRedirect();
+      navigate(redirectTo || '/dashboard', { replace: Boolean(redirectTo) });
     } catch (err) {
       console.error(err);
       toast.error('Ocorreu um erro ao salvar seu perfil.');
