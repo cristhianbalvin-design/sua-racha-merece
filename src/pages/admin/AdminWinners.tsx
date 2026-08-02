@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiGetWinners, apiUpdateParticipation, apiGetParticipations, apiGetUsers, apiGetCampaigns } from '@/lib/mockApi';
+import { apiGetAdminWinners, apiUpdateParticipation, apiGetParticipations, apiGetUsers, apiGetCampaigns } from '@/lib/mockApi';
 import { Participation, User, Campaign } from '@/data/mockData';
 import { Gift, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -128,7 +128,7 @@ const AdminWinners = () => {
 
   const loadAll = async () => {
     const [winners, parts, users, camps] = await Promise.all([
-      apiGetWinners(),
+      apiGetAdminWinners(),
       apiGetParticipations(),
       apiGetUsers(),
       apiGetCampaigns(),
