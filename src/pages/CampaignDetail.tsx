@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MapPin, Calendar, Instagram, Trophy } from 'lucide-react';
+import { MapPin, Calendar, Instagram, Trophy, Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetCampaigns, apiAddParticipation, apiGetParticipations } from '@/lib/mockApi';
+import { getCampaignShareData, isCampaignUnavailable, shareCampaign } from '@/lib/campaignSharing';
 import type { Campaign } from '@/data/mockData';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
@@ -42,6 +44,22 @@ const CampaignDetail = () => {
     );
   }
 
+  const campaignUnavailable = isCampaignUnavailable(campaign);
+
+  if (campaignUnavailable) {
+    return (
+      <div className="px-4 py-16 text-center">
+        <span className="text-4xl block mb-3">🔥</span>
+        <h2 className="font-bold italic text-xl text-foreground mb-2">
+          Esta campanha já não está mais disponível
+        </h2>
+        <Link to="/dashboard" className="text-primary text-sm font-bold">
+          ← Voltar
+        </Link>
+      </div>
+    );
+  }
+
   const handleParticipate = async () => {
     if (!user || !id) return;
     setParticipated(true);
@@ -59,6 +77,19 @@ const CampaignDetail = () => {
       console.error('Failed to insert participation');
     } else {
       navigate('/participacoes', { state: { autoOpenNewParticipationForCampaign: id } });
+    }
+  };
+
+  const handleShare = async () => {
+    const shareData = getCampaignShareData(campaign, window.location.origin);
+
+    try {
+      const result = await shareCampaign(shareData);
+      if (result === 'copied') toast.success('Link copiado!');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      console.error('Failed to share campaign:', error);
+      toast.error('Não foi possível compartilhar esta campanha.');
     }
   };
 
@@ -88,7 +119,21 @@ const CampaignDetail = () => {
         <div className="text-primary bg-primary/10 p-3 rounded-2xl border border-primary/20 w-fit mb-4">
           <Trophy size={32} strokeWidth={2} />
         </div>
-        <h1 className="font-bold italic text-3xl md:text-4xl text-foreground mb-2">{campaign.name || campaign.description}</h1>
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <h1 className="font-bold italic text-3xl md:text-4xl text-foreground">{campaign.name || campaign.description}</h1>
+          <motion.button
+            type="button"
+            onClick={handleShare}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            transition={spring}
+            className="shrink-0 inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-bold text-primary transition-colors hover:bg-primary/20"
+            aria-label="Compartilhar campanha"
+          >
+            <Share2 size={18} />
+            <span className="hidden sm:inline">Compartilhar</span>
+          </motion.button>
+        </div>
         <span className="text-base text-secondary font-bold uppercase">{campaign.sport}</span>
         {campaign.description && campaign.description !== campaign.name && (
           <p className="text-muted-foreground text-base md:text-lg mt-4 leading-relaxed">
