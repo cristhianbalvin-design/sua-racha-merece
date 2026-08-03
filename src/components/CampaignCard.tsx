@@ -19,7 +19,14 @@ const sportIconFallback: Record<string, string> = {
   'Nadar': '🏊',
 };
 
-const CampaignCard = ({ campaign }: { campaign: Campaign }) => {
+interface CampaignCardProps {
+  campaign: Campaign;
+  onSelect?: () => void;
+  actionLabel?: string;
+  disabled?: boolean;
+}
+
+const CampaignCard = ({ campaign, onSelect, actionLabel = 'PARTICIPAR', disabled = false }: CampaignCardProps) => {
   const icon = campaign.sportIcon || sportIconFallback[campaign.sport] || '🏆';
 
   const hasImage = !!(campaign.imageUrlMobile || campaign.imageUrl);
@@ -32,7 +39,23 @@ const CampaignCard = ({ campaign }: { campaign: Campaign }) => {
     <motion.div
       whileHover={{ y: -4 }}
       transition={spring}
-      className="group relative bg-card rounded-2xl p-4 card-shadow hover:card-shadow-hover transition-shadow flex flex-col overflow-hidden"
+      onClick={onSelect && !disabled ? onSelect : undefined}
+      onKeyDown={(event) => {
+        if (onSelect && !disabled && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
+      role={onSelect ? 'button' : undefined}
+      tabIndex={onSelect && !disabled ? 0 : undefined}
+      aria-disabled={onSelect ? disabled : undefined}
+      className={`group relative bg-card rounded-2xl p-4 card-shadow transition-shadow flex flex-col overflow-hidden ${
+        onSelect
+          ? disabled
+            ? 'cursor-not-allowed opacity-65'
+            : 'cursor-pointer hover:card-shadow-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+          : 'hover:card-shadow-hover'
+      }`}
     >
       {hasImage && (
         <>
@@ -76,16 +99,37 @@ const CampaignCard = ({ campaign }: { campaign: Campaign }) => {
             <span>{campaign.prize}</span>
           </div>
         )}
-        <Link to={`/campanha/${campaign.id}`} className="mt-auto">
+        {onSelect ? (
           <motion.button
+            type="button"
+            disabled={disabled}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!disabled) onSelect();
+            }}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
             transition={spring}
-            className="w-full bg-primary text-primary-foreground text-ui py-3 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow"
+            className={`mt-auto w-full rounded-xl py-3 text-ui transition-shadow ${
+              disabled
+                ? 'cursor-not-allowed bg-muted text-muted-foreground'
+                : 'bg-primary text-primary-foreground btn-shadow hover:btn-shadow-hover'
+            }`}
           >
-            PARTICIPAR
+            {actionLabel}
           </motion.button>
-        </Link>
+        ) : (
+          <Link to={`/campanha/${campaign.id}`} className="mt-auto">
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              transition={spring}
+              className="w-full bg-primary text-primary-foreground text-ui py-3 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow"
+            >
+              {actionLabel}
+            </motion.button>
+          </Link>
+        )}
       </div>
     </motion.div>
   );

@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Upload, Check, ImageIcon, Film, Pencil, X } from 'lucide-react';
+import { Upload, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiGetParticipations, apiGetCampaigns, apiSaveOwnParticipationEvidence, apiUploadEvidence } from '@/lib/mockApi';
+import { apiGetParticipations, apiGetCampaigns } from '@/lib/mockApi';
 import { Participation, Campaign } from '@/data/mockData';
 import { canEditParticipationEvidence } from '@/lib/participationRules';
+import ParticipationEvidenceModal from '@/components/ParticipationEvidenceModal';
+import { submitParticipationEvidence } from '@/lib/participationEvidence';
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 const MAX_PHOTOS = 1;
 const MAX_VIDEOS = 1;
@@ -91,6 +93,7 @@ const UserParticipations = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [autoPhotoProcessed, setAutoPhotoProcessed] = useState(false);
+  const [autoOpenProcessed, setAutoOpenProcessed] = useState(false);
   const allPhotoPreviews = [...existingPhotoUrls, ...photoPreviews];
 
   useEffect(() => {
@@ -141,8 +144,31 @@ const UserParticipations = () => {
     }
   }, [userParticipations, location.state, autoPhotoProcessed, navigate]);
 
+  useEffect(() => {
+    if (userParticipations.length > 0 && location.state?.autoOpenNewParticipationForCampaign && !autoOpenProcessed) {
+      const campaignId = location.state.autoOpenNewParticipationForCampaign;
+      setAutoOpenProcessed(true);
+      window.history.replaceState({}, document.title); // clear state
+      
+      const newParticipation = userParticipations.find(p => p.campaignId === campaignId && p.participationStatus === 'Em curso');
+      if (newParticipation) {
+        openNewEvidence(newParticipation.id);
+      }
+    }
+  }, [userParticipations, location.state, autoOpenProcessed]);
+
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
+    if (selected.length === 0) return;
+
+    if (MAX_PHOTOS === 1) {
+      setPhotos([selected[0]]);
+      setPhotoPreviews([URL.createObjectURL(selected[0])]);
+      setExistingPhotoUrls([]);
+      e.target.value = '';
+      return;
+    }
+
     const remaining = MAX_PHOTOS - existingPhotoUrls.length - photos.length;
     if (remaining <= 0) { toast.error(`Máximo de ${MAX_PHOTOS} fotos atingido.`); return; }
     const toAdd = selected.slice(0, remaining);
@@ -257,26 +283,17 @@ const UserParticipations = () => {
     setIsUploading(true);
     toast.loading('Enviando evidência...', { id: 'upload-evidence' });
 
-    const [mediaUrls, igUrlResult] = await Promise.all([
-      Promise.all(photos.map(file => apiUploadEvidence(file, user.id))),
-      (instagram && igScreenshot) ? apiUploadEvidence(igScreenshot, user.id) : Promise.resolve(undefined)
-    ]);
-
-    const uploadedUrls = mediaUrls.filter((url): url is string => url !== null);
-    const igUrl = igUrlResult || undefined;
-
-    if ((photos.length > 0 && uploadedUrls.length === 0) || (instagram && igScreenshot && !igUrl)) {
-      toast.error('Erro ao enviar os arquivos. Tente novamente.', { id: 'upload-evidence' });
-      setIsUploading(false);
-      return;
-    }
-
     try {
-      await apiSaveOwnParticipationEvidence(showEvidenceModal, user.id, expectedStatus, {
+      await submitParticipationEvidence({
+        participationId: showEvidenceModal,
+        userId: user.id,
+        expectedStatus,
+        photos,
+        existingPhotoUrls,
         comment: comment.trim(),
         instagram,
-        photo: [...existingPhotoUrls, ...uploadedUrls],
-        instagramPhoto: instagram ? (igUrl || existingIgScreenshotUrl || undefined) : undefined,
+        instagramScreenshot: igScreenshot,
+        existingInstagramScreenshotUrl: existingIgScreenshotUrl,
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erro ao atualizar participação.', { id: 'upload-evidence' });
@@ -412,204 +429,45 @@ const UserParticipations = () => {
         </div>
       )}
 
-      {/* Evidence submission modal */}
-      <AnimatePresence>
-        {showEvidenceModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-sm px-4 py-8"
-          >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              className="bg-card rounded-2xl p-6 card-shadow max-w-md w-full max-h-[90vh] overflow-y-auto"
-            >
-              {!submitted ? (
-                <form onSubmit={handleSubmitEvidence}>
-                  <h3 className="font-bold italic text-lg text-foreground mb-4 uppercase">
-                    {isEditingEvidence ? 'Editar evidência' : 'Registrar participação'}
-                  </h3>
-
-                  {/* Photo upload */}
-                  <div className="mb-4 mt-2">
-                    <div className="flex justify-between items-end mb-1">
-                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">FOTOS <span className="text-destructive">(OBRIGATÓRIO)</span> <span className="text-primary ml-1">{allPhotoPreviews.length}/{MAX_PHOTOS}</span></label>
-                      {allPhotoPreviews.length < MAX_PHOTOS && (
-                        <button type="button" onClick={() => photoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><ImageIcon size={11} /> Para adicionar</button>
-                      )}
-                    </div>
-                    <p className="text-sm text-foreground mb-3 leading-snug">Envie uma foto mostrando sua melhor atitude enquanto pratica seu esporte favorito.</p>
-                    <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-
-                    {allPhotoPreviews.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-1.5 mb-1">
-                        {allPhotoPreviews.map((src, i) => (
-                          <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                            className="relative h-48 rounded-xl overflow-hidden group border border-border/50">
-                            <img src={src} className="w-full h-full object-cover" alt={`photo-${i}`} />
-                            <button type="button" onClick={() => removePhoto(i)}
-                              className="absolute top-2 right-2 bg-background/80 text-destructive rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <X size={16} />
-                            </button>
-                          </motion.div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div onClick={() => photoInputRef.current?.click()}
-                        className="w-full py-8 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer bg-muted/40 text-muted-foreground hover:bg-muted/80 transition-all border border-dashed border-border/50">
-                        <ImageIcon size={24} />
-                        <span className="text-xs">Até 1 foto</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Video upload */}
-                  <div className="hidden">
-                    <div className="flex justify-between items-end mb-1">
-                      <label className="text-ui text-xs text-muted-foreground uppercase font-bold flex items-center gap-1">VÍDEOS <span className="text-destructive">(OBRIGATÓRIO)</span> <span className="text-primary ml-1">{videos.length}/{MAX_VIDEOS}</span></label>
-                      {videos.length < MAX_VIDEOS && (
-                        <button type="button" onClick={() => videoInputRef.current?.click()} className="text-xs text-primary font-bold flex items-center gap-1 hover:underline"><Film size={11} /> Para adicionar</button>
-                      )}
-                    </div>
-                    <p className="text-sm text-foreground mb-3 leading-snug">Envie um vídeo mostrando como você vive seu esporte favorito <strong className="text-accent">(máximo 10 segundos)</strong>.</p>
-                    <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleVideoChange} />
-
-                    {videos.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-3">
-                        {videos.map((v, i) => (
-                          <div key={i} className="relative rounded-xl overflow-hidden aspect-square border border-border/50 group bg-muted">
-                            <video src={videoPreviews[i]} className="w-full h-full object-cover" controls playsInline preload="metadata" />
-                            <button type="button" onClick={() => removeVideo(i)} className="absolute top-2 right-2 bg-background/80 text-destructive rounded-full p-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                              <X size={16} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div onClick={() => videoInputRef.current?.click()}
-                        className="w-full py-6 rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer bg-muted/40 text-muted-foreground hover:bg-muted/80 transition-all border border-dashed border-border/50">
-                        <Film size={20} />
-                        <span className="text-xs">Até 1 vídeo (Máx 10s)</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Comment */}
-                  <div className="mb-4">
-                    <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 uppercase">COMENTÁRIO <span className="text-destructive">(OBRIGATÓRIO)</span></label>
-                    <textarea
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all resize-none h-20"
-                      placeholder="Exemplo: O melhor treino da semana!"
-                    />
-                  </div>
-
-                  {/* Timestamp */}
-                  <div className="bg-card card-shadow border border-border/50 rounded-xl p-3 mb-4">
-                    <span className="text-ui text-xs text-muted-foreground font-bold uppercase">REGISTRO DE TEMPO</span>
-                    <p className="text-foreground text-sm font-bold mt-1">{timestamp}</p>
-                  </div>
-
-                  {/* Instagram */}
-                  {String(userParticipations.find(p => p.id === showEvidenceModal)?.campaign?.instagramOptional) === 'true' && (
-                    <div className="mb-6">
-                      <label className="flex items-center gap-3 cursor-pointer" onClick={() => setInstagram(!instagram)}>
-                        <div
-                          className={`min-w-[1.25rem] w-5 h-5 rounded-full flex items-center justify-center transition-colors ${instagram ? 'bg-primary' : 'bg-muted border border-border'}`}
-                        >
-                          {instagram && <Check size={14} className="text-primary-foreground font-bold" />}
-                        </div>
-                        <span className="text-foreground text-sm font-bold leading-tight">
-                          Publiquei no Instagram com a <span className="text-accent">hashtag {userParticipations.find(p => p.id === showEvidenceModal)?.campaign?.instagramHashtags || '#3bukchallenge'}</span>
-                        </span>
-                      </label>
-
-                      {/* Screenshot upload - only when instagram is checked */}
-                      <AnimatePresence>
-                        {instagram && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="mt-3 overflow-hidden"
-                          >
-                            <label className="text-ui text-xs text-muted-foreground font-bold block mb-2 mt-2 uppercase">CAPTURA DE TELA DO INSTAGRAM (OPCIONAL)</label>
-                            <input ref={igScreenshotRef} type="file" accept="image/*" className="hidden"
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f) {
-                                  setIgScreenshot(f);
-                                  setIgScreenshotPreview(URL.createObjectURL(f));
-                                }
-                              }}
-                            />
-                            {igScreenshotPreview ? (
-                              <div className="relative rounded-xl overflow-hidden h-40 border border-border/50">
-                                <img src={igScreenshotPreview} className="w-full h-full object-cover" alt="Instagram screenshot" />
-                                <button type="button" onClick={() => { setIgScreenshot(null); setIgScreenshotPreview(null); setExistingIgScreenshotUrl(null); }}
-                                  className="absolute top-2 right-2 bg-background/80 text-destructive rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <X size={16} />
-                                </button>
-                              </div>
-                            ) : (
-                              <div onClick={() => igScreenshotRef.current?.click()}
-                                className="w-full py-5 rounded-xl flex items-center justify-center gap-2 cursor-pointer text-accent hover:bg-accent/10 transition-all border border-dashed border-accent">
-                                <Upload size={18} />
-                                <span className="text-sm font-bold">Anexe uma captura de tela do Instagram.</span>
-                              </div>
-                            )}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3">
-                    <motion.button
-                      type="button"
-                      onClick={resetEvidenceForm}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      transition={spring}
-                      className="flex-[0.4] bg-muted/60 hover:bg-muted text-foreground text-ui text-xs py-3 rounded-xl font-bold"
-                    >
-                      CANCELAR
-                    </motion.button>
-                    <motion.button
-                      type="submit"
-                      disabled={isUploading || allPhotoPreviews.length === 0 || comment.trim() === '' || (instagram && !igScreenshot && !existingIgScreenshotUrl)}
-                      whileHover={!isUploading ? { scale: 1.02 } : {}}
-                      whileTap={!isUploading ? { scale: 0.98 } : {}}
-                      transition={spring}
-                      className={`flex-[0.6] text-primary-foreground text-ui text-xs py-3 rounded-xl font-bold btn-shadow ${
-                        isUploading || allPhotoPreviews.length === 0 || comment.trim() === '' || (instagram && !igScreenshot && !existingIgScreenshotUrl)
-                          ? 'bg-primary/50 cursor-not-allowed'
-                          : 'bg-primary hover:btn-shadow-hover'
-                      }`}
-                    >
-                      {isUploading ? 'ENVIANDO...' : (isEditingEvidence ? 'SALVAR ALTERAÇÕES' : 'ENVIE SUA PARTICIPAÇÃO')}
-                    </motion.button>
-                  </div>
-                </form>
-              ) : (
-                <div className="text-center py-8">
-                  <span className="text-5xl block mb-3">🔥</span>
-                  <h3 className="font-bold italic text-2xl text-foreground mb-2">
-                    {isEditingEvidence ? 'Evidência atualizada!' : 'Participação enviada!'}
-                  </h3>
-                  <p className="text-muted-foreground text-sm">
-                    {isEditingEvidence ? 'Suas alterações foram salvas.' : 'Agora está nas mãos do administrador. Boa sorte!'}
-                  </p>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
+      <ParticipationEvidenceModal
+        open={Boolean(showEvidenceModal)}
+        submitted={submitted}
+        editing={isEditingEvidence}
+        uploading={isUploading}
+        photoPreviews={allPhotoPreviews}
+        videos={videos}
+        videoPreviews={videoPreviews}
+        comment={comment}
+        timestamp={timestamp}
+        instagram={instagram}
+        instagramEnabled={Boolean(
+          userParticipations.find((participation) => participation.id === showEvidenceModal)?.campaign?.instagramOptional
         )}
-      </AnimatePresence>
+        instagramHashtags={
+          userParticipations.find((participation) => participation.id === showEvidenceModal)?.campaign?.instagramHashtags
+        }
+        instagramScreenshotPreview={igScreenshotPreview}
+        photoInputRef={photoInputRef}
+        videoInputRef={videoInputRef}
+        instagramInputRef={igScreenshotRef}
+        onPhotoChange={handlePhotoChange}
+        onVideoChange={handleVideoChange}
+        onRemovePhoto={removePhoto}
+        onRemoveVideo={removeVideo}
+        onCommentChange={setComment}
+        onInstagramChange={setInstagram}
+        onInstagramScreenshotChange={(selectedFile, previewUrl) => {
+          setIgScreenshot(selectedFile);
+          setIgScreenshotPreview(previewUrl);
+        }}
+        onRemoveInstagramScreenshot={() => {
+          setIgScreenshot(null);
+          setIgScreenshotPreview(null);
+          setExistingIgScreenshotUrl(null);
+        }}
+        onCancel={resetEvidenceForm}
+        onSubmit={handleSubmitEvidence}
+      />
     </div>
   );
 };

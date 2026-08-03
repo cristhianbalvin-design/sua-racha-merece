@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Camera, Upload, Loader2, AlertCircle, ImageIcon } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Camera, Upload, Loader2, AlertCircle, ImageIcon, Sparkles, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import PhotoCampaignModal from '@/components/PhotoCampaignModal';
 
 interface Match {
   id: string;
@@ -10,8 +11,43 @@ interface Match {
   similarity: number;
   campaign_id?: string;
   event_label?: string;
+  photographer_id?: string | null;
   photographer_name?: string | null;
+  photographer_photo_url?: string | null;
 }
+
+interface SearchFilterRow {
+  region_id?: string;
+  region_name?: string;
+  sport_id?: string;
+  sport_name?: string;
+  event_date?: string;
+  photographer_id?: string;
+  photographer_name?: string;
+}
+
+const loadingStages = [
+  {
+    title: 'Preparando sua busca',
+    description: 'Organizando os dados do evento com segurança',
+    delay: 0,
+  },
+  {
+    title: 'Analisando sua selfie',
+    description: 'Identificando os traços com cuidado',
+    delay: 2600,
+  },
+  {
+    title: 'Comparando com as fotos',
+    description: 'Isso pode levar alguns segundos',
+    delay: 6500,
+  },
+  {
+    title: 'Só mais um instante',
+    description: 'Estamos finalizando tudo para você',
+    delay: 11000,
+  },
+] as const;
 
 export const FaceSearchSection = () => {
   const navigate = useNavigate();
@@ -19,6 +55,8 @@ export const FaceSearchSection = () => {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   const [matches, setMatches] = useState<Match[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
+  const [loadingStage, setLoadingStage] = useState(0);
+  const [campaignPhoto, setCampaignPhoto] = useState<{ id: string; imageUrl: string } | null>(null);
 
   // Filters state
   const [regions, setRegions] = useState<{id: string, name: string}[]>([]);
@@ -30,6 +68,37 @@ export const FaceSearchSection = () => {
   const [selectedSport, setSelectedSport] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedPhotographer, setSelectedPhotographer] = useState('');
+
+  const matchesByPhotographer = useMemo(() => {
+    const groups = new Map<string, {
+      id: string;
+      name: string;
+      photoUrl: string | null;
+      matches: Match[];
+    }>();
+
+    matches.forEach((match) => {
+      const photographerId = match.photographer_id || match.photographer_name || 'unknown';
+      const currentGroup = groups.get(photographerId);
+
+      if (currentGroup) {
+        currentGroup.matches.push(match);
+        if (!currentGroup.photoUrl && match.photographer_photo_url) {
+          currentGroup.photoUrl = match.photographer_photo_url;
+        }
+        return;
+      }
+
+      groups.set(photographerId, {
+        id: photographerId,
+        name: match.photographer_name || 'Fotógrafo não identificado',
+        photoUrl: match.photographer_photo_url || null,
+        matches: [match],
+      });
+    });
+
+    return Array.from(groups.values());
+  }, [matches]);
 
   const handleDownload = async (matchId: string, imageUrl: string) => {
     try {
@@ -57,7 +126,7 @@ export const FaceSearchSection = () => {
            duration: 6000,
         });
       }
-    } catch (err: any) {
+    } catch {
       toast.error('Erro ao verificar permissão.', { id: 'download' });
     }
   };
@@ -71,7 +140,7 @@ export const FaceSearchSection = () => {
         const uniqueDates = new Set<string>();
         const uniquePhotographers = new Map();
 
-        data.forEach((row: any) => {
+        data.forEach((row: SearchFilterRow) => {
           if (row.region_id && row.region_name) uniqueRegions.set(row.region_id, row.region_name);
           if (row.sport_id && row.sport_name) uniqueSports.set(row.sport_id, row.sport_name);
           if (row.event_date) uniqueDates.add(row.event_date);
@@ -86,6 +155,19 @@ export const FaceSearchSection = () => {
     };
     fetchFilters();
   }, []);
+
+  useEffect(() => {
+    if (status !== 'loading') {
+      setLoadingStage(0);
+      return;
+    }
+
+    const timers = loadingStages.slice(1).map((stage, index) => (
+      window.setTimeout(() => setLoadingStage(index + 1), stage.delay)
+    ));
+
+    return () => timers.forEach(window.clearTimeout);
+  }, [status]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -135,8 +217,8 @@ export const FaceSearchSection = () => {
         setStatus('empty');
       }
 
-    } catch (err: any) {
-      setErrorMsg(err.message);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Erro ao buscar fotos');
       setStatus('error');
     }
   };
@@ -234,18 +316,41 @@ export const FaceSearchSection = () => {
         <button
           onClick={handleSearch}
           disabled={isSearchDisabled}
-          className="w-full bg-primary text-primary-foreground font-bold py-3 rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0 flex justify-center items-center gap-2"
+          aria-busy={status === 'loading'}
+          aria-live="polite"
+          className={`relative w-full min-h-[68px] overflow-hidden rounded-xl px-5 text-primary-foreground transition-all duration-500 ${
+            status === 'loading'
+              ? 'cursor-wait bg-gradient-to-r from-primary via-emerald-500 to-primary bg-[length:200%_100%] shadow-[0_12px_36px_-12px_hsl(var(--primary)/0.8)]'
+              : isSearchDisabled
+                ? 'cursor-not-allowed bg-primary/45 shadow-none'
+                : 'bg-primary shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0'
+          }`}
         >
           {status === 'loading' ? (
-            <>
-              <Loader2 className="animate-spin" size={20} />
-              <span>Analisando seu rosto...</span>
-            </>
+            <div className="relative z-10 flex items-center justify-center gap-3 py-2">
+              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25">
+                <Loader2 className="animate-spin" size={21} strokeWidth={2.2} />
+                <Sparkles className="absolute -right-1 -top-1 animate-pulse text-white" size={12} />
+              </span>
+              <span className="min-w-0 text-left leading-tight">
+                <span className="block text-sm font-bold tracking-wide">
+                  {loadingStages[loadingStage].title}
+                </span>
+                <span className="mt-1 block text-[11px] font-normal text-primary-foreground/80">
+                  {loadingStages[loadingStage].description}
+                </span>
+              </span>
+            </div>
           ) : (
-            <>
+            <span className="flex items-center justify-center gap-2 py-3 font-bold">
               <Upload size={20} />
               <span>Buscar Minhas Fotos</span>
-            </>
+            </span>
+          )}
+          {status === 'loading' && (
+            <span className="absolute inset-x-0 bottom-0 h-1 overflow-hidden bg-black/10" aria-hidden="true">
+              <span className="block h-full w-1/3 animate-calm-progress rounded-full bg-white/80 shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
+            </span>
           )}
         </button>
 
@@ -281,53 +386,80 @@ export const FaceSearchSection = () => {
             <ImageIcon className="text-primary" />
             <span>Encontramos {matches.length} {matches.length === 1 ? 'foto' : 'fotos'} suas!</span>
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {matches.map((match) => (
-              <div key={match.id} className="group relative rounded-xl overflow-hidden border border-border bg-card">
-                <div className="aspect-[4/3] bg-muted relative overflow-hidden group-hover:opacity-90">
-                  <img
-                    src={match.image_url}
-                    alt="Sua foto"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 pointer-events-none opacity-20 flex flex-wrap content-start justify-center gap-4 p-4 -rotate-12 scale-150 select-none">
-                    {Array.from({ length: 20 }).map((_, i) => (
-                      <span key={i} className="text-white font-black text-2xl tracking-widest drop-shadow-md">3BUK</span>
-                    ))}
+          <div className="space-y-6">
+            {matchesByPhotographer.map((photographer) => (
+              <section
+                key={photographer.id}
+                className="overflow-hidden rounded-2xl border border-border bg-background/30 shadow-sm"
+              >
+                <header className="flex items-center gap-3 border-b border-border bg-card/80 px-4 py-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-primary/30 bg-primary/10">
+                    {photographer.photoUrl ? (
+                      <img
+                        src={photographer.photoUrl}
+                        alt={`Foto de perfil de ${photographer.name}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <UserRound size={19} className="text-primary" aria-hidden="true" />
+                    )}
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                <div className="p-4">
-                  <p className="font-bold text-sm text-foreground truncate" title={match.event_label}>
-                    {match.event_label}
-                  </p>
-                  {match.photographer_name && (
-                    <p className="text-xs text-muted-foreground mt-1 truncate" title={`Foto: ${match.photographer_name}`}>
-                      Foto: {match.photographer_name}
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-foreground">{photographer.name}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Fotógrafo do evento · {photographer.matches.length} {photographer.matches.length === 1 ? 'foto encontrada' : 'fotos encontradas'}
                     </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Match: {Math.round(match.similarity * 100)}%
-                  </p>
-                  <button
-                    onClick={() => handleDownload(match.id, match.image_url)}
-                    className="mt-3 block w-full text-center bg-secondary text-secondary-foreground text-xs font-bold py-2 rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors"
-                  >
-                    Baixar Foto
-                  </button>
-                  <button
-                    onClick={() => navigate('/participacoes', { state: { autoPhotoUrl: match.image_url } })}
-                    className="mt-2 block w-full text-center bg-primary text-primary-foreground text-xs font-bold py-2 rounded-lg hover:bg-secondary hover:text-secondary-foreground transition-colors"
-                  >
-                    Usar na minha campanha
-                  </button>
+                  </div>
+                </header>
+
+                <div className="grid grid-cols-1 gap-6 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {photographer.matches.map((match) => (
+                    <div key={match.id} className="group relative overflow-hidden rounded-xl border border-border bg-card">
+                      <div className="relative flex aspect-[3/4] items-center justify-center overflow-hidden bg-black/90 group-hover:opacity-90">
+                        <img
+                          src={match.image_url}
+                          alt="Sua foto"
+                          className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        <div className="pointer-events-none absolute inset-0 flex -rotate-12 scale-150 select-none flex-wrap content-start justify-center gap-4 p-4 opacity-20">
+                          {Array.from({ length: 20 }).map((_, i) => (
+                            <span key={i} className="text-2xl font-black tracking-widest text-white drop-shadow-md">3BUK</span>
+                          ))}
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                      </div>
+                      <div className="p-4">
+                        <p className="truncate text-sm font-bold text-foreground" title={match.event_label}>
+                          {match.event_label}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Match: {Math.round(match.similarity * 100)}%
+                        </p>
+                        <button
+                          onClick={() => handleDownload(match.id, match.image_url)}
+                          className="mt-3 block w-full rounded-lg bg-secondary py-2 text-center text-xs font-bold text-secondary-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
+                        >
+                          Baixar Foto
+                        </button>
+                        <button
+                          onClick={() => setCampaignPhoto({ id: match.id, imageUrl: match.image_url })}
+                          className="mt-2 block w-full rounded-lg bg-primary py-2 text-center text-xs font-bold text-primary-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
+                        >
+                          Usar na minha campanha
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              </section>
             ))}
           </div>
         </div>
       )}
+
+      <PhotoCampaignModal photo={campaignPhoto} onClose={() => setCampaignPhoto(null)} />
     </div>
   );
 };

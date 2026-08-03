@@ -1,15 +1,19 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import WinnerCard from '@/components/WinnerCard';
-import { apiGetWinners } from '@/lib/mockApi';
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import WinnerCard from "@/components/WinnerCard";
+import type { Winner } from "@/data/mockData";
+import { apiGetWinners } from "@/lib/mockApi";
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 const stagger = { animate: { transition: { staggerChildren: 0.06 } } };
-const fadeIn = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 } };
+const fadeIn = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+};
 
 const Winners = () => {
-  const [winners, setWinners] = useState<any[]>([]);
+  const [winners, setWinners] = useState<Winner[]>([]);
 
   useEffect(() => {
     apiGetWinners().then(setWinners);
@@ -30,7 +34,12 @@ const Winners = () => {
         className="grid md:grid-cols-2 gap-6 mb-8"
       >
         {winners.map((w) => (
-          <motion.div key={w.id} variants={fadeIn} transition={spring}>
+          <motion.div
+            key={w.id}
+            variants={fadeIn}
+            transition={spring}
+            className="h-full"
+          >
             <WinnerCard winner={w} />
           </motion.div>
         ))}

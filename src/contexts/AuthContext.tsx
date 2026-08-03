@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import type { User } from "../data/mockData";
+import { clearAuthRedirect, persistAuthRedirect } from "../lib/authRedirect";
 
 interface AuthContextType {
   user: User | null;
@@ -9,7 +10,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
   register: (email: string, password?: string, name?: string, acceptedTerms?: boolean) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: (redirectTo?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUserContext: (updates: Partial<User>) => void;
 }
@@ -182,7 +183,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (redirectTo?: string) => {
+    if (redirectTo) {
+      persistAuthRedirect(redirectTo);
+    } else {
+      clearAuthRedirect();
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

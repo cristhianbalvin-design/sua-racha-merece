@@ -118,13 +118,13 @@ serve(async (req) => {
         campaignIds.length ? supabaseAdmin.from('campaigns').select('id, name').in('id', campaignIds) : Promise.resolve({ data: [] }),
         regionIds.length ? supabaseAdmin.from('regions').select('id, name').in('id', regionIds) : Promise.resolve({ data: [] }),
         sportIds.length ? supabaseAdmin.from('sports').select('id, name').in('id', sportIds) : Promise.resolve({ data: [] }),
-        photographerIds.length ? supabaseAdmin.from('photographers').select('id, name').in('id', photographerIds) : Promise.resolve({ data: [] })
+        photographerIds.length ? supabaseAdmin.from('photographers').select('id, name, photo_url').in('id', photographerIds) : Promise.resolve({ data: [] })
       ]);
 
       const campaignMap = new Map((campaigns || []).map(c => [c.id, c.name]));
       const regionMap = new Map((regions || []).map(r => [r.id, r.name]));
       const sportMap = new Map((sports || []).map(s => [s.id, s.name]));
-      const photographerMap = new Map((photographers || []).map(p => [p.id, p.name]));
+      const photographerMap = new Map((photographers || []).map(p => [p.id, p]));
 
       enrichedMatches = enrichedMatches.map((m) => {
         let event_label = '';
@@ -141,10 +141,13 @@ serve(async (req) => {
           event_label = parts.length > 0 ? parts.join(' — ') : 'Evento Desconhecido';
         }
 
+        const photographer = photographerMap.get(m.photographer_id);
+
         return {
           ...m,
           event_label,
-          photographer_name: photographerMap.get(m.photographer_id) || null
+          photographer_name: photographer?.name || null,
+          photographer_photo_url: photographer?.photo_url || null
         };
       });
     }
