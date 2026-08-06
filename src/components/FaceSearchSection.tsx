@@ -101,15 +101,26 @@ export const FaceSearchSection = () => {
     return Array.from(groups.values());
   }, [matches]);
 
-  const executeDownload = (matchId: string, imageUrl: string) => {
-    toast.success('Download iniciado!', { id: 'download' });
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.target = '_blank';
-    link.download = `foto_${matchId}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const executeDownload = async (matchId: string, imageUrl: string) => {
+    const toastId = toast.loading('Baixando foto...', { id: 'download' });
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error('Falha ao baixar imagem');
+      const blob = await response.blob();
+      const localUrl = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = localUrl;
+      link.download = `foto_${matchId}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(localUrl);
+      
+      toast.success('Download iniciado!', { id: toastId });
+    } catch (error) {
+      toast.error('Erro ao baixar a foto. Tente novamente.', { id: toastId });
+    }
   };
 
   const handleDownload = async (matchId: string, imageUrl: string) => {
