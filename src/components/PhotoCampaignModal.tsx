@@ -17,6 +17,8 @@ interface SearchPhoto {
 interface PhotoCampaignModalProps {
   photo: SearchPhoto | null;
   onClose: () => void;
+  isForDownload?: boolean;
+  onSuccess?: () => void;
 }
 
 const isInProgress = (participation: Participation) => participation.participationStatus === 'Em curso';
@@ -29,7 +31,7 @@ const fileExtensionFromBlob = (blob: Blob, imageUrl: string): string => {
   return fromUrl && fromUrl.length <= 5 ? fromUrl : 'jpg';
 };
 
-const PhotoCampaignModal = ({ photo, onClose }: PhotoCampaignModalProps) => {
+const PhotoCampaignModal = ({ photo, onClose, isForDownload, onSuccess }: PhotoCampaignModalProps) => {
   const { user } = useAuth();
   const carouselRef = useRef<HTMLDivElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -187,7 +189,13 @@ const PhotoCampaignModal = ({ photo, onClose }: PhotoCampaignModalProps) => {
       )));
       setSubmitted(true);
       toast.success('Participação enviada com sucesso!', { id: 'photo-campaign-evidence' });
-      window.setTimeout(closeAll, 1200);
+      
+      if (onSuccess) {
+        onSuccess();
+        closeAll();
+      } else {
+        window.setTimeout(closeAll, 1200);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erro ao enviar a participação.', {
         id: 'photo-campaign-evidence',
@@ -235,7 +243,9 @@ const PhotoCampaignModal = ({ photo, onClose }: PhotoCampaignModalProps) => {
                 <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-primary">Use sua foto</p>
                 <h3 className="text-2xl font-bold italic text-foreground md:text-3xl">Escolha uma campanha</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  A foto original já está pronta. Selecione onde deseja registrar sua participação.
+                  {isForDownload 
+                    ? "Para baixar fotos, você precisa participar de pelo menos uma campanha. Escolha uma abaixo!"
+                    : "A foto original já está pronta. Selecione onde deseja registrar sua participação."}
                 </p>
               </div>
 

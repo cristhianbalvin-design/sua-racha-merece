@@ -57,6 +57,7 @@ export const FaceSearchSection = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [loadingStage, setLoadingStage] = useState(0);
   const [campaignPhoto, setCampaignPhoto] = useState<{ id: string; imageUrl: string } | null>(null);
+  const [isDownloadIntent, setIsDownloadIntent] = useState(false);
 
   // Filters state
   const [regions, setRegions] = useState<{id: string, name: string}[]>([]);
@@ -100,6 +101,17 @@ export const FaceSearchSection = () => {
     return Array.from(groups.values());
   }, [matches]);
 
+  const executeDownload = (matchId: string, imageUrl: string) => {
+    toast.success('Download iniciado!', { id: 'download' });
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.target = '_blank';
+    link.download = `foto_${matchId}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleDownload = async (matchId: string, imageUrl: string) => {
     try {
       toast.loading('Verificando permissão...', { id: 'download' });
@@ -107,24 +119,11 @@ export const FaceSearchSection = () => {
       if (error) throw error;
 
       if (data.allowed) {
-        toast.success('Download iniciado!', { id: 'download' });
-        const link = document.createElement('a');
-        link.href = imageUrl;
-        link.target = '_blank';
-        link.download = `foto_${matchId}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        executeDownload(matchId, imageUrl);
       } else {
-        toast('Limite atingido', {
-           id: 'download',
-           description: 'Você já usou suas 3 descargas grátis. Participe de uma campanha ativa para continuar baixando sem limites.',
-           action: {
-             label: 'Ver Campanhas',
-             onClick: () => navigate('/dashboard')
-           },
-           duration: 6000,
-        });
+        toast.dismiss('download');
+        setIsDownloadIntent(true);
+        setCampaignPhoto({ id: matchId, imageUrl });
       }
     } catch {
       toast.error('Erro ao verificar permissão.', { id: 'download' });
@@ -459,7 +458,19 @@ export const FaceSearchSection = () => {
         </div>
       )}
 
-      <PhotoCampaignModal photo={campaignPhoto} onClose={() => setCampaignPhoto(null)} />
+      <PhotoCampaignModal 
+        photo={campaignPhoto} 
+        isForDownload={isDownloadIntent}
+        onSuccess={() => {
+          if (campaignPhoto && isDownloadIntent) {
+            executeDownload(campaignPhoto.id, campaignPhoto.imageUrl);
+          }
+        }}
+        onClose={() => {
+          setCampaignPhoto(null);
+          setIsDownloadIntent(false);
+        }} 
+      />
     </div>
   );
 };
