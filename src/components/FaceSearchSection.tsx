@@ -433,9 +433,9 @@ export const FaceSearchSection = () => {
                           className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
                           loading="lazy"
                         />
-                        <div className="pointer-events-none absolute inset-0 flex -rotate-12 scale-150 select-none flex-wrap content-start justify-center gap-4 p-4 opacity-20">
-                          {Array.from({ length: 20 }).map((_, i) => (
-                            <span key={i} className="text-2xl font-black tracking-widest text-white drop-shadow-md">3BUK</span>
+                        <div className="pointer-events-none absolute inset-0 flex -rotate-12 scale-150 select-none flex-wrap content-start justify-center gap-4 p-4 opacity-50">
+                          {Array.from({ length: 12 }).map((_, i) => (
+                            <span key={i} className="text-sm font-bold tracking-widest text-white drop-shadow-md text-center">Participe da campanha. Libere sua foto - 3BUK</span>
                           ))}
                         </div>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
