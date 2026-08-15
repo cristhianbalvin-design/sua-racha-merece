@@ -195,6 +195,7 @@ const AdminParticipations = () => {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
+                <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground w-14">#ID</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">PARTICIPANTE</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">PLANO</th>
                 <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">ESPORTE</th>
@@ -207,13 +208,16 @@ const AdminParticipations = () => {
             <tbody className="divide-y divide-border">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                     Nenhuma participação encontrada.
                   </td>
                 </tr>
               ) : (
                 filtered.map((p) => (
                   <tr key={p.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 text-muted-foreground font-medium">
+                      {p.user?.athleteNumber ? `#${p.user.athleteNumber}` : '—'}
+                    </td>
                     <td className="px-4 py-3">
                       <p className="text-foreground font-bold">{p.user?.name || 'N/A'}</p>
                       {p.user?.email && <p className="text-xs text-muted-foreground">{p.user.email}</p>}
