@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Trash2 } from 'lucide-react';
+import { Download, Trash2, Search, X, ArrowUpDown } from 'lucide-react';
 import PlanBadge from '@/components/PlanBadge';
 import { apiGetUsers, apiToggleUserStatus, apiDeleteUser } from '@/lib/mockApi';
 import { toast } from 'sonner';
@@ -15,6 +15,8 @@ const AdminUsers = () => {
   const [stateFilter, setStateFilter] = useState('');
   const [cityFilter, setCityFilter] = useState('');
   const [planFilter, setPlanFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -53,7 +55,17 @@ const AdminUsers = () => {
     if (stateFilter && user.country !== stateFilter) return false;
     if (cityFilter && user.city !== cityFilter) return false;
     if (planFilter && user.plan !== planFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchName = user.name.toLowerCase().includes(q);
+      const matchEmail = (user.email || '').toLowerCase().includes(q);
+      if (!matchName && !matchEmail) return false;
+    }
     return true;
+  }).sort((a, b) => {
+    const idA = a.athleteNumber ?? Infinity;
+    const idB = b.athleteNumber ?? Infinity;
+    return sortOrder === 'asc' ? idA - idB : idB - idA;
   });
 
   const handleExportCsv = () => {
@@ -80,6 +92,34 @@ const AdminUsers = () => {
         >
           <Download size={15} />
           EXPORTAR CSV
+        </button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Buscar por nome ou email..."
+            className="w-full bg-card border border-border text-sm rounded-xl pl-9 pr-4 py-2.5 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+          className="flex items-center gap-2 bg-card border border-border px-4 py-2.5 rounded-xl text-sm font-bold text-foreground hover:bg-muted/50 transition-colors whitespace-nowrap"
+        >
+          <ArrowUpDown size={14} className="text-muted-foreground" />
+          Ordenar por ID ({sortOrder === 'asc' ? 'Crescente' : 'Decrescente'})
         </button>
       </div>
 
@@ -128,6 +168,12 @@ const AdminUsers = () => {
             className="bg-card rounded-2xl p-4 card-shadow"
           >
             <div className="flex items-center gap-4">
+              <div className="w-14 flex flex-col items-center justify-center shrink-0 border-r border-border/50 pr-4">
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider mb-0.5">ID</span>
+                <span className="text-lg font-black text-foreground">
+                  {user.athleteNumber ? `#${user.athleteNumber}` : '—'}
+                </span>
+              </div>
               <img
                 src={user.avatar}
                 alt={user.name}
@@ -136,11 +182,6 @@ const AdminUsers = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-bold text-foreground">{user.name}</h3>
-                  {user.athleteNumber && (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">
-                      Atleta #{user.athleteNumber}
-                    </span>
-                  )}
                   <PlanBadge plan={user.plan} />
                 </div>
                 <p className="text-xs text-muted-foreground">{user.city} · {user.country}</p>

@@ -249,6 +249,7 @@ const AdminWinners = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
+                  <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground w-14">#ID</th>
                   <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">PARTICIPANTE</th>
                   <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">ESPORTE</th>
                   <th className="text-left px-4 py-3 text-ui text-xs text-muted-foreground">CAMPANHA</th>
@@ -259,14 +260,19 @@ const AdminWinners = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((w) => (
-                  <tr key={w.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">{w.medal}</span>
-                        <div>
-                          <p className="text-foreground font-bold">{w.user?.name}</p>
-                          {w.user?.email && <p className="text-xs text-muted-foreground font-normal">{w.user.email}</p>}
+                {filtered.map((w) => {
+                  const realUser = usersList.find((u) => u.id === w.user?.id) || w.user;
+                  return (
+                    <tr key={w.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 text-muted-foreground font-medium">
+                        {realUser?.athleteNumber ? `#${realUser.athleteNumber}` : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{w.medal}</span>
+                          <div>
+                            <p className="text-foreground font-bold">{realUser?.name}</p>
+                            {realUser?.email && <p className="text-xs text-muted-foreground font-normal">{realUser.email}</p>}
                         </div>
                       </div>
                     </td>
@@ -318,7 +324,7 @@ const AdminWinners = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
