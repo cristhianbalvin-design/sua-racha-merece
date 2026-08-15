@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Camera, Upload, Loader2, AlertCircle, ImageIcon, Sparkles, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import PhotoCampaignModal from '@/components/PhotoCampaignModal';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Match {
   id: string;
@@ -51,7 +52,15 @@ const loadingStages = [
 
 export const FaceSearchSection = () => {
   const navigate = useNavigate();
+  const isMobileBreakpoint = useIsMobile();
+  const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isMobile = isMobileBreakpoint || isMobileDevice;
+
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+
   const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'empty' | 'error'>('idle');
   const [matches, setMatches] = useState<Match[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
@@ -185,7 +194,21 @@ export const FaceSearchSection = () => {
       setStatus('idle');
       setMatches([]);
     }
+    e.target.value = '';
   };
+
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [file]);
 
   const handleSearch = async () => {
     if (!file || !selectedRegion || !selectedSport || !selectedDate) return;
@@ -300,24 +323,74 @@ export const FaceSearchSection = () => {
           <input
             type="file"
             accept="image/*"
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            className="hidden"
+            ref={cameraInputRef}
+            capture="user"
+            onChange={handleFileChange}
+          />
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            ref={galleryInputRef}
             onChange={handleFileChange}
           />
           {file ? (
             <div className="flex flex-col items-center">
               <div className="w-24 h-24 rounded-full overflow-hidden mb-4 border-2 border-primary">
-                <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover" />
+                {previewUrl && <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />}
               </div>
-              <p className="font-medium text-foreground">{file.name}</p>
-              <p className="text-sm text-primary mt-2">Clique para trocar a foto</p>
+              <p className="font-medium text-foreground mb-6">{file.name}</p>
+              
+              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mx-auto">
+                {isMobile && (
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2 px-4 rounded-lg font-bold hover:opacity-90 transition-opacity"
+                  >
+                    <Camera size={18} />
+                    <span>Nova selfie</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 bg-secondary text-secondary-foreground py-2 px-4 rounded-lg font-bold hover:opacity-90 transition-opacity"
+                >
+                  <ImageIcon size={18} />
+                  <span>Trocar foto</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col items-center text-muted-foreground">
               <div className="bg-primary/10 p-4 rounded-full mb-4">
                 <Camera size={32} className="text-primary" />
               </div>
-              <p className="font-medium text-foreground mb-1">Tire uma selfie ou escolha uma foto</p>
-              <p className="text-sm">JPEG, PNG até 5MB</p>
+              <p className="font-medium text-foreground mb-2">Envie uma foto do seu rosto</p>
+              <p className="text-sm mb-6">JPEG, PNG até 5MB</p>
+              
+              <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mx-auto">
+                {isMobile && (
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex-1 flex items-center justify-center gap-2 bg-primary text-primary-foreground py-2 px-4 rounded-lg font-bold hover:opacity-90 transition-opacity"
+                  >
+                    <Camera size={18} />
+                    <span>Tirar selfie</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 bg-secondary text-secondary-foreground py-2 px-4 rounded-lg font-bold hover:opacity-90 transition-opacity"
+                >
+                  <ImageIcon size={18} />
+                  <span>Galeria</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
