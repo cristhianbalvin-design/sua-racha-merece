@@ -45,6 +45,7 @@ serve(async (req) => {
     const filterRegionId = formData.get("filter_region_id")?.toString() || null;
     const filterSportId = formData.get("filter_sport_id")?.toString() || null;
     const filterEventDate = formData.get("filter_event_date")?.toString() || null;
+    const filterCity = formData.get("filter_city")?.toString() || null;
     const filterPhotographerId = formData.get("filter_photographer_id")?.toString() || null;
 
     if (!file || !(file instanceof File)) {
@@ -94,6 +95,7 @@ serve(async (req) => {
       filter_region_id: filterRegionId,
       filter_sport_id: filterSportId,
       filter_event_date: filterEventDate,
+      filter_city: filterCity,
       filter_photographer_id: filterPhotographerId
     });
 

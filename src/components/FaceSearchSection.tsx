@@ -25,6 +25,7 @@ interface SearchFilterRow {
   event_date?: string;
   photographer_id?: string;
   photographer_name?: string;
+  city_name?: string;
 }
 
 const loadingStages = [
@@ -72,11 +73,13 @@ export const FaceSearchSection = () => {
   const [regions, setRegions] = useState<{id: string, name: string}[]>([]);
   const [sports, setSports] = useState<{id: string, name: string}[]>([]);
   const [dates, setDates] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
   const [photographers, setPhotographers] = useState<{id: string, name: string}[]>([]);
 
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedSport, setSelectedSport] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
   const [selectedPhotographer, setSelectedPhotographer] = useState('');
 
   const matchesByPhotographer = useMemo(() => {
@@ -157,18 +160,21 @@ export const FaceSearchSection = () => {
         const uniqueRegions = new Map();
         const uniqueSports = new Map();
         const uniqueDates = new Set<string>();
+        const uniqueCities = new Set<string>();
         const uniquePhotographers = new Map();
 
         data.forEach((row: SearchFilterRow) => {
           if (row.region_id && row.region_name) uniqueRegions.set(row.region_id, row.region_name);
           if (row.sport_id && row.sport_name) uniqueSports.set(row.sport_id, row.sport_name);
           if (row.event_date) uniqueDates.add(row.event_date);
+          if (row.city_name) uniqueCities.add(row.city_name);
           if (row.photographer_id && row.photographer_name) uniquePhotographers.set(row.photographer_id, row.photographer_name);
         });
 
         setRegions(Array.from(uniqueRegions, ([id, name]) => ({ id, name })));
         setSports(Array.from(uniqueSports, ([id, name]) => ({ id, name })));
         setDates(Array.from(uniqueDates).sort());
+        setCities(Array.from(uniqueCities).sort());
         setPhotographers(Array.from(uniquePhotographers, ([id, name]) => ({ id, name })));
       }
     };
@@ -226,6 +232,7 @@ export const FaceSearchSection = () => {
       formData.append('filter_region_id', selectedRegion);
       formData.append('filter_sport_id', selectedSport);
       formData.append('filter_event_date', selectedDate);
+      if (selectedCity) formData.append('filter_city', selectedCity);
       if (selectedPhotographer) formData.append('filter_photographer_id', selectedPhotographer);
 
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/match-face`;
@@ -268,7 +275,7 @@ export const FaceSearchSection = () => {
       <div className="max-w-md mx-auto space-y-6">
 
         {/* Filters */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-bold mb-1">Região *</label>
             <select
@@ -306,13 +313,24 @@ export const FaceSearchSection = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-bold mb-1">Fotógrafo</label>
+            <label className="block text-sm font-bold mb-1">Cidade (Opcional)</label>
+            <select
+              value={selectedCity}
+              onChange={e => setSelectedCity(e.target.value)}
+              className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+            >
+              <option value="">Todas</option>
+              {cities.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-bold mb-1">Fotógrafo (Opcional)</label>
             <select
               value={selectedPhotographer}
               onChange={e => setSelectedPhotographer(e.target.value)}
               className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
             >
-              <option value="">Todos (Opcional)</option>
+              <option value="">Todos</option>
               {photographers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
