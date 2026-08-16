@@ -864,6 +864,7 @@ export interface Photographer {
   email?: string;
   phone?: string;
   photo_url?: string;
+  is_hidden?: boolean;
   created_at: string;
 }
 
@@ -888,6 +889,7 @@ export const apiUpdatePhotographer = async (id: string, updates: Partial<Photogr
   if (updates.email !== undefined) row.email = updates.email || null;
   if (updates.phone !== undefined) row.phone = updates.phone || null;
   if (updates.photo_url !== undefined) row.photo_url = updates.photo_url || null;
+  if (updates.is_hidden !== undefined) row.is_hidden = updates.is_hidden;
 
   const { data, error } = await supabase.from('photographers').update(row).eq('id', id).select('*').single();
   if (error) {

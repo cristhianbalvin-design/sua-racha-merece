@@ -40,7 +40,7 @@ const AdminEventPhotos = () => {
     apiGetRegionsWithId().then(setRegions).catch(console.error);
     apiGetSportsWithId().then(setSports).catch(console.error);
     apiGetUniqueCities().then(setCities).catch(console.error);
-    apiGetPhotographers().then(setPhotographers).catch(console.error);
+    apiGetPhotographers().then(data => setPhotographers(data.filter(p => !p.is_hidden))).catch(console.error);
   }, []);
 
 
