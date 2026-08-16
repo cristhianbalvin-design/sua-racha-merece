@@ -1,10 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Camera, Upload, Loader2, AlertCircle, ImageIcon, Sparkles, UserRound } from 'lucide-react';
+import { Camera, Upload, Loader2, AlertCircle, ImageIcon, Sparkles, UserRound, Calendar as CalendarIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import PhotoCampaignModal from '@/components/PhotoCampaignModal';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface Match {
   id: string;
@@ -298,19 +304,38 @@ export const FaceSearchSection = () => {
               {sports.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
-          <div>
+          <div className="flex flex-col">
             <label className="block text-sm font-bold mb-1">Data do Evento *</label>
-            <select
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="w-full bg-card border border-border rounded-lg p-2.5 text-foreground focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-            >
-              <option value="">Selecione...</option>
-              {dates.map(d => {
-                const [y, m, day] = d.split('-');
-                return <option key={d} value={d}>{`${day}/${m}/${y}`}</option>
-              })}
-            </select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal bg-card border-border rounded-lg p-2.5 h-[42px] focus:border-primary focus:ring-1 focus:ring-primary hover:bg-card hover:text-foreground",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(parseISO(selectedDate), "dd/MM/yyyy", { locale: ptBR }) : <span>Selecione...</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-card border-border" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate ? parseISO(selectedDate) : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      setSelectedDate(format(date, "yyyy-MM-dd"));
+                    } else {
+                      setSelectedDate('');
+                    }
+                  }}
+                  disabled={(date) => !dates.includes(format(date, "yyyy-MM-dd"))}
+                  initialFocus
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div>
             <label className="block text-sm font-bold mb-1">Cidade (Opcional)</label>

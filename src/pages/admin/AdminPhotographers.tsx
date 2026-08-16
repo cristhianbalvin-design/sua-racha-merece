@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Plus, Trash2, Edit, X } from 'lucide-react';
+import { Camera, Plus, Trash2, Edit, X, Eye, EyeOff } from 'lucide-react';
 import { apiGetPhotographers, apiAddPhotographer, apiUpdatePhotographer, apiDeletePhotographer, apiUploadPhotographerPhoto, Photographer } from '@/lib/mockApi';
 import { SHOW_FACE_SEARCH } from '@/config/features';
 import { Navigate } from 'react-router-dom';
@@ -123,6 +123,18 @@ const AdminPhotographers = () => {
     }
   };
 
+  const handleToggleHidden = async (p: Photographer) => {
+    try {
+      const updated = await apiUpdatePhotographer(p.id, { is_hidden: !p.is_hidden });
+      if (updated) {
+        toast.success(p.is_hidden ? 'Fotógrafo visível novamente' : 'Fotógrafo oculto com sucesso');
+        setPhotographers(prev => prev.map(photographer => photographer.id === p.id ? updated : photographer));
+      }
+    } catch (err) {
+      console.error('Error toggling hidden state:', err);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -167,7 +179,7 @@ const AdminPhotographers = () => {
                 </tr>
               ) : (
                 photographers.map((p) => (
-                  <tr key={p.id}>
+                  <tr key={p.id} className={p.is_hidden ? "opacity-50" : ""}>
                     <td className="px-4 py-3">
                       {p.photo_url ? (
                         <img src={p.photo_url} alt={p.name} className="h-11 w-11 rounded-full object-cover ring-2 ring-primary/25" />
@@ -183,6 +195,13 @@ const AdminPhotographers = () => {
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(p.created_at)}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => handleToggleHidden(p)}
+                          title={p.is_hidden ? "Mostrar fotógrafo" : "Ocultar fotógrafo"}
+                          className={`p-1.5 rounded-md transition-colors ${p.is_hidden ? 'text-primary hover:bg-primary/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
+                        >
+                          {p.is_hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
                         <button
                           onClick={() => handleEditClick(p)}
                           title="Editar fotógrafo"
