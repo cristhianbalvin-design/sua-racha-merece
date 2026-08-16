@@ -51,7 +51,14 @@ serve(async (req) => {
     // Extraer campos obligatorios
     const regionId = formData.get("region_id");
     const sportId = formData.get("sport_id");
-    const city = formData.get("city");
+    const rawCity = formData.get("city")?.toString() || "";
+    const exceptions = ['de', 'da', 'do', 'dos', 'das', 'e'];
+    const city = rawCity.trim().toLowerCase().split(/\s+/).map((word, i) => {
+      if (i === 0 || !exceptions.includes(word)) {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }
+      return word;
+    }).join(' ');
     const photographerId = formData.get("photographer_id");
     const eventDate = formData.get("event_date");
     
