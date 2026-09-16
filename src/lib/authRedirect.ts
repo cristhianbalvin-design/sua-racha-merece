@@ -20,6 +20,17 @@ export const buildAuthRedirect = (pathname: string, search = ''): string =>
 export const getAuthRedirectFromState = (state: unknown): string | null =>
   normalizeInternalRedirect((state as RedirectState | null)?.redirectTo);
 
+export const getAuthRedirectFromLocation = (location: { state?: unknown; search?: string }): string | null => {
+  const fromState = getAuthRedirectFromState(location.state);
+  if (fromState) return fromState;
+
+  if (location.search) {
+    const searchParams = new URLSearchParams(location.search);
+    return normalizeInternalRedirect(searchParams.get('redirectTo') || searchParams.get('redirect'));
+  }
+  return null;
+};
+
 export const persistAuthRedirect = (
   redirectTo: string,
   storage: RedirectStorage = sessionStorage,

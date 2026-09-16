@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Register from "./pages/Register";
+import PublicCampaignPreview from "./pages/PublicCampaignPreview";
 import CompleteProfile from "./pages/CompleteProfile";
 import Dashboard from "./pages/Dashboard";
 import CampaignDetail from "./pages/CampaignDetail";
@@ -60,6 +61,7 @@ const AnimatedRoutes = () => {
       <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
       <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
       <Route path="/registro" element={<PageTransition><Register /></PageTransition>} />
+      <Route path="/c/:id" element={<PageTransition><PublicCampaignPreview /></PageTransition>} />
       {/* Plans are kept in code but hidden from the current onboarding flow. */}
       <Route path="/plano" element={<Navigate to="/completar-perfil" replace />} />
       <Route path="/completar-perfil" element={<PageTransition><CompleteProfile /></PageTransition>} />

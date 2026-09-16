@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { clearAuthRedirect, getAuthRedirectFromState } from '@/lib/authRedirect';
+import { clearAuthRedirect, getAuthRedirectFromLocation, persistAuthRedirect } from '@/lib/authRedirect';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -13,7 +13,13 @@ const Login = () => {
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const redirectTo = getAuthRedirectFromState(location.state);
+  const redirectTo = getAuthRedirectFromLocation(location);
+
+  useEffect(() => {
+    if (redirectTo) {
+      persistAuthRedirect(redirectTo);
+    }
+  }, [redirectTo]);
 
   const { login, loginWithGoogle } = useAuth();
 

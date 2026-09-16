@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -6,7 +6,7 @@ import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { OnboardingStepper } from '@/components/OnboardingStepper';
 import { TermsModal } from '@/components/TermsModal';
-import { clearAuthRedirect, getAuthRedirectFromState } from '@/lib/authRedirect';
+import { clearAuthRedirect, getAuthRedirectFromLocation } from '@/lib/authRedirect';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -18,11 +18,27 @@ const Register = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const redirectTo = getAuthRedirectFromState(location.state);
+
+  const searchParams = new URLSearchParams(location.search);
+  const campaignParam = searchParams.get('campaign');
+  const redirectTo = getAuthRedirectFromLocation(location);
+
+  useEffect(() => {
+    if (campaignParam && !localStorage.getItem('3buk_pending_campaign_id')) {
+      localStorage.setItem('3buk_pending_campaign_id', campaignParam);
+    }
+  }, [campaignParam]);
+
+  const hasPendingCampaign = Boolean(
+    campaignParam || localStorage.getItem('3buk_pending_campaign_id')
+  );
 
   const { register, loginWithGoogle } = useAuth();
 
   const handleGoogleLogin = async () => {
+    if (campaignParam && !localStorage.getItem('3buk_pending_campaign_id')) {
+      localStorage.setItem('3buk_pending_campaign_id', campaignParam);
+    }
     try {
       await loginWithGoogle(redirectTo || undefined);
     } catch (error: any) {
@@ -39,14 +55,26 @@ const Register = () => {
       return;
     }
     setErrorMsg('');
+
+    if (campaignParam && !localStorage.getItem('3buk_pending_campaign_id')) {
+      localStorage.setItem('3buk_pending_campaign_id', campaignParam);
+    }
+    const isExpressCampaign = Boolean(
+      campaignParam || localStorage.getItem('3buk_pending_campaign_id')
+    );
+
     try {
       await register(email, password, 'Atleta', acceptedTerms);
       sessionStorage.setItem('isNewUserFlow', 'true');
       clearAuthRedirect();
       toast.success('Conta criada com sucesso!');
-      navigate('/completar-perfil', {
-        state: redirectTo ? { redirectTo } : undefined,
-      });
+      if (isExpressCampaign) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/completar-perfil', {
+          state: redirectTo ? { redirectTo } : undefined,
+        });
+      }
     } catch (error: any) {
       console.error("Erro no signUp:", error);
       toast.error(`Erro ao criar conta: ${error.message || 'Tente novamente.'}`);
@@ -56,10 +84,14 @@ const Register = () => {
   return (
     <div className="min-h-svh bg-background flex flex-col items-center justify-center px-4 py-8">
       <div className="w-full max-w-sm">
-        <OnboardingStepper currentStep={1} />
+        {!hasPendingCampaign && <OnboardingStepper currentStep={1} />}
         <div className="text-center mb-8">
           <Logo size="lg" />
-          <p className="text-muted-foreground mt-2">Crie sua conta e comece a competir</p>
+          <p className="text-muted-foreground mt-2">
+            {hasPendingCampaign
+              ? 'Complete seu cadastro para participar da campanha'
+              : 'Crie sua conta e comece a competir'}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

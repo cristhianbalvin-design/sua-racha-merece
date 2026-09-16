@@ -50,6 +50,7 @@ const AdminCampaigns = () => {
   const [cStart, setCStart] = useState('');
   const [cEnd, setCEnd] = useState('');
   const [cDesc, setCDesc] = useState('');
+  const [cQuestion, setCQuestion] = useState('');
   const [cWinners, setCWinners] = useState('');
   const [cPrize, setCPrize] = useState('');
   const [cImageFile, setCImageFile] = useState<File | null>(null);
@@ -109,6 +110,7 @@ const AdminCampaigns = () => {
         startDate: cStart,
         endDate: cEnd,
         description: cDesc,
+        question: cQuestion,
         winnersCount: parseInt(cWinners, 10),
         prize: cPrize,
         plan,
@@ -130,6 +132,7 @@ const AdminCampaigns = () => {
         startDate: cStart,
         endDate: cEnd,
         description: cDesc,
+        question: cQuestion,
         winnersCount: parseInt(cWinners, 10),
         prize: cPrize,
         imageUrl,
@@ -156,7 +159,7 @@ const AdminCampaigns = () => {
       setFormSubmitted(false);
       setShowCreate(false);
       setEditingCampaignId(null);
-      setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize(''); setCImageFile(null); setCImagePreview(''); setCImageMobileFile(null); setCImageMobilePreview('');
+      setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCQuestion(''); setCWinners(''); setCPrize(''); setCImageFile(null); setCImagePreview(''); setCImageMobileFile(null); setCImageMobilePreview('');
       setPlan('Ambos'); setIgOptional(false); setIgHashtags('#3bukchallenge');
     }, 2500);
   };
@@ -170,6 +173,7 @@ const AdminCampaigns = () => {
     setCStart(campaign.startDate);
     setCEnd(campaign.endDate);
     setCDesc(campaign.description);
+    setCQuestion(campaign.question || '');
     setCWinners(campaign.winnersCount.toString());
     setCPrize(campaign.prize);
     setPlan(campaign.plan || 'Ambos');
@@ -227,7 +231,7 @@ const AdminCampaigns = () => {
         <motion.button
           onClick={() => {
             setEditingCampaignId(null);
-            setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCWinners(''); setCPrize(''); setCImageFile(null); setCImagePreview(''); setCImageMobileFile(null); setCImageMobilePreview('');
+            setCName(''); setCSport(''); setCRegion(''); setCCity(''); setCStart(''); setCEnd(''); setCDesc(''); setCQuestion(''); setCWinners(''); setCPrize(''); setCImageFile(null); setCImagePreview(''); setCImageMobileFile(null); setCImageMobilePreview('');
             setPlan('Ambos'); setIgOptional(false); setIgHashtags('#3bukchallenge');
             setShowCreate(true);
           }}
@@ -426,6 +430,18 @@ const AdminCampaigns = () => {
                   <div>
                     <label className="text-ui text-xs text-muted-foreground block mb-2">DESCRIÇÃO DO DESAFIO</label>
                     <textarea value={cDesc} onChange={(e) => setCDesc(e.target.value)} className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all resize-none h-24" placeholder="Descreva o desafio..." required />
+                  </div>
+
+                  <div>
+                    <label className="text-ui text-xs text-muted-foreground block mb-2">PERGUNTA PARA O ATLETA</label>
+                    <input
+                      type="text"
+                      value={cQuestion}
+                      onChange={(e) => setCQuestion(e.target.value)}
+                      className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all"
+                      placeholder="Ex: Qual foi seu maior desafio superado neste treino?"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1.5">O atleta responderá a esta pergunta ao enviar a evidência do desafio.</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

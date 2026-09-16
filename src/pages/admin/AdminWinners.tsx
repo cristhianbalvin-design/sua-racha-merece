@@ -412,10 +412,12 @@ const AdminWinners = () => {
                     </motion.button>
                   </div>
 
-                  {/* Comment */}
+                  {/* Response */}
                   {part.comment && (
                     <div>
-                      <label className="text-ui text-xs text-muted-foreground block mb-1">COMENTÁRIO</label>
+                      <label className="text-ui text-xs text-muted-foreground block mb-1">
+                        {campaign?.question ? `RESPOSTA DO ATLETA (Pergunta: "${campaign.question}")` : 'RESPOSTA DO ATLETA'}
+                      </label>
                       <p className="text-foreground text-sm italic bg-muted rounded-xl p-3">"{part.comment}"</p>
                     </div>
                   )}

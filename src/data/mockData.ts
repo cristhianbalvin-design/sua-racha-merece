@@ -46,6 +46,7 @@ export interface Campaign {
   instagramHashtags?: string;
   status: CampaignStatus;
   isHidden?: boolean;
+  question?: string;
   createdAt: string;
 }
 

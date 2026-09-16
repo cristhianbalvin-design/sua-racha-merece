@@ -15,6 +15,7 @@ interface ParticipationEvidenceModalProps {
   videos: File[];
   videoPreviews: string[];
   comment: string;
+  question?: string;
   timestamp: string;
   instagram: boolean;
   instagramEnabled: boolean;
@@ -44,6 +45,7 @@ const ParticipationEvidenceModal = ({
   videos,
   videoPreviews,
   comment,
+  question,
   timestamp,
   instagram,
   instagramEnabled,
@@ -164,14 +166,24 @@ const ParticipationEvidenceModal = ({
               </div>
 
               <div className="mb-4">
+                {question && (
+                  <div className="mb-3 rounded-xl border border-primary/30 bg-primary/10 p-3.5">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-primary text-ui">
+                      PERGUNTA DO DESAFIO
+                    </span>
+                    <p className="text-sm font-semibold leading-relaxed text-foreground">
+                      {question}
+                    </p>
+                  </div>
+                )}
                 <label className="mb-2 block text-xs font-bold uppercase text-muted-foreground text-ui">
-                  COMENTÁRIO <span className="text-destructive">(OBRIGATÓRIO)</span>
+                  {question ? 'SUA RESPOSTA' : 'RESPOSTA'} <span className="text-destructive">(OBRIGATÓRIO)</span>
                 </label>
                 <textarea
                   value={comment}
                   onChange={(event) => onCommentChange(event.target.value)}
-                  className="h-20 w-full resize-none rounded-lg bg-input px-4 py-3 text-foreground input-shadow outline-none transition-all focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  placeholder="Exemplo: O melhor treino da semana!"
+                  className="h-24 w-full resize-none rounded-lg bg-input px-4 py-3 text-foreground input-shadow outline-none transition-all focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  placeholder={question ? "Escreva aqui sua resposta para o desafio..." : "Exemplo: O melhor treino da semana!"}
                 />
               </div>
 

@@ -107,6 +107,7 @@ const mapCampaign = (row: any): Campaign => ({
   instagramHashtags: row.instagram_hashtags,
   status: row.status,
   isHidden: row.is_hidden,
+  question: row.question || '',
   createdAt: row.created_at
 });
 
@@ -117,6 +118,15 @@ export const apiGetCampaigns = async (): Promise<Campaign[]> => {
     toast.error('Erro bd: ' + error.message);
   }
   return (data || []).map(mapCampaign);
+};
+
+export const apiGetCampaignById = async (id: string): Promise<Campaign | null> => {
+  const { data, error } = await supabase.from('campaigns').select('*').eq('id', id).maybeSingle();
+  if (error) {
+    console.error('Error get campaign by id:', error);
+    return null;
+  }
+  return data ? mapCampaign(data) : null;
 };
 
 const getTodayInSaoPaulo = (): string => {
@@ -165,7 +175,8 @@ export const apiAddCampaign = async (c: Campaign): Promise<Campaign | null> => {
     instagram_optional: c.instagramOptional,
     instagram_hashtags: c.instagramHashtags,
     status: c.status,
-    is_hidden: c.isHidden || false
+    is_hidden: c.isHidden || false,
+    question: c.question || null
   };
   const { data, error } = await supabase.from('campaigns').insert(row).select('*').single();
   if (error) {
@@ -193,6 +204,7 @@ export const apiUpdateCampaign = async (id: string, updates: Partial<Campaign>) 
   if (updates.plan) row.plan_required = updates.plan;
   if (updates.instagramOptional !== undefined) row.instagram_optional = updates.instagramOptional;
   if (updates.instagramHashtags !== undefined) row.instagram_hashtags = updates.instagramHashtags;
+  if (updates.question !== undefined) row.question = updates.question;
 
   const { data, error } = await supabase.from('campaigns').update(row).eq('id', id).select('*').single();
   if (error) {
@@ -298,6 +310,46 @@ export const apiAddParticipation = async (p: Partial<Participation>) => {
     toast.error('Erro ao registrar participação: ' + error.message);
     return null;
   }
+  return data ? mapPart(data) : null;
+};
+
+export const apiEnsureParticipation = async (userId: string, campaignId: string): Promise<Participation | null> => {
+  const { data: existing, error: fetchErr } = await supabase
+    .from('participations')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('campaign_id', campaignId)
+    .maybeSingle();
+
+  if (fetchErr) {
+    console.error('Error checking existing participation:', fetchErr);
+    throw fetchErr;
+  }
+
+  if (existing) {
+    return mapPart(existing);
+  }
+
+  const row = {
+    user_id: userId,
+    campaign_id: campaignId,
+    status: 'EM CURSO',
+    photo_url: null,
+    comment: null,
+    instagram_posted: false
+  };
+
+  const { data, error } = await supabase
+    .from('participations')
+    .insert(row)
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('Error ensuring participation:', error);
+    throw error;
+  }
+
   return data ? mapPart(data) : null;
 };
 

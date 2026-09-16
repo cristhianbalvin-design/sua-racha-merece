@@ -419,7 +419,16 @@ const UserParticipations = () => {
                 </div>
               </div>
               {p.comment && (
-                <p className="text-sm text-muted-foreground italic mt-3 pl-20">"{p.comment}"</p>
+                <div className="mt-3 pl-20 space-y-1">
+                  {p.campaign?.question && (
+                    <p className="text-xs font-semibold text-primary">
+                      Pergunta: <span className="text-foreground">{p.campaign.question}</span>
+                    </p>
+                  )}
+                  <p className="text-sm text-muted-foreground italic">
+                    {p.campaign?.question ? `Resposta: "${p.comment}"` : `"${p.comment}"`}
+                  </p>
+                </div>
               )}
               {p.instagram && (
                 <p className="text-xs text-accent mt-1 pl-20">📸 Publicou no Instagram</p>
@@ -438,6 +447,9 @@ const UserParticipations = () => {
         videos={videos}
         videoPreviews={videoPreviews}
         comment={comment}
+        question={
+          userParticipations.find((participation) => participation.id === showEvidenceModal)?.campaign?.question
+        }
         timestamp={timestamp}
         instagram={instagram}
         instagramEnabled={Boolean(

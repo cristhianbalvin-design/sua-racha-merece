@@ -275,16 +275,26 @@ const SubmitEvidence = () => {
                 )}
               </div>
 
-              {/* Comment */}
+              {/* Question and Answer */}
               <div>
+                {campaign?.question && (
+                  <div className="mb-3 rounded-xl border border-primary/30 bg-primary/10 p-3.5">
+                    <span className="mb-1 block text-xs font-bold uppercase tracking-wider text-primary text-ui">
+                      PERGUNTA DO DESAFIO
+                    </span>
+                    <p className="text-sm font-semibold leading-relaxed text-foreground">
+                      {campaign.question}
+                    </p>
+                  </div>
+                )}
                 <label className="text-ui text-xs text-muted-foreground block font-bold uppercase mb-2">
-                  COMENTÁRIO <span className="text-destructive">(OBRIGATÓRIO)</span>
+                  {campaign?.question ? 'SUA RESPOSTA' : 'RESPOSTA'} <span className="text-destructive">(OBRIGATÓRIO)</span>
                 </label>
                 <textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring focus:ring-offset-2 outline-none transition-all resize-none h-24"
-                  placeholder="Exemplo: O melhor treino da semana!"
+                  placeholder={campaign?.question ? "Escreva aqui sua resposta para o desafio..." : "Exemplo: O melhor treino da semana!"}
                 />
               </div>
 

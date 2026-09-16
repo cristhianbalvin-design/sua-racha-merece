@@ -60,7 +60,7 @@ const getShareText = (campaign: Campaign): string => {
 export const getCampaignShareData = (campaign: Campaign, origin: string): ShareData => ({
   title: `3BUK — ${campaign.name}`,
   text: getShareText(campaign),
-  url: new URL(`/campanha/${campaign.id}`, origin).toString(),
+  url: new URL(`/c/${campaign.id}`, origin).toString(),
 });
 
 export const shareCampaign = async (

@@ -317,6 +317,7 @@ const PhotoCampaignModal = ({ photo, onClose, isForDownload, onSuccess }: PhotoC
         videos={[]}
         videoPreviews={[]}
         comment={comment}
+        question={activeCampaign?.question}
         timestamp={timestamp}
         instagram={instagram}
         instagramEnabled={Boolean(activeCampaign?.instagramOptional)}

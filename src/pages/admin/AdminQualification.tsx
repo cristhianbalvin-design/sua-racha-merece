@@ -765,7 +765,9 @@ const AdminQualification = () => {
 
                   {p.comment && (
                     <div>
-                      <label className="text-ui text-xs text-muted-foreground block mb-1">COMENTÁRIO</label>
+                      <label className="text-ui text-xs text-muted-foreground block mb-1">
+                        {p.campaign?.question ? `RESPOSTA DO ATLETA (Pergunta: "${p.campaign.question}")` : 'RESPOSTA DO ATLETA'}
+                      </label>
                       <p className="text-foreground text-sm italic bg-muted rounded-xl p-3">"{p.comment}"</p>
                     </div>
                   )}

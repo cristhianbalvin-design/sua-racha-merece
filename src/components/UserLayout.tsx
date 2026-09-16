@@ -6,7 +6,7 @@ import DesktopHeader from './DesktopHeader';
 import MobileNav from './MobileNav';
 import UserProfileBanner from './UserProfileBanner';
 import Logo from './Logo';
-import { apiGetActiveHomePopup, apiAcceptTermsForOAuthUser, apiGetNotifications } from '@/lib/mockApi';
+import { apiGetActiveHomePopup, apiAcceptTermsForOAuthUser, apiGetNotifications, apiEnsureParticipation } from '@/lib/mockApi';
 import type { HomePopup } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
 import { TermsModal } from './TermsModal';
@@ -71,6 +71,22 @@ const UserLayout = () => {
   useEffect(() => {
     if (!user || user.acceptedTerms === false) return;
 
+    const pendingCampaignId = localStorage.getItem('3buk_pending_campaign_id');
+    if (pendingCampaignId) {
+      localStorage.removeItem('3buk_pending_campaign_id');
+      apiEnsureParticipation(user.id, pendingCampaignId)
+        .then(() => {
+          toast.success('Inscrição confirmada com sucesso!');
+          navigate('/participacoes', { replace: true });
+        })
+        .catch((err) => {
+          console.error('Erro ao garantir participação:', err);
+          navigate(`/campanha/${pendingCampaignId}`, { replace: true });
+          toast.error('No se pudo confirmar la inscripción, intentá de nuevo desde la campaña.');
+        });
+      return;
+    }
+
     const redirectTo = consumeAuthRedirect();
     if (redirectTo && redirectTo !== `${location.pathname}${location.search}`) {
       navigate(redirectTo, { replace: true });
@@ -82,13 +98,9 @@ const UserLayout = () => {
     try {
       const success = await apiAcceptTermsForOAuthUser(user.id);
       if (success) {
-        updateUserContext({ acceptedTerms: true });
         setShowTermsModal(false);
         toast.success('Termos e Condições aceitos com sucesso!');
-        const redirectTo = consumeAuthRedirect();
-        if (redirectTo && redirectTo !== `${location.pathname}${location.search}`) {
-          navigate(redirectTo, { replace: true });
-        }
+        updateUserContext({ acceptedTerms: true });
       }
     } catch (e: any) {
       console.error('Accept terms error:', e);

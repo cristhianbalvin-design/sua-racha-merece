@@ -159,7 +159,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const register = async (email: string, password = 'password123', name = 'Atleta', acceptedTerms = false) => {
-    const { error } = await supabase.auth.signUp({
+    setLoading(true);
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -171,7 +172,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     });
-    if (error) throw error;
+    if (error) {
+      setLoading(false);
+      throw error;
+    }
+
+    if (data?.session?.user) {
+      await fetchUserProfile(data.session.user.id, data.session.user);
+    } else {
+      setLoading(false);
+    }
 
     // Enviar notificación Push al Administrador via Edge Function (evita CORS)
     try {
