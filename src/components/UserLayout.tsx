@@ -75,9 +75,14 @@ const UserLayout = () => {
     if (pendingCampaignId) {
       localStorage.removeItem('3buk_pending_campaign_id');
       apiEnsureParticipation(user.id, pendingCampaignId)
-        .then(() => {
-          toast.success('Inscrição confirmada com sucesso!');
-          navigate('/participacoes', { replace: true });
+        .then((part) => {
+          if (!part) {
+            navigate(`/campanha/${pendingCampaignId}`, { replace: true });
+            toast.error('No se pudo confirmar la inscripción, intentá de nuevo desde la campaña.');
+            return;
+          }
+          toast.success('Inscrição confirmada! Envie sua participação.');
+          navigate(`/campanha/${pendingCampaignId}/participar`, { replace: true });
         })
         .catch((err) => {
           console.error('Erro ao garantir participação:', err);

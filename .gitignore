@@ -42,3 +42,4 @@ dist-ssr
 supabase/.temp/
 test_insert.js
 dev-dist/
+.vercel
