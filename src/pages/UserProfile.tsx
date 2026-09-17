@@ -9,6 +9,13 @@ import { toast } from 'sonner';
 const fadeIn = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 } };
 const spring = { type: 'spring' as const, duration: 0.4, bounce: 0 };
 
+import { SportProfileForm } from '@/components/profile/SportProfileForm';
+import { SocialLinksForm } from '@/components/profile/SocialLinksForm';
+import { UserParticipationHistory } from '@/components/profile/UserParticipationHistory';
+import { Flame, Share2, Trophy, Image as ImageIcon } from 'lucide-react';
+
+type ProfileTab = 'esportivo' | 'sociais' | 'historico' | 'galeria';
+
 const UserProfile = () => {
   const { user, isAdmin, updateUserContext, logout } = useAuth();
   const navigate = useNavigate();
@@ -18,6 +25,7 @@ const UserProfile = () => {
   const [wonCount, setWonCount] = useState(0);
   const [photos, setPhotos] = useState<string[]>([]);
   const [athleteNumber, setAthleteNumber] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<ProfileTab>('esportivo');
 
   useEffect(() => {
     apiGetSports().then(setSports);
@@ -124,7 +132,7 @@ const UserProfile = () => {
             className="w-full flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-foreground text-ui text-sm font-bold py-3 rounded-xl transition-colors"
           >
             <Pencil size={14} />
-            EDITAR INFORMAÇÕES
+            EDITAR INFORMAÇÕES PESSOAIS
           </motion.button>
         ) : (
           <div className="bg-card rounded-2xl card-shadow p-5 space-y-4">
@@ -238,56 +246,148 @@ const UserProfile = () => {
         )}
       </motion.div>
 
-      {/* ── Stats ── */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-card rounded-2xl p-4 card-shadow text-center">
+      {/* ── Stats (Clickable to open Meu Histórico) ── */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <motion.button
+          type="button"
+          onClick={() => setActiveTab('historico')}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-card rounded-2xl p-4 card-shadow text-center transition-all hover:ring-2 hover:ring-primary/40 text-left w-full cursor-pointer"
+        >
           <p className="text-2xl font-bold text-foreground">{participatedCount}</p>
-          <p className="text-xs text-muted-foreground text-ui mt-1">PARTICIPADAS</p>
-        </div>
-        <div className="bg-card rounded-2xl p-4 card-shadow text-center">
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-xs text-muted-foreground text-ui font-bold">PARTICIPADAS</span>
+            <span className="text-[10px] text-primary font-bold">Ver histórico →</span>
+          </div>
+        </motion.button>
+
+        <motion.button
+          type="button"
+          onClick={() => setActiveTab('historico')}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="bg-card rounded-2xl p-4 card-shadow text-center transition-all hover:ring-2 hover:ring-accent/40 text-left w-full cursor-pointer"
+        >
           <p className="text-2xl font-bold text-accent">{wonCount}</p>
-          <p className="text-xs text-muted-foreground text-ui mt-1">GANHAS</p>
-        </div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-xs text-muted-foreground text-ui font-bold">GANHAS</span>
+            <span className="text-[10px] text-accent font-bold">Ver prêmios →</span>
+          </div>
+        </motion.button>
       </div>
 
-      {/* ── Gallery ── */}
-      <h2 className="font-bold italic text-lg text-foreground mb-4">MINHA GALERIA</h2>
-      {photos.length === 0 ? (
-        <div className="text-center py-12">
-          <span className="text-4xl block mb-3">📸</span>
-          <p className="text-muted-foreground text-sm">Nenhuma foto ou vídeo enviado ainda.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {photos.map((url, i) => {
-            const isVideo = /\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url);
-            return (
-              <motion.div
-                key={i}
-                whileHover={{ scale: 1.02 }}
-                transition={spring}
-                className="aspect-square rounded-2xl overflow-hidden relative bg-muted"
-              >
-                {isVideo ? (
-                  <video
-                    src={url}
-                    className="w-full h-full object-cover"
-                    controls
-                    playsInline
-                    preload="metadata"
-                  />
-                ) : (
-                  <img
-                    src={url}
-                    alt={`Media ${i + 1}`}
-                    className="w-full h-full object-cover img-outline"
-                  />
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
+      {/* ── Navigation Tabs ── */}
+      <div className="flex gap-2 p-1.5 bg-muted/60 rounded-2xl mb-6 overflow-x-auto no-scrollbar">
+        <button
+          type="button"
+          onClick={() => setActiveTab('esportivo')}
+          className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'esportivo'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+          }`}
+        >
+          <Flame size={14} />
+          ESPORTIVO
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('sociais')}
+          className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'sociais'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+          }`}
+        >
+          <Share2 size={14} />
+          REDES
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('historico')}
+          className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'historico'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+          }`}
+        >
+          <Trophy size={14} />
+          3BUK ({participatedCount})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('galeria')}
+          className={`flex-1 min-w-[120px] py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'galeria'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+          }`}
+        >
+          <ImageIcon size={14} />
+          GALERIA ({photos.length})
+        </button>
+      </div>
+
+      {/* ── Tab Content ── */}
+      <div className="mb-8">
+        {activeTab === 'esportivo' && (
+          <SportProfileForm userId={user.id} />
+        )}
+
+        {activeTab === 'sociais' && (
+          <SocialLinksForm userId={user.id} />
+        )}
+
+        {activeTab === 'historico' && (
+          <UserParticipationHistory userId={user.id} />
+        )}
+
+        {activeTab === 'galeria' && (
+          <div>
+            <h2 className="font-bold italic text-lg text-foreground mb-4">MINHA GALERIA</h2>
+            {photos.length === 0 ? (
+              <div className="bg-card rounded-2xl card-shadow text-center py-12">
+                <span className="text-4xl block mb-3">📸</span>
+                <p className="text-muted-foreground text-sm">Nenhuma foto ou vídeo enviado ainda.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {photos.map((url, i) => {
+                  const isVideo = /\.(mp4|mov|avi|webm|mkv|m4v)($|\?)/i.test(url);
+                  return (
+                    <motion.div
+                      key={i}
+                      whileHover={{ scale: 1.02 }}
+                      transition={spring}
+                      className="aspect-square rounded-2xl overflow-hidden relative bg-muted"
+                    >
+                      {isVideo ? (
+                        <video
+                          src={url}
+                          className="w-full h-full object-cover"
+                          controls
+                          playsInline
+                          preload="metadata"
+                        />
+                      ) : (
+                        <img
+                          src={url}
+                          alt={`Media ${i + 1}`}
+                          className="w-full h-full object-cover img-outline"
+                        />
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── Logout ── */}
       <div className="mt-12 flex flex-col items-center gap-4">

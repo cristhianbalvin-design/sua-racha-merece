@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiGetParticipations, apiGetUsers, apiGetCampaigns, apiUpdateParticipation, apiUpdateCampaign } from '@/lib/mockApi';
 import { Participation, User, Campaign } from '@/data/mockData';
 import { X, Trophy, Info, ChevronUp, ChevronDown, RotateCcw, Search } from 'lucide-react';
+import { AdminUserSportProfileSection } from '@/components/admin/AdminUserSportProfileSection';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -839,6 +840,9 @@ const AdminQualification = () => {
                       </p>
                     )}
                   </div>
+
+                  {/* Perfil Esportivo 2028 & Redes Sociais */}
+                  <AdminUserSportProfileSection userId={p.user.id} />
                 </div>
               </motion.div>
             </motion.div>
