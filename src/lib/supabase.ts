@@ -13,3 +13,8 @@ const runtimeSupabaseUrl =
     : supabaseUrl;
 
 export const supabase = createClient(runtimeSupabaseUrl, supabaseAnonKey);
+
+if (typeof window !== 'undefined') {
+  (window as any).supabase = supabase;
+}
+

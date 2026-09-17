@@ -6,6 +6,7 @@ import { apiGetUsers, apiToggleUserStatus, apiDeleteUser } from '@/lib/mockApi';
 import { toast } from 'sonner';
 import { User } from '@/data/mockData';
 import { buildUsersCsv } from '@/lib/csv';
+import { AdminUserSportProfileSection } from '@/components/admin/AdminUserSportProfileSection';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -286,7 +287,7 @@ const AdminUsers = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-card border border-border rounded-2xl w-full max-w-md overflow-hidden card-shadow relative"
+            className="bg-card border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto card-shadow relative"
           >
             <button
               onClick={() => setSelectedUser(null)}
@@ -332,6 +333,9 @@ const AdminUsers = () => {
                     <p className="font-bold text-sm text-foreground">{selectedUser.campaignsWon}</p>
                   </div>
                 </div>
+
+                {/* Perfil Esportivo 2028 & Redes Sociais */}
+                <AdminUserSportProfileSection userId={selectedUser.id} />
               </div>
             </div>
           </motion.div>

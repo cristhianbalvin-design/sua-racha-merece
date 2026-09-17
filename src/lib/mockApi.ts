@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import type { User, Campaign, Participation, Winner, HomePopup, TermsAndConditions } from '../data/mockData';
+import type { SportProfile, UserParticipationHistoryItem } from '@/types/sportProfile';
 import { toast } from 'sonner';
 
 // Map Row to User interface
@@ -983,3 +984,109 @@ export const apiGetUniqueCities = async (): Promise<string[]> => {
   const uniqueCities = Array.from(new Set(data.map(d => d.city).filter(Boolean)));
   return uniqueCities.sort() as string[];
 };
+
+// ==============================================
+// Sport Profiles & Social Links ("Perfil 2028")
+// ==============================================
+const mapSportProfile = (row: any): SportProfile => ({
+  userId: row.user_id,
+  practiceTime: row.practice_time || null,
+  favoriteModality: row.favorite_modality || null,
+  mainGoal: row.main_goal || null,
+  weeklyFrequency: row.weekly_frequency || null,
+  targetEvent2028: row.target_event_2028 || null,
+  desiredReward: row.desired_reward || null,
+  expectation2028: row.expectation_2028 || null,
+  instagramHandle: row.instagram_handle || null,
+  tiktokHandle: row.tiktok_handle || null,
+  facebookHandle: row.facebook_handle || null,
+  youtubeHandle: row.youtube_handle || null,
+  otherSocialLink: row.other_social_link || null,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+export const apiGetSportProfile = async (userId: string): Promise<SportProfile | null> => {
+  const { data, error } = await supabase
+    .from('sport_profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching sport profile:', error);
+    throw new Error(error.message || 'Erro ao consultar perfil esportivo');
+  }
+  return data ? mapSportProfile(data) : null;
+};
+
+export const apiUpsertSportProfile = async (userId: string, updates: Partial<SportProfile>): Promise<SportProfile | null> => {
+  const row: any = {
+    user_id: userId,
+  };
+  if (updates.practiceTime !== undefined) row.practice_time = updates.practiceTime || null;
+  if (updates.favoriteModality !== undefined) row.favorite_modality = updates.favoriteModality || null;
+  if (updates.mainGoal !== undefined) row.main_goal = updates.mainGoal || null;
+  if (updates.weeklyFrequency !== undefined) row.weekly_frequency = updates.weeklyFrequency || null;
+  if (updates.targetEvent2028 !== undefined) row.target_event_2028 = updates.targetEvent2028 || null;
+  if (updates.desiredReward !== undefined) row.desired_reward = updates.desiredReward || null;
+  if (updates.expectation2028 !== undefined) row.expectation_2028 = updates.expectation2028 || null;
+  if (updates.instagramHandle !== undefined) row.instagram_handle = updates.instagramHandle || null;
+  if (updates.tiktokHandle !== undefined) row.tiktok_handle = updates.tiktokHandle || null;
+  if (updates.facebookHandle !== undefined) row.facebook_handle = updates.facebookHandle || null;
+  if (updates.youtubeHandle !== undefined) row.youtube_handle = updates.youtubeHandle || null;
+  if (updates.otherSocialLink !== undefined) row.other_social_link = updates.otherSocialLink || null;
+
+  const { data, error } = await supabase
+    .from('sport_profiles')
+    .upsert(row, { onConflict: 'user_id' })
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('Error saving sport profile:', error);
+    toast.error('Erro ao salvar perfil esportivo: ' + error.message);
+    throw new Error(error.message);
+  }
+  return data ? mapSportProfile(data) : null;
+};
+
+export const apiGetUserParticipationHistory = async (userId: string): Promise<UserParticipationHistoryItem[]> => {
+  const { data, error } = await supabase
+    .from('participations')
+    .select(`
+      id,
+      campaign_id,
+      status,
+      created_at,
+      campaigns (
+        id,
+        name,
+        sport,
+        city,
+        prize
+      )
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching user participation history:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => {
+    const c = row.campaigns || {};
+    return {
+      id: row.id,
+      campaignId: row.campaign_id,
+      campaignName: c.name || 'Campanha',
+      campaignSport: c.sport || 'Esporte',
+      campaignCity: c.city || 'Brasil',
+      campaignPrize: c.prize || '',
+      status: row.status || 'Em curso',
+      createdAt: row.created_at,
+    };
+  });
+};
+
