@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import PhotoCampaignModal from '@/components/PhotoCampaignModal';
+import { apiRegisterDownload, downloadBlockedMessage } from '@/lib/libraryApi';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -144,16 +145,21 @@ export const FaceSearchSection = () => {
   const handleDownload = async (matchId: string, imageUrl: string) => {
     try {
       toast.loading('Verificando permissão...', { id: 'download' });
-      const { data, error } = await supabase.rpc('check_and_register_download', { p_event_photo_id: matchId });
-      if (error) throw error;
+      const permission = await apiRegisterDownload(matchId);
 
-      if (data.allowed) {
+      if (permission.allowed) {
         executeDownload(matchId, imageUrl);
-      } else {
-        toast.dismiss('download');
-        setIsDownloadIntent(true);
-        setCampaignPhoto({ id: matchId, imageUrl });
+        return;
       }
+      const blocked = downloadBlockedMessage(permission);
+      if (blocked) {
+        toast.error(blocked, { id: 'download', duration: 8000 });
+        return;
+      }
+      // Sem participação: abre a campanha para liberar o acesso.
+      toast.dismiss('download');
+      setIsDownloadIntent(true);
+      setCampaignPhoto({ id: matchId, imageUrl });
     } catch {
       toast.error('Erro ao verificar permissão.', { id: 'download' });
     }
@@ -590,11 +596,17 @@ export const FaceSearchSection = () => {
         isForDownload={isDownloadIntent}
         onSuccess={() => {
           if (campaignPhoto && isDownloadIntent) {
-            // Acabou de participar: registra a descarga na biblioteca (sem bloquear o download).
-            void supabase
-              .rpc('check_and_register_download', { p_event_photo_id: campaignPhoto.id })
-              .then(({ error }) => { if (error) console.error('register download:', error); });
-            executeDownload(campaignPhoto.id, campaignPhoto.imageUrl);
+            // Acabou de participar: registra a descarga aplicando cupo/créditos.
+            const { id, imageUrl } = campaignPhoto;
+            void apiRegisterDownload(id)
+              .then((permission) => {
+                if (permission.allowed) {
+                  executeDownload(id, imageUrl);
+                } else {
+                  toast.error(downloadBlockedMessage(permission) ?? 'Não foi possível liberar o download.', { duration: 8000 });
+                }
+              })
+              .catch(() => toast.error('Erro ao verificar permissão.'));
           }
         }}
         onClose={() => {

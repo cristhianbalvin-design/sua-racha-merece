@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SHOW_FACE_SEARCH } from '@/config/features';
-import { apiGetMyDownloads, apiRegisterDownload, type LibraryItem } from '@/lib/libraryApi';
+import { apiGetMyDownloads, apiRegisterDownload, downloadBlockedMessage, type LibraryItem } from '@/lib/libraryApi';
 import { downloadPhotoFile } from '@/lib/downloadPhoto';
 import { formatDateTime, formatIsoDate } from '@/lib/photoStatus';
 
@@ -57,7 +57,7 @@ const UserLibraryPage = () => {
     try {
       const permission = await apiRegisterDownload(item.eventPhotoId);
       if (!permission.allowed) {
-        toast.error('Esta foto não está mais disponível para download.', { id: toastId });
+        toast.error(downloadBlockedMessage(permission) ?? 'Esta foto não está mais disponível para download.', { id: toastId });
         return;
       }
       await downloadPhotoFile(item.imageUrl, item.eventPhotoId);
