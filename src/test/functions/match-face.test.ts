@@ -111,6 +111,7 @@ describe('match-face Edge Function', () => {
       filter_sport_id: null,
       filter_event_date: null,
       filter_photographer_id: null,
+      filter_city: null,
     });
 
     // Ensure insert was NEVER called

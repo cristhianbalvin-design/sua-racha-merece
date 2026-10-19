@@ -9,6 +9,13 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
+// Links de convite (type=invite, ex.: fotógrafos) disparam SIGNED_IN e não PASSWORD_RECOVERY.
+// Lido no carregamento do módulo, antes de o supabase-js limpar o hash da URL.
+const ARRIVED_FROM_INVITE =
+  typeof window !== 'undefined' &&
+  window.location.pathname === '/reset-password' &&
+  /(^|[#&?])type=invite(&|$)/.test(`${window.location.hash}&${window.location.search}`);
+
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -16,12 +23,13 @@ const ResetPassword = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [isVerifying, setIsVerifying] = useState(true);
   const [success, setSuccess] = useState(false);
+  const [goesToPortal, setGoesToPortal] = useState(false);
   
   const { user, isRecovery } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user && !isRecovery) {
+    if (user && !isRecovery && !ARRIVED_FROM_INVITE) {
       navigate('/dashboard');
     }
   }, [user, isRecovery, navigate]);
@@ -70,10 +78,19 @@ const ResetPassword = () => {
       setErrorMsg(error.message);
       setLoading(false);
     } else {
+      // Fotógrafo convidado: termina no Portal do Fotógrafo, não no fluxo do atleta.
+      let target = '/login';
+      try {
+        const { data: isPhotographer } = await supabase.rpc('is_photographer');
+        if (isPhotographer === true) target = '/fotografo';
+      } catch {
+        // Sem a verificação, segue o fluxo padrão.
+      }
+      setGoesToPortal(target === '/fotografo');
       setSuccess(true);
       toast.success('Senha atualizada com sucesso!');
       setTimeout(() => {
-        navigate('/login');
+        navigate(target);
       }, 2000);
     }
   };
@@ -102,7 +119,9 @@ const ResetPassword = () => {
         {success ? (
           <div className="text-center bg-card card-shadow p-6 rounded-xl">
             <p className="text-green-500 font-bold mb-2">Senha atualizada com sucesso!</p>
-            <p className="text-muted-foreground text-sm">Redirecionando para o login...</p>
+            <p className="text-muted-foreground text-sm">
+              {goesToPortal ? 'Redirecionando para o Portal do Fotógrafo...' : 'Redirecionando para o login...'}
+            </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">

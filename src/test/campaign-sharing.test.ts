@@ -45,7 +45,7 @@ describe('campaign sharing and availability', () => {
     expect(data).toEqual({
       title: '3BUK — Corrida de Rua',
       text: campaign.description,
-      url: 'https://3buk.com/campanha/campaign-123',
+      url: 'https://3buk.com/c/campaign-123',
     });
     expect(share).toHaveBeenCalledWith(data);
   });
@@ -55,6 +55,6 @@ describe('campaign sharing and availability', () => {
     const data = getCampaignShareData(campaign, 'https://3buk.com');
 
     await expect(shareCampaign(data, { clipboard: { writeText } })).resolves.toBe('copied');
-    expect(writeText).toHaveBeenCalledWith('https://3buk.com/campanha/campaign-123');
+    expect(writeText).toHaveBeenCalledWith('https://3buk.com/c/campaign-123');
   });
 });
