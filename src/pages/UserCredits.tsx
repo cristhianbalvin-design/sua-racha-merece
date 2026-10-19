@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SHOW_FACE_SEARCH } from '@/config/features';
-import { apiGetLedger, apiGetMyCreditBalance, apiGetMyPlan, apiGetPhotoCreditCost, apiIsPremium, type LedgerRow } from '@/lib/creditsApi';
+import { apiCreatePremiumCheckout, apiGetLedger, apiGetMyCreditBalance, apiGetMyPlan, apiGetPhotoCreditCost, apiIsPremium, PREMIUM_PRICE_LABEL, type LedgerRow } from '@/lib/creditsApi';
 import { formatDelta, ledgerReasonLabel, photosEquivalent } from '@/lib/credits';
 
 const PAGE = 20;
@@ -19,6 +20,9 @@ const UserCreditsPage = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -49,7 +53,35 @@ const UserCreditsPage = () => {
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, reloadKey]);
+
+  // Retorno de Mercado Pago (?premium=success|pending|failure)
+  useEffect(() => {
+    const result = searchParams.get('premium');
+    if (!result) return;
+    if (result === 'success') toast.success('Pagamento recebido! Seu Premium é ativado em instantes.');
+    else if (result === 'pending') toast.info('Pagamento pendente. Ativaremos o Premium assim que for confirmado.');
+    else if (result === 'failure') toast.error('O pagamento não foi concluído. Tente novamente.');
+    setSearchParams({}, { replace: true });
+    if (result !== 'failure') {
+      // O webhook pode demorar alguns segundos: recarrega o plano duas vezes.
+      const t1 = setTimeout(() => setReloadKey((k) => k + 1), 4000);
+      const t2 = setTimeout(() => setReloadKey((k) => k + 1), 12000);
+      return () => { clearTimeout(t1); clearTimeout(t2); };
+    }
+  }, [searchParams, setSearchParams]);
+
+  const startPremiumCheckout = async () => {
+    if (checkingOut) return;
+    setCheckingOut(true);
+    try {
+      window.location.assign(await apiCreatePremiumCheckout());
+    } catch (err) {
+      console.error(err);
+      toast.error('Não foi possível iniciar o pagamento. Tente novamente.');
+      setCheckingOut(false);
+    }
+  };
 
   const loadMore = async () => {
     if (!user) return;
@@ -106,6 +138,14 @@ const UserCreditsPage = () => {
                 </p>
               )}
             </div>
+            <button
+              type="button"
+              onClick={startPremiumCheckout}
+              disabled={checkingOut}
+              className="shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"
+            >
+              {checkingOut ? 'Abrindo…' : premium ? `Renovar · ${PREMIUM_PRICE_LABEL}/ano` : `Ser Premium · ${PREMIUM_PRICE_LABEL}/ano`}
+            </button>
           </div>
 
           <div className="bg-card rounded-2xl card-shadow overflow-hidden">

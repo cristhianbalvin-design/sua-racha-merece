@@ -116,3 +116,16 @@ export const apiSetPhotoCreditCost = async (cost: number): Promise<void> => {
     .upsert({ key: PHOTO_CREDIT_COST_KEY, value: cost, updated_at: new Date().toISOString() }, { onConflict: 'key' });
   if (error) throw error;
 };
+
+// ----- Premium (Mercado Pago Checkout Pro) -----
+
+export const PREMIUM_PRICE_LABEL = 'R$ 50';
+
+/** Crea el checkout del Premium anual y devuelve la URL de pago de Mercado Pago. */
+export const apiCreatePremiumCheckout = async (): Promise<string> => {
+  const { data, error } = await supabase.functions.invoke('create-premium-checkout', { body: {} });
+  if (error) throw error;
+  const url = (data as { checkout_url?: unknown } | null)?.checkout_url;
+  if (typeof url !== 'string' || !url.startsWith('https://')) throw new Error('invalid_checkout_url');
+  return url;
+};
