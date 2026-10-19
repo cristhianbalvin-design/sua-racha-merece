@@ -43,6 +43,7 @@ describe('créditos', () => {
     expect(ledgerReasonLabel('admin_grant')).toBe('Crédito concedido pela equipe 3BUK');
     expect(ledgerReasonLabel('admin_adjustment')).toBe('Ajuste da equipe 3BUK');
     expect(ledgerReasonLabel('photo_download')).toBe('Download de foto');
+    expect(ledgerReasonLabel('premium_purchase')).toBe('Créditos do plano Premium');
     expect(ledgerReasonLabel('algo_novo')).toBe('Movimentação de créditos');
     expect(ledgerReasonLabel(null)).toBe('Movimentação de créditos');
   });
