@@ -21,6 +21,7 @@ const UserCreditsPage = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -89,7 +90,7 @@ const UserCreditsPage = () => {
   }, [searchParams, setSearchParams]);
 
   const startPremiumCheckout = async () => {
-    if (checkingOut) return;
+    if (checkingOut || !acceptedTerms) return;
     setCheckingOut(true);
     try {
       window.location.assign(await apiCreatePremiumCheckout());
@@ -155,11 +156,36 @@ const UserCreditsPage = () => {
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="bg-card rounded-2xl card-shadow p-5 space-y-3">
+            <div>
+              <p className="font-bold text-foreground">{premium ? 'Renovar o Premium' : 'Seja Premium'}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {PREMIUM_PRICE_LABEL} por 12 meses, pagamento único (cartão ou Pix). Inclui 100 créditos (10 fotos).
+                {premium ? ' A renovação soma 12 meses ao final do período atual.' : ''} Reembolso integral em até 7 dias.
+              </p>
+            </div>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]"
+              />
+              <span className="text-sm text-foreground">
+                Li e aceito os{' '}
+                <a href="/termos-premium" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                  Termos de Compra do Premium
+                </a>
+                .
+              </span>
+            </label>
             <button
               type="button"
               onClick={startPremiumCheckout}
-              disabled={checkingOut}
-              className="shrink-0 rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"
+              disabled={checkingOut || !acceptedTerms}
+              className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
             >
               {checkingOut ? 'Abrindo…' : premium ? `Renovar · ${PREMIUM_PRICE_LABEL}/ano` : `Ser Premium · ${PREMIUM_PRICE_LABEL}/ano`}
             </button>
