@@ -590,6 +590,10 @@ export const FaceSearchSection = () => {
         isForDownload={isDownloadIntent}
         onSuccess={() => {
           if (campaignPhoto && isDownloadIntent) {
+            // Acabou de participar: registra a descarga na biblioteca (sem bloquear o download).
+            void supabase
+              .rpc('check_and_register_download', { p_event_photo_id: campaignPhoto.id })
+              .then(({ error }) => { if (error) console.error('register download:', error); });
             executeDownload(campaignPhoto.id, campaignPhoto.imageUrl);
           }
         }}

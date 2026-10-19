@@ -41,6 +41,7 @@ import AdminPhotographers from "./pages/admin/AdminPhotographers";
 import AdminPhotoModeration from "./pages/admin/AdminPhotoModeration";
 import AdminCredits from "./pages/admin/AdminCredits";
 import UserCredits from "./pages/UserCredits";
+import UserLibrary from "./pages/UserLibrary";
 import PhotographerPortal from "./pages/photographer/PhotographerPortal";
 import PhotographerLogin from "./pages/photographer/PhotographerLogin";
 import PhotographerTerms from "./pages/photographer/PhotographerTerms";
@@ -90,6 +91,7 @@ const AnimatedRoutes = () => {
         <Route path="/perfil" element={<UserProfile />} />
         <Route path="/ganhadores" element={<Winners />} />
         {SHOW_FACE_SEARCH && <Route path="/creditos" element={<UserCredits />} />}
+        {SHOW_FACE_SEARCH && <Route path="/biblioteca" element={<UserLibrary />} />}
       </Route>
 
       {/* Portal do Fotógrafo (atrás do flag SHOW_FACE_SEARCH) */}
