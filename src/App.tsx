@@ -38,6 +38,19 @@ import AdminPopups from "./pages/admin/AdminPopups";
 import AdminTerms from "./pages/admin/AdminTerms";
 import AdminEventPhotos from "./pages/admin/AdminEventPhotos";
 import AdminPhotographers from "./pages/admin/AdminPhotographers";
+import AdminPhotoModeration from "./pages/admin/AdminPhotoModeration";
+import AdminCredits from "./pages/admin/AdminCredits";
+import UserCredits from "./pages/UserCredits";
+import UserLibrary from "./pages/UserLibrary";
+import PhotographerPortal from "./pages/photographer/PhotographerPortal";
+import PhotographerLogin from "./pages/photographer/PhotographerLogin";
+import PhotographerTerms from "./pages/photographer/PhotographerTerms";
+import PhotographerDashboard from "./pages/photographer/PhotographerDashboard";
+import PhotographerUpload from "./pages/photographer/PhotographerUpload";
+import PhotographerPhotos from "./pages/photographer/PhotographerPhotos";
+import PhotographerLayout from "./components/photographer/PhotographerLayout";
+import ProtectedPhotographerRoute from "./components/photographer/ProtectedPhotographerRoute";
+import { SHOW_FACE_SEARCH } from "./config/features";
 import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -77,7 +90,25 @@ const AnimatedRoutes = () => {
         <Route path="/notificacoes" element={<UserNotifications />} />
         <Route path="/perfil" element={<UserProfile />} />
         <Route path="/ganhadores" element={<Winners />} />
+        {SHOW_FACE_SEARCH && <Route path="/creditos" element={<UserCredits />} />}
+        {SHOW_FACE_SEARCH && <Route path="/biblioteca" element={<UserLibrary />} />}
       </Route>
+
+      {/* Portal do Fotógrafo (atrás do flag SHOW_FACE_SEARCH) */}
+      {SHOW_FACE_SEARCH && (
+        <Route path="/fotografo" element={<PhotographerPortal />}>
+          <Route path="login" element={<PhotographerLogin />} />
+          <Route
+            path="termos"
+            element={<ProtectedPhotographerRoute allowPendingTerms><PhotographerTerms /></ProtectedPhotographerRoute>}
+          />
+          <Route element={<ProtectedPhotographerRoute><PhotographerLayout /></ProtectedPhotographerRoute>}>
+            <Route index element={<PhotographerDashboard />} />
+            <Route path="enviar" element={<PhotographerUpload />} />
+            <Route path="fotos" element={<PhotographerPhotos />} />
+          </Route>
+        </Route>
+      )}
 
       {/* Admin */}
       <Route path="/admin" element={<PageTransition><AdminLogin /></PageTransition>} />
@@ -96,7 +127,9 @@ const AnimatedRoutes = () => {
         <Route path="/admin/termos" element={<AdminTerms />} />
         {/* The component internally redirects if flag is off */}
         <Route path="/admin/fotos" element={<AdminEventPhotos />} />
+        <Route path="/admin/fotos/moderacao" element={<AdminPhotoModeration />} />
         <Route path="/admin/fotografos" element={<AdminPhotographers />} />
+        <Route path="/admin/creditos" element={<AdminCredits />} />
       </Route>
 
       <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />

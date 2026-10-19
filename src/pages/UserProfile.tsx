@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetSports, apiGetRegions, apiUpdateUser, apiUploadAvatar, apiGetParticipations, apiGetAthleteNumber } from '@/lib/mockApi';
@@ -12,7 +12,8 @@ const spring = { type: 'spring' as const, duration: 0.4, bounce: 0 };
 import { SportProfileForm } from '@/components/profile/SportProfileForm';
 import { SocialLinksForm } from '@/components/profile/SocialLinksForm';
 import { UserParticipationHistory } from '@/components/profile/UserParticipationHistory';
-import { Flame, Share2, Trophy, Image as ImageIcon } from 'lucide-react';
+import { Flame, Share2, Trophy, Image as ImageIcon, Coins, Library } from 'lucide-react';
+import { SHOW_FACE_SEARCH } from '@/config/features';
 
 type ProfileTab = 'esportivo' | 'sociais' | 'historico' | 'galeria';
 
@@ -276,6 +277,31 @@ const UserProfile = () => {
           </div>
         </motion.button>
       </div>
+
+      {SHOW_FACE_SEARCH && (
+        <div className="mb-6 space-y-3">
+          <Link
+            to="/creditos"
+            className="flex items-center justify-between bg-card rounded-2xl p-4 card-shadow transition-all hover:ring-2 hover:ring-primary/40"
+          >
+            <span className="flex items-center gap-2 text-xs text-foreground text-ui font-bold">
+              <Coins size={16} className="text-primary" />
+              MEUS CRÉDITOS
+            </span>
+            <span className="text-[10px] text-primary font-bold">Ver saldo e histórico →</span>
+          </Link>
+          <Link
+            to="/biblioteca"
+            className="flex items-center justify-between bg-card rounded-2xl p-4 card-shadow transition-all hover:ring-2 hover:ring-primary/40"
+          >
+            <span className="flex items-center gap-2 text-xs text-foreground text-ui font-bold">
+              <Library size={16} className="text-primary" />
+              MINHA BIBLIOTECA
+            </span>
+            <span className="text-[10px] text-primary font-bold">Ver fotos baixadas →</span>
+          </Link>
+        </div>
+      )}
 
       {/* ── Navigation Tabs ── */}
       <div className="flex gap-2 p-1.5 bg-muted/60 rounded-2xl mb-6 overflow-x-auto no-scrollbar">

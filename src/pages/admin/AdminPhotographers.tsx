@@ -1,10 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Plus, Trash2, Edit, X, Eye, EyeOff } from 'lucide-react';
+import { Camera, Plus, Trash2, Edit, X, Eye, EyeOff, Send, Loader2 } from 'lucide-react';
 import { apiGetPhotographers, apiAddPhotographer, apiUpdatePhotographer, apiDeletePhotographer, apiUploadPhotographerPhoto, Photographer } from '@/lib/mockApi';
 import { SHOW_FACE_SEARCH } from '@/config/features';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { apiInvitePhotographer } from '@/lib/photographerApi';
+import { isValidEmail } from '@/lib/photographerInvite';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+/** O select('*') também traz auth_user_id (conta de acesso ao portal). */
+type PhotographerRow = Photographer & { auth_user_id?: string | null };
 
 const spring = { type: "spring" as const, duration: 0.4, bounce: 0 };
 
@@ -27,6 +33,12 @@ const AdminPhotographers = () => {
   const [photoPreview, setPhotoPreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
+
+  // Convite para o Portal do Fotógrafo
+  const [inviteTarget, setInviteTarget] = useState<PhotographerRow | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteError, setInviteError] = useState('');
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     if (SHOW_FACE_SEARCH) fetchPhotographers();
@@ -123,6 +135,37 @@ const AdminPhotographers = () => {
     }
   };
 
+  const openInvite = (p: PhotographerRow) => {
+    setInviteTarget(p);
+    setInviteEmail(p.email || '');
+    setInviteError('');
+  };
+
+  const handleInviteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteTarget || inviting) return;
+    const email = inviteEmail.trim();
+    if (!isValidEmail(email)) {
+      setInviteError('Informe um e-mail válido.');
+      return;
+    }
+    setInviting(true);
+    setInviteError('');
+    const sameAsSaved = (inviteTarget.email || '').trim().toLowerCase() === email.toLowerCase();
+    const result = await apiInvitePhotographer(inviteTarget.id, sameAsSaved ? undefined : email);
+    setInviting(false);
+    if (result.ok === false) {
+      setInviteError(result.message);
+      if (result.kind === 'already_has_account') fetchPhotographers();
+      return;
+    }
+    if (result.emailSent) toast.success(`Convite enviado para ${email}.`);
+    else toast.warning(`Acesso criado, mas o e-mail não foi enviado.${result.warning ? ` ${result.warning}` : ''}`);
+    if (result.warning && result.emailSent) toast.info(result.warning);
+    setInviteTarget(null);
+    fetchPhotographers();
+  };
+
   const handleToggleHidden = async (p: Photographer) => {
     try {
       const updated = await apiUpdatePhotographer(p.id, { is_hidden: !p.is_hidden });
@@ -189,12 +232,29 @@ const AdminPhotographers = () => {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-foreground font-bold">{p.name}</td>
+                    <td className="px-4 py-3 text-foreground font-bold">
+                      {p.name}
+                      {(p as PhotographerRow).auth_user_id && (
+                        <span className="ml-2 align-middle text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                          Com acesso
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{p.email || '—'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.phone || '—'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(p.created_at)}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
+                        {!(p as PhotographerRow).auth_user_id && (
+                          <button
+                            onClick={() => openInvite(p as PhotographerRow)}
+                            title="Convidar para o Portal do Fotógrafo"
+                            className="px-2 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-md transition-colors flex items-center gap-1"
+                          >
+                            <Send size={14} />
+                            Convidar
+                          </button>
+                        )}
                         <button
                           onClick={() => handleToggleHidden(p)}
                           title={p.is_hidden ? "Mostrar fotógrafo" : "Ocultar fotógrafo"}
@@ -225,6 +285,48 @@ const AdminPhotographers = () => {
           </table>
         </div>
       </div>
+
+      {/* Convite para o portal */}
+      <Dialog open={!!inviteTarget} onOpenChange={(open) => { if (!open && !inviting) setInviteTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Convidar {inviteTarget?.name}</DialogTitle>
+            <DialogDescription>
+              O fotógrafo recebe um e-mail para definir a senha e acessar o Portal do Fotógrafo.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleInviteSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="invite-email" className="text-ui text-xs text-muted-foreground block mb-2">
+                E-MAIL {inviteTarget?.email ? '' : '(OBRIGATÓRIO — ESTE FOTÓGRAFO NÃO TEM E-MAIL)'}
+              </label>
+              <input
+                id="invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="w-full bg-input text-foreground rounded-lg px-4 py-3 input-shadow focus:ring-2 focus:ring-ring outline-none transition-all"
+                placeholder="fotografo@exemplo.com"
+                disabled={inviting}
+                autoFocus
+              />
+              {inviteTarget?.email && inviteEmail.trim().toLowerCase() !== inviteTarget.email.trim().toLowerCase() && (
+                <p className="text-xs text-muted-foreground mt-1">O convite será enviado para este novo e-mail.</p>
+              )}
+            </div>
+            {inviteError && <p className="text-destructive text-sm" role="alert">{inviteError}</p>}
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setInviteTarget(null)} disabled={inviting} className="flex-1 bg-muted text-foreground text-ui text-xs py-3 rounded-xl">
+                CANCELAR
+              </button>
+              <button type="submit" disabled={inviting || !inviteEmail.trim()} className="flex-1 bg-primary text-primary-foreground text-ui text-xs py-3 rounded-xl btn-shadow disabled:opacity-60 flex items-center justify-center gap-2">
+                {inviting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                ENVIAR CONVITE
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Create / Edit Modal */}
       <AnimatePresence>

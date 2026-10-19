@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { SHOW_FACE_SEARCH } from '@/config/features';
 import { Navigate } from 'react-router-dom';
 import { apiGetRegionsWithId, apiGetSportsWithId, apiGetUniqueCities, apiGetPhotographers, Photographer } from '@/lib/mockApi';
+import AdminPhotoTabs from '@/components/admin/AdminPhotoTabs';
 
 
 interface UploadJob {
@@ -151,6 +152,8 @@ const AdminEventPhotos = () => {
           <p className="text-muted-foreground">Upload de fotos em lote para reconhecimento facial.</p>
         </div>
       </div>
+
+      <AdminPhotoTabs />
 
       <div className="bg-card border border-border rounded-lg shadow-sm p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
