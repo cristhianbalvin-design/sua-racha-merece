@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SHOW_FACE_SEARCH } from '@/config/features';
-import { apiCreatePremiumCheckout, apiGetLedger, apiGetMyCreditBalance, apiGetMyPlan, apiGetPhotoCreditCost, apiIsPremium, PREMIUM_PRICE_LABEL, type LedgerRow } from '@/lib/creditsApi';
+import { apiCreatePremiumCheckout, apiSyncPremiumPayments, apiGetLedger, apiGetMyCreditBalance, apiGetMyPlan, apiGetPhotoCreditCost, apiIsPremium, PREMIUM_PRICE_LABEL, type LedgerRow } from '@/lib/creditsApi';
 import { formatDelta, ledgerReasonLabel, photosEquivalent } from '@/lib/credits';
 
 const PAGE = 20;
@@ -55,6 +55,19 @@ const UserCreditsPage = () => {
     };
   }, [user, reloadKey]);
 
+  // Respaldo del webhook: si hay un pago Premium pendiente, se verifica al abrir la página.
+  useEffect(() => {
+    if (!user) return;
+    apiSyncPremiumPayments()
+      .then((r) => {
+        if (r.applied) {
+          toast.success('Premium ativado! Seus créditos já estão disponíveis.');
+          setReloadKey((k) => k + 1);
+        }
+      })
+      .catch(() => {});
+  }, [user]);
+
   // Retorno de Mercado Pago (?premium=success|pending|failure)
   useEffect(() => {
     const result = searchParams.get('premium');
@@ -65,8 +78,12 @@ const UserCreditsPage = () => {
     setSearchParams({}, { replace: true });
     if (result !== 'failure') {
       // O webhook pode demorar alguns segundos: recarrega o plano duas vezes.
-      const t1 = setTimeout(() => setReloadKey((k) => k + 1), 4000);
-      const t2 = setTimeout(() => setReloadKey((k) => k + 1), 12000);
+      const recheck = () =>
+        apiSyncPremiumPayments()
+          .catch(() => ({ applied: false }))
+          .then(() => setReloadKey((k) => k + 1));
+      const t1 = setTimeout(recheck, 3000);
+      const t2 = setTimeout(recheck, 10000);
       return () => { clearTimeout(t1); clearTimeout(t2); };
     }
   }, [searchParams, setSearchParams]);

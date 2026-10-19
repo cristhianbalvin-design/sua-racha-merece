@@ -129,3 +129,10 @@ export const apiCreatePremiumCheckout = async (): Promise<string> => {
   if (typeof url !== 'string' || !url.startsWith('https://')) throw new Error('invalid_checkout_url');
   return url;
 };
+
+/** Respaldo del webhook: verifica con Mercado Pago los pagos Premium pendientes del usuario. */
+export const apiSyncPremiumPayments = async (): Promise<{ applied: boolean }> => {
+  const { data, error } = await supabase.functions.invoke('sync-premium-payment', { body: {} });
+  if (error) throw error;
+  return { applied: (data as { applied?: unknown } | null)?.applied === true };
+};

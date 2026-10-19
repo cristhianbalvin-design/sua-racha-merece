@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const invoke = vi.fn();
 vi.mock('@/lib/supabase', () => ({ supabase: { functions: { invoke: (...args: unknown[]) => invoke(...args) } } }));
 
-import { apiCreatePremiumCheckout } from '@/lib/creditsApi';
+import { apiCreatePremiumCheckout, apiSyncPremiumPayments } from '@/lib/creditsApi';
 
 describe('apiCreatePremiumCheckout', () => {
   beforeEach(() => invoke.mockReset());
@@ -25,5 +25,23 @@ describe('apiCreatePremiumCheckout', () => {
     await expect(apiCreatePremiumCheckout()).rejects.toThrow('invalid_checkout_url');
     invoke.mockResolvedValue({ data: {}, error: null });
     await expect(apiCreatePremiumCheckout()).rejects.toThrow('invalid_checkout_url');
+  });
+});
+
+describe('apiSyncPremiumPayments', () => {
+  beforeEach(() => invoke.mockReset());
+
+  it('indica si se aplicó un pago', async () => {
+    invoke.mockResolvedValue({ data: { checked: 1, applied: true }, error: null });
+    expect(await apiSyncPremiumPayments()).toEqual({ applied: true });
+    expect(invoke).toHaveBeenCalledWith('sync-premium-payment', { body: {} });
+    invoke.mockResolvedValue({ data: { checked: 0, applied: false }, error: null });
+    expect(await apiSyncPremiumPayments()).toEqual({ applied: false });
+  });
+
+  it('propaga el error de la función', async () => {
+    const err = new Error('boom');
+    invoke.mockResolvedValue({ data: null, error: err });
+    await expect(apiSyncPremiumPayments()).rejects.toBe(err);
   });
 });
