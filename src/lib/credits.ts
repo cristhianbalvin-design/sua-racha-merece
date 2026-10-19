@@ -10,6 +10,8 @@ export const ledgerReasonLabel = (reason: string | null | undefined): string => 
     case 'photo_download':
     case 'download':
       return 'Download de foto';
+    case 'premium_refund':
+      return 'Estorno do plano Premium';
     case 'premium_purchase':
       return 'Créditos do plano Premium';
     case 'purchase':

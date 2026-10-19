@@ -14,5 +14,5 @@ Despliegue:
 Webhook en el panel de Mercado Pago (evento "Pagos"):
     https://ljizlialjsonmmvppoqh.supabase.co/functions/v1/mercadopago-webhook
 
-Reglas: renovar suma 12 meses desde el vencimiento; reembolsos/contracargos se registran pero no
-quitan el Premium solos. El Premium incluye 100 créditos por pago (SQL 13, app_settings.premium_credits_grant).
+Reglas: renovar suma 12 meses desde el vencimiento; un reembolso/contracargo total cancela ese año de Premium
+y retira los créditos no usados (SQL 14, revoke_premium_payment; los créditos ya gastados no se recuperan). El Premium incluye 100 créditos por pago (SQL 13, app_settings.premium_credits_grant).

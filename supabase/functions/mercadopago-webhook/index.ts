@@ -9,7 +9,7 @@
 //   4. Actualiza el estado y, si está aprobado, llama a apply_premium_payment (idempotente:
 //      Mercado Pago puede avisar varias veces y el Premium solo se suma una vez).
 // Un pago aprobado nunca retrocede a pending/rejected/cancelled. Reembolsos y contracargos
-// se registran pero NO quitan el Premium automáticamente (decisión manual del admin).
+// cancelan el Premium y retiran los créditos no usados (revoke_premium_payment, idempotente).
 //
 // Secrets: MP_ACCESS_TOKEN, MP_WEBHOOK_SECRET (clave secreta del webhook en el panel de MP).
 // ============================================================
@@ -105,9 +105,12 @@ serve(async (req) => {
     }
 
     const newStatus = STATUS_MAP[String(mp.status)] ?? "pending";
-    const wasApproved = ["approved", "refunded", "charged_back"].includes(payment.status);
-    // Un pago aprobado solo puede pasar a refunded/charged_back
-    const finalStatus = wasApproved && !["refunded", "charged_back", "approved"].includes(newStatus) ? payment.status : newStatus;
+    // Estados que no retroceden: un pago aprobado solo puede pasar a refunded/charged_back,
+    // y uno reembolsado/contracargado no vuelve a aprobado aunque llegue un aviso viejo.
+    const isReverted = ["refunded", "charged_back"].includes(payment.status);
+    let finalStatus = newStatus;
+    if (isReverted) finalStatus = ["refunded", "charged_back"].includes(newStatus) ? newStatus : payment.status;
+    else if (payment.status === "approved" && !["approved", "refunded", "charged_back"].includes(newStatus)) finalStatus = payment.status;
 
     const update: Record<string, unknown> = { status: finalStatus, provider_payment_id: String(mp.id) };
     if (finalStatus === "approved") update.approved_at = mp.date_approved ?? new Date().toISOString();
@@ -124,6 +127,15 @@ serve(async (req) => {
         return ok({ error: "Apply failed" }, 500); // MP reintenta
       }
       return ok({ ok: true, applied });
+    }
+
+    if (finalStatus === "refunded" || finalStatus === "charged_back") {
+      const { data: revoked, error: revokeError } = await admin.rpc("revoke_premium_payment", { p_payment_id: payment.id });
+      if (revokeError) {
+        console.error("revoke_premium_payment failed:", revokeError);
+        return ok({ error: "Revoke failed" }, 500); // MP reintenta
+      }
+      return ok({ ok: true, status: finalStatus, revoked });
     }
 
     return ok({ ok: true, status: finalStatus });

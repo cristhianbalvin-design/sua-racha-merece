@@ -3,6 +3,8 @@
 | Paso | Archivo | Qué hace |
 |------|---------|----------|
 | 12 | `12_descarga_cupo_y_creditos.sql` | Cupo gratis Freemium (3 fotos / 3 meses) y cobro de créditos Premium (10 por foto) en `check_and_register_download`; nueva `get_my_download_status()`. |
+| 13 | `13_premium_incluye_100_creditos.sql` | El Premium anual acredita 100 créditos por pago. |
+| 14 | `14_premium_reembolso_automatico.sql` | Reembolso/contracargo: cancela el año de Premium y retira los créditos no usados. |
 
 **Orden de despliegue:** primero el front (PR), después correr el paso 12 en el SQL Editor. El front ya entiende los motivos
 `free_quota_exhausted` e `insufficient_credits`; con el SQL anterior simplemente no aparecen.

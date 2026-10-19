@@ -41,6 +41,7 @@ import AdminPhotographers from "./pages/admin/AdminPhotographers";
 import AdminPhotoModeration from "./pages/admin/AdminPhotoModeration";
 import AdminCredits from "./pages/admin/AdminCredits";
 import UserCredits from "./pages/UserCredits";
+import PremiumTerms from "./pages/PremiumTerms";
 import UserLibrary from "./pages/UserLibrary";
 import PhotographerPortal from "./pages/photographer/PhotographerPortal";
 import PhotographerLogin from "./pages/photographer/PhotographerLogin";
@@ -74,6 +75,7 @@ const AnimatedRoutes = () => {
       <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
       <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
       <Route path="/registro" element={<PageTransition><Register /></PageTransition>} />
+      <Route path="/termos-premium" element={<PageTransition><PremiumTerms /></PageTransition>} />
       <Route path="/c/:id" element={<PageTransition><PublicCampaignPreview /></PageTransition>} />
       {/* Plans are kept in code but hidden from the current onboarding flow. */}
       <Route path="/plano" element={<Navigate to="/completar-perfil" replace />} />
