@@ -9,7 +9,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // En CI el número de versión crece con cada compilación, así el APK nuevo se
         // instala encima del anterior sin borrar los datos de las pruebas.
-        versionCode (System.getenv("BUILD_NUMBER") ?: "1").toInteger()
+        versionCode Integer.parseInt(System.getenv("BUILD_NUMBER") ?: "1")
         versionName "0.1-gps-spike"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
