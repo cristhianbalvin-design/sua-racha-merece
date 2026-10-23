@@ -341,7 +341,7 @@ export default function SpikeApp() {
 
   const last = readings.length ? readings[readings.length - 1] : null;
   const live = useMemo(
-    () => (active ? computeCoverage(readings, active.startedAt, now) : null),
+    () => (active && readings.length ? computeCoverage(readings, active.startedAt, now) : null),
     [active, readings, now],
   );
 
