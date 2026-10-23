@@ -1,0 +1,61 @@
+name: Android · prueba GPS Buky
+
+# Compila el APK de depuración de la prueba de GPS en segundo plano.
+# Solo corre en la rama de la prueba (o a mano); no toca producción.
+on:
+  push:
+    branches: [spike/buky-gps-android]
+  workflow_dispatch:
+
+concurrency:
+  group: android-gps-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Pruebas del motor de Buky
+        run: npx vitest run src/test/buky
+
+      - name: Compilar la web
+        run: npm run build
+
+      - name: Copiar la web y los plugins al proyecto Android
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar APK
+        working-directory: android
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Renombrar APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/3buk-gps-spike-${{ github.run_number }}.apk"
+          sha256sum out/*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 3buk-gps-spike-${{ github.run_number }}
+          path: out/*.apk
+          retention-days: 30
