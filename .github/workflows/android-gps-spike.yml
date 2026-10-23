@@ -11,6 +11,9 @@ concurrency:
   group: android-gps-spike-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -66,6 +69,31 @@ jobs:
           mkdir -p out
           cp android/app/build/outputs/apk/debug/app-debug.apk "out/3buk-gps-spike-${{ github.run_number }}.apk"
           sha256sum out/*.apk
+
+      - name: Revisar el APK
+        run: |
+          set -e
+          APK=$(ls out/*.apk)
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          "$AAPT" dump badging "$APK" | grep -E "^package:|sdkVersion|targetSdkVersion" | while IFS= read -r l; do echo "::notice title=APK::$l"; done
+          "$AAPT" dump permissions "$APK" | grep -i "permission" | while IFS= read -r l; do echo "::notice title=Permiso::$l"; done
+          unzip -l "$APK" | grep -E "assets/public/index.html|assets/capacitor.plugins.json" | while IFS= read -r l; do echo "::notice title=Contenido::$l"; done
+          unzip -p "$APK" assets/capacitor.plugins.json | tr -d '\n' | sed 's/^/::notice title=Plugins::/'
+          echo
+          "$AAPT" dump xmltree "$APK" --file AndroidManifest.xml | grep -B1 -A4 "BackgroundGeolocationService" | tr -s ' ' | tr '\n' ' ' | sed 's/^/::notice title=Servicio GPS::/'
+          echo
+          grep -l "BackgroundGeolocation" <(unzip -p "$APK" 'classes*.dex' | strings) >/dev/null && echo "::notice title=Clases::BackgroundGeolocationService incluido en el dex" || echo "::warning title=Clases::No se encontró BackgroundGeolocation en el dex"
+          echo "::notice title=SHA-256::$(sha256sum "$APK" | cut -d' ' -f1)"
+
+      - name: Publicar APK como pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=gps-spike-${{ github.run_number }}
+          gh release create "$TAG" out/*.apk --prerelease --target "${{ github.sha }}" \
+            --title "Prueba GPS Buky · compilación ${{ github.run_number }}" \
+            --notes "APK de depuración para probar el GPS en segundo plano en Android. Rama spike/buky-gps-android. No es producción."
+          echo "::notice title=Descarga::https://github.com/${{ github.repository }}/releases/tag/$TAG"
 
       - uses: actions/upload-artifact@v4
         with:
