@@ -17,13 +17,19 @@ import { toGpx } from "../gps/exportFormats";
 import type { BukyPoint, GpsReading } from "../gps/types";
 import { CollectionEngine, replayPasses, type PassEvent } from "../engine/collectionEngine";
 import { computeCoverage, type CoverageReport } from "../engine/coverage";
+import { distanceToPoint, formatDistance, MAX_POINT_DISTANCE_M, parsePointLines } from "../engine/pointValidation";
 
 /**
  * Pantalla de PRUEBA del GPS en segundo plano (Android). Es desechable: lo que se
  * reutiliza está en ../gps y ../engine. Solo se carga dentro de la app nativa.
  */
 
-const SPIKE_VERSION = "0.1";
+const SPIKE_VERSION = "0.2";
+const INTERVAL_KEY = "buky-spike-interval";
+const INTERVALS = [
+  { ms: 1000, label: "1 s (más preciso)" },
+  { ms: 4000, label: "4 s (como Buky nativo, menos batería)" },
+];
 const POINTS_KEY = "buky-spike-points";
 const ACTIVE_KEY = "buky-spike-active-session";
 
@@ -134,6 +140,9 @@ export default function SpikeApp() {
   const [scenario, setScenario] = useState("A");
   const [note, setNote] = useState("");
   const [radius, setRadius] = useState(50);
+  const [intervalMs, setIntervalMs] = useState<number>(() => Number(safeGet(INTERVAL_KEY)) || 1000);
+  const [here, setHere] = useState<GpsReading | null>(null);
+  const [locating, setLocating] = useState(false);
   const [manualPoints, setManualPoints] = useState("");
 
   const [active, setActive] = useState<SessionMeta | null>(null);
@@ -234,6 +243,7 @@ export default function SpikeApp() {
         batteryStart: await batteryLevel(),
         batteryEnd: null,
         points,
+        intervalMs,
         device,
         appVersion: SPIKE_VERSION,
       };
@@ -269,6 +279,7 @@ export default function SpikeApp() {
             setMessage("Falta el permiso de ubicación. Ábrelo en Ajustes y elige \"Permitir siempre\" o \"Mientras se usa\".");
           }
         },
+        { intervalMs },
       );
     } catch (err) {
       setLastError(err instanceof Error ? err.message : String(err));
@@ -340,6 +351,44 @@ export default function SpikeApp() {
   };
 
   const last = readings.length ? readings[readings.length - 1] : null;
+  // Posición de referencia para validar puntos y mostrar distancias.
+  const position = last ?? here;
+  const positionFresh = position != null && now - position.fixTime < 120_000;
+  const nextPointNumber = () =>
+    points.reduce((max, p) => Math.max(max, Number(p.id.replace(/\D/g, "")) || 0), 0) + 1;
+
+  const locateMe = async () => {
+    setLocating(true);
+    setMessage("Buscando tu posición… sal a un lugar abierto.");
+    let handle: TrackerHandle | null = null;
+    const timeout = setTimeout(() => {
+      void handle?.stop();
+      setLocating(false);
+      setMessage("No se obtuvo una posición precisa en 60 s. Intenta en un lugar abierto.");
+    }, 60_000);
+    try {
+      handle = await startBackgroundTracking(
+        (fix) => {
+          if (fix.accuracy > 25) return;
+          clearTimeout(timeout);
+          setHere({ id: "here", sessionId: "", seq: 0, ...fix });
+          setMessage(`Posición obtenida (precisión ${fix.accuracy.toFixed(0)} m).`);
+          setLocating(false);
+          void handle?.stop();
+        },
+        (error) => {
+          clearTimeout(timeout);
+          setLocating(false);
+          setMessage(`No se pudo obtener la posición: ${error.message}`);
+        },
+        { intervalMs: 1000, background: false },
+      );
+    } catch (err) {
+      clearTimeout(timeout);
+      setLocating(false);
+      setMessage(err instanceof Error ? err.message : String(err));
+    }
+  };
   const live = useMemo(
     () => (active && readings.length ? computeCoverage(readings, active.startedAt, now) : null),
     [active, readings, now],
@@ -354,25 +403,36 @@ export default function SpikeApp() {
       setMessage(`La última lectura no es fiable (precisión ${last.accuracy.toFixed(0)} m). Espera una mejor señal.`);
       return;
     }
-    const n = points.length + 1;
+    const n = nextPointNumber();
     setPoints((ps) => [...ps, { id: `P${n}`, label: `Punto ${n}`, lat: last.lat, lon: last.lon, radiusM: radius }]);
     setMessage(`Punto ${n} marcado (precisión ${last.accuracy.toFixed(0)} m).`);
   };
 
   const addManual = () => {
-    const parsed: BukyPoint[] = [];
-    for (const line of manualPoints.split("\n")) {
-      const m = line.match(/(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)/);
-      if (!m) continue;
-      const n = points.length + parsed.length + 1;
-      parsed.push({ id: `P${n}`, label: `Punto ${n}`, lat: Number(m[1]), lon: Number(m[2]), radiusM: radius });
-    }
-    if (!parsed.length) {
-      setMessage("Escribe un punto por línea con el formato: latitud, longitud");
+    if (!positionFresh) {
+      setMessage("Primero toca \"Ubicarme\" (o inicia el registro) para comprobar que los puntos estén cerca de ti.");
       return;
     }
-    setPoints((ps) => [...ps, ...parsed]);
-    setManualPoints("");
+    const { points: parsed, errors } = parsePointLines(manualPoints, position);
+    if (!parsed.length && !errors.length) {
+      setMessage("Escribe un punto por línea con el formato: -11.98256, -76.79613");
+      return;
+    }
+    const start = nextPointNumber();
+    const added: BukyPoint[] = parsed.map((p, k) => ({
+      id: `P${start + k}`,
+      label: `Punto ${start + k}`,
+      lat: p.lat,
+      lon: p.lon,
+      radiusM: radius,
+    }));
+    if (added.length) setPoints((ps) => [...ps, ...added]);
+    setManualPoints(errors.length ? manualPoints : "");
+    setMessage(
+      [added.length ? `${added.length} punto(s) añadido(s).` : null, ...errors.map((e) => `No se añadió ${e}`)]
+        .filter(Boolean)
+        .join("\n"),
+    );
   };
 
   const passesByPoint = (ps: PassEvent[]) =>
@@ -388,7 +448,7 @@ export default function SpikeApp() {
       </header>
 
       {message && (
-        <div className="rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm" onClick={() => setMessage(null)}>
+        <div className="whitespace-pre-line rounded-lg border border-accent/40 bg-accent/10 p-3 text-sm" onClick={() => setMessage(null)}>
           {message}
         </div>
       )}
@@ -410,6 +470,26 @@ export default function SpikeApp() {
                 ))}
               </select>
             </label>
+            <div className="text-sm">
+              Intervalo del GPS
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                {INTERVALS.map((opt) => (
+                  <button
+                    key={opt.ms}
+                    type="button"
+                    onClick={() => {
+                      setIntervalMs(opt.ms);
+                      safeSet(INTERVAL_KEY, String(opt.ms));
+                    }}
+                    className={`rounded-lg border p-2 text-left text-xs ${
+                      intervalMs === opt.ms ? "border-primary bg-primary/15 text-primary" : "border-border bg-muted"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <label className="block text-sm">
               Nota (opcional)
               <input
@@ -431,7 +511,8 @@ export default function SpikeApp() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-2 font-semibold text-primary">
-                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-primary" /> REGISTRANDO · {active.scenario}
+                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-primary" /> REGISTRANDO · {active.scenario} ·{" "}
+                {(active.intervalMs ?? 1000) / 1000} s
               </span>
               <span className="tabular-nums">{fmtDuration(now - active.startedAt)}</span>
             </div>
@@ -486,6 +567,25 @@ export default function SpikeApp() {
             Marcar punto aquí
           </button>
         </div>
+        <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+          {position ? (
+            <span>
+              Tu posición: {position.lat.toFixed(5)}, {position.lon.toFixed(5)} (±{position.accuracy.toFixed(0)} m, hace{" "}
+              {fmtDuration(now - position.fixTime)})
+            </span>
+          ) : (
+            <span>Sin posición todavía.</span>
+          )}
+          {!active && (
+            <button
+              disabled={locating}
+              onClick={() => void locateMe()}
+              className="ml-auto shrink-0 rounded-lg border border-border px-3 py-1.5 text-foreground disabled:opacity-50"
+            >
+              {locating ? "Buscando…" : "Ubicarme"}
+            </button>
+          )}
+        </div>
         <textarea
           value={manualPoints}
           onChange={(e) => setManualPoints(e.target.value)}
@@ -501,11 +601,22 @@ export default function SpikeApp() {
             {points.map((p) => {
               const st = engineRef.current?.stateOf(p.id);
               return (
-                <li key={p.id} className="flex items-center gap-2 py-2">
+                <li key={p.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2">
                   <span className="font-semibold">{p.label}</span>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {p.lat.toFixed(5)}, {p.lon.toFixed(5)} · {p.radiusM} m
                   </span>
+                  {(() => {
+                    const d = distanceToPoint(p, position);
+                    if (d == null) return null;
+                    const far = d > MAX_POINT_DISTANCE_M;
+                    return (
+                      <span className={`text-xs ${far ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
+                        · a {formatDistance(d)}
+                        {far && " (revisar)"}
+                      </span>
+                    );
+                  })()}
                   {active && (
                     <span className="ml-auto text-xs">
                       {st?.state === "VISITED" ? "Dentro ✓" : st?.state === "CONFIRMING" ? "Entrando…" : "Fuera"}
@@ -556,7 +667,8 @@ export default function SpikeApp() {
                         {s.interrupted && <span className="ml-2 text-xs text-accent">interrumpida</span>}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {fmtDate(s.startedAt)} · {fmtDuration((s.stoppedAt ?? s.startedAt) - s.startedAt)}
+                        {fmtDate(s.startedAt)} · {fmtDuration((s.stoppedAt ?? s.startedAt) - s.startedAt)} · GPS cada{" "}
+                        {(s.intervalMs ?? 1000) / 1000} s
                         {s.batteryStart != null && s.batteryEnd != null && ` · batería ${s.batteryStart}% → ${s.batteryEnd}%`}
                       </div>
                       {s.note && <div className="text-xs">{s.note}</div>}

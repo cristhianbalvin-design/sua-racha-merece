@@ -25,6 +25,8 @@ export interface SessionMeta {
   batteryStart: number | null;
   batteryEnd: number | null;
   points: BukyPoint[];
+  /** Intervalo pedido al GPS (ms). Ausente en sesiones de la versión 0.1 (= 1000). */
+  intervalMs?: number;
   device: Record<string, unknown>;
   appVersion: string;
 }

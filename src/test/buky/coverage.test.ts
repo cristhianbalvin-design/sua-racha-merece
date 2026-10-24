@@ -40,8 +40,8 @@ describe("computeCoverage", () => {
     expect(rep.gaps[0].durationMs).toBe(60_000);
     expect(rep.maxGapMs).toBe(60_000);
     expect(rep.passesCriteria).toBe(false);
-    // 55 s sin cubrir (60 - 5 tolerados) sobre 659 s
-    expect(rep.coveragePct).toBeCloseTo(100 * (1 - 55_000 / 659_000), 1);
+    // 50 s sin cubrir (60 - 10 tolerados) sobre 659 s
+    expect(rep.coveragePct).toBeCloseTo(100 * (1 - 50_000 / 659_000), 1);
   });
 
   it("si la app deja de recibir lecturas antes de detener, cuenta como hueco final", () => {
@@ -62,6 +62,13 @@ describe("computeCoverage", () => {
     expect(rep.deliveryDelayMs.median).toBe(100);
     expect(rep.accurateReadingsPct).toBeCloseTo(66.67, 1);
     expect(rep.medianAccuracyM).toBe(10);
+  });
+
+  it("teléfono quieto con lecturas cada ~7 s cuenta como cubierto", () => {
+    const readings = Array.from({ length: 40 }, (_, i) => r(i, i * 7_300));
+    const rep = computeCoverage(readings, 0, 39 * 7_300 + 1_000);
+    expect(rep.coveragePct).toBeCloseTo(100, 0);
+    expect(rep.passesCriteria).toBe(true);
   });
 
   it("sin lecturas no pasa", () => {

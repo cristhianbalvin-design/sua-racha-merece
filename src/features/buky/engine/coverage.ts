@@ -6,14 +6,17 @@ import type { GpsReading } from "../gps/types";
  */
 
 export interface CoverageOptions {
-  /** Intervalo tolerado entre lecturas antes de contar tiempo "sin cubrir". */
+  /**
+   * Intervalo tolerado entre lecturas antes de contar tiempo "sin cubrir".
+   * 10 s: con el teléfono quieto Android espacia las lecturas (~7 s) sin que sea un corte.
+   */
   toleratedIntervalMs: number;
   /** Un hueco mayor a esto se reporta como hueco grave. */
   gapThresholdMs: number;
 }
 
 export const DEFAULT_COVERAGE_OPTIONS: CoverageOptions = {
-  toleratedIntervalMs: 5_000,
+  toleratedIntervalMs: 10_000,
   gapThresholdMs: 20_000,
 };
 
