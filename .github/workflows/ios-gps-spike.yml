@@ -1,0 +1,124 @@
+name: iOS · prueba GPS Buky
+
+# Compila la prueba de GPS para iPhone en un Mac de GitHub.
+# - Siempre: compilación sin firmar (verifica que el proyecto compila).
+# - Con los secretos de Apple configurados: firma y sube a TestFlight.
+# Solo corre en la rama de la prueba (o a mano); no toca producción.
+on:
+  push:
+    branches: [spike/buky-gps-android]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-gps-spike-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+      MARKETING_VERSION: "0.3"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Pruebas del motor de Buky
+        run: npx vitest run src/test/buky
+
+      - name: Compilar la web
+        run: npm run build
+
+      - name: Copiar la web y los plugins al proyecto iOS
+        run: npx cap sync ios
+
+      - name: Versión de Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          xcodebuild -version | while IFS= read -r l; do echo "::notice title=Xcode::$l"; done
+
+      - name: Compilar sin firmar (simulador)
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee xcode-sim.log | grep -E "error:|warning: .*BackgroundGeolocation|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" xcode-sim.log
+          echo "::notice title=iOS::Compilación sin firmar correcta"
+
+      - name: ¿Hay secretos de Apple?
+        id: secrets
+        run: |
+          if [ -n "$APPLE_TEAM_ID" ] && [ -n "$ASC_KEY_ID" ] && [ -n "$ASC_ISSUER_ID" ] && [ -n "$ASC_API_KEY_P8" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=TestFlight::Faltan secretos de Apple; se omite la firma y la subida."
+          fi
+
+      - name: Firmar y archivar
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_API_KEY_P8" > "$KEY_PATH"
+          echo "KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" archive \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" MARKETING_VERSION="$MARKETING_VERSION" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee xcode-archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          grep -q "ARCHIVE SUCCEEDED" xcode-archive.log
+
+      - name: Subir a TestFlight
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee xcode-export.log | grep -E "error:|EXPORT (SUCCEEDED|FAILED)|Upload succeeded|Uploaded" || true
+          grep -qE "EXPORT SUCCEEDED|Upload succeeded" xcode-export.log
+          echo "::notice title=TestFlight::Compilación ${{ github.run_number }} (versión $MARKETING_VERSION) subida. Apple la procesa en unos minutos."
+
+      - name: Publicar errores de Xcode
+        if: failure()
+        run: |
+          for f in xcode-sim.log xcode-archive.log xcode-export.log; do
+            [ -f "$f" ] || continue
+            grep -E "error:|error -|Error Domain|No profiles|requires a provisioning profile|No signing certificate" "$f" | sort -u | head -15 | while IFS= read -r l; do
+              echo "::error title=$f::$l"
+            done
+          done
+
+      - name: Borrar la clave del runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8

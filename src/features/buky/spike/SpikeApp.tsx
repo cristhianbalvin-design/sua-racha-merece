@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { Device } from "@capacitor/device";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Share } from "@capacitor/share";
@@ -24,7 +25,8 @@ import { distanceToPoint, formatDistance, MAX_POINT_DISTANCE_M, parsePointLines 
  * reutiliza está en ../gps y ../engine. Solo se carga dentro de la app nativa.
  */
 
-const SPIKE_VERSION = "0.2";
+const SPIKE_VERSION = "0.3";
+const IS_IOS = Capacitor.getPlatform() === "ios";
 const INTERVAL_KEY = "buky-spike-interval";
 const INTERVALS = [
   { ms: 1000, label: "1 s (más preciso)" },
@@ -470,6 +472,7 @@ export default function SpikeApp() {
                 ))}
               </select>
             </label>
+            {!IS_IOS && (
             <div className="text-sm">
               Intervalo del GPS
               <div className="mt-1 grid grid-cols-2 gap-2">
@@ -490,6 +493,7 @@ export default function SpikeApp() {
                 ))}
               </div>
             </div>
+            )}
             <label className="block text-sm">
               Nota (opcional)
               <input
@@ -639,12 +643,21 @@ export default function SpikeApp() {
       </Card>
 
       <Card title="Preparar el teléfono">
-        <ol className="list-decimal space-y-1 pl-5 text-sm">
-          <li>Permiso de ubicación: elige “Mientras se usa la app” (o “Permitir siempre”) y ubicación precisa.</li>
-          <li>Permite las notificaciones: la notificación fija es la que mantiene vivo el GPS.</li>
-          <li>Ajustes › Aplicaciones › 3BUK › Batería › “Sin restricciones”.</li>
-          <li>Desactiva el ahorro de energía (salvo en el escenario C).</li>
-        </ol>
+        {IS_IOS ? (
+          <ol className="list-decimal space-y-1 pl-5 text-sm">
+            <li>Permiso de ubicación: elige “Permitir al usar la app” y deja activada la “Ubicación exacta”.</li>
+            <li>Si más tarde iOS pregunta por “Permitir siempre”, acéptalo y anótalo en la nota de la sesión.</li>
+            <li>Mientras registra con la pantalla bloqueada, arriba aparece un indicador azul: es normal.</li>
+            <li>Desactiva el “Modo de bajo consumo” (salvo en el escenario C).</li>
+          </ol>
+        ) : (
+          <ol className="list-decimal space-y-1 pl-5 text-sm">
+            <li>Permiso de ubicación: elige “Mientras se usa la app” (o “Permitir siempre”) y ubicación precisa.</li>
+            <li>Permite las notificaciones: la notificación fija es la que mantiene vivo el GPS.</li>
+            <li>Ajustes › Aplicaciones › 3BUK › Batería › “Sin restricciones”.</li>
+            <li>Desactiva el ahorro de energía (salvo en el escenario C).</li>
+          </ol>
+        )}
         <button onClick={() => void openAppSettings()} className="mt-3 rounded-lg border border-border px-3 py-2 text-sm">
           Abrir ajustes de la app
         </button>
