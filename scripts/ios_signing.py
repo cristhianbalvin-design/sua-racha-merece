@@ -249,12 +249,32 @@ def cleanup(workdir):
     for f in ("cert.p12",):
         (pathlib.Path(workdir) / f).unlink(missing_ok=True)
 
+def builds():
+    apps = call("GET", "/apps", params={"filter[bundleId]": BUNDLE_ID, "limit": 1})
+    if not apps.ok or not apps.json().get("data"):
+        explain(apps, "Builds")
+        return
+    app_id = apps.json()["data"][0]["id"]
+    res = call("GET", "/builds", params={"filter[app]": app_id, "sort": "-uploadedDate", "limit": 5})
+    if not res.ok:
+        explain(res, "Builds")
+        return
+    data = res.json().get("data", [])
+    if not data:
+        notice("Builds en Apple", "Todavía no hay compilaciones en App Store Connect.")
+    for b in data:
+        a = b["attributes"]
+        notice("Builds en Apple", f"build {a.get('version')} · {a.get('processingState')} · subida {a.get('uploadedDate')}")
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
     if cmd == "check":
         check()
     elif cmd == "setup":
         setup(sys.argv[2])
+    elif cmd == "builds":
+        builds()
     elif cmd == "cleanup":
         cleanup(sys.argv[2])
     else:

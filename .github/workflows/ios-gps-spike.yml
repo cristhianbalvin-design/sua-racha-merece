@@ -144,14 +144,21 @@ jobs:
           grep -qiE "No errors uploading|UPLOAD SUCCEEDED|successfully uploaded" xcode-upload.log
           echo "::notice title=TestFlight::Compilación ${{ github.run_number }} (versión $MARKETING_VERSION) subida. Apple la procesa en unos minutos."
 
-      - name: Publicar errores de Xcode
+      - name: Compilaciones registradas en Apple
+        if: always() && steps.secrets.outputs.ready == 'true'
+        run: '[ -x "$RUNNER_TEMP/venv/bin/python" ] && "$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py builds || true'
+
+      - name: Publicar errores
         if: failure()
         run: |
-          for f in xcode-sim.log xcode-archive.log xcode-export.log xcode-upload.log; do
+          # Primero la subida (lo más reciente), luego el resto; solo líneas con error real.
+          for f in xcode-upload.log xcode-export.log xcode-archive.log xcode-sim.log; do
             [ -f "$f" ] || continue
-            grep -iE "error|ITMS|Validation failed|No profiles" "$f" | sort -u | head -15 | while IFS= read -r l; do
-              echo "::error title=$f::$l"
-            done
+            if [ "$f" = xcode-upload.log ]; then
+              tail -25 "$f" | grep -vE "^\s*$" | head -8 | while IFS= read -r l; do echo "::error title=$f::$l"; done
+            else
+              grep -E "(^|: )error:|ERROR ITMS|\*\* (ARCHIVE|EXPORT|BUILD) FAILED" "$f" | sort -u | head -5 | while IFS= read -r l; do echo "::error title=$f::$l"; done
+            fi
           done
 
       - name: Borrar la clave y el llavero del runner
