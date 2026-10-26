@@ -60,11 +60,11 @@ def private_key_pem():
             f"última línea {'OK' if lines and 'END PRIVATE KEY' in lines[-1] else 'sin END PRIVATE KEY'}.",
         )
         sys.exit(1)
-    # Si se pegó todo en una sola línea, se reconstruye el PEM.
-    if len(lines) == 1:
-        body = lines[0].replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "").strip()
-        lines = ["-----BEGIN PRIVATE KEY-----", *[body[i : i + 64] for i in range(0, len(body), 64)], "-----END PRIVATE KEY-----"]
-    pem = "\n".join(lines) + "\n"
+    # Se reconstruye siempre un PEM canónico: el secreto puede venir en una sola
+    # línea, con espacios o con saltos de línea de Windows.
+    body = "".join(lines).replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "")
+    body = "".join(body.split())
+    pem = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(body[i : i + 64] for i in range(0, len(body), 64)) + "\n-----END PRIVATE KEY-----\n"
     try:
         serialization.load_pem_private_key(pem.encode(), password=None)
     except Exception as exc:  # noqa: BLE001
@@ -273,6 +273,10 @@ if __name__ == "__main__":
         check()
     elif cmd == "setup":
         setup(sys.argv[2])
+    elif cmd == "write-key":
+        # Escribe el .p8 ya normalizado (el secreto puede venir sin saltos de línea).
+        pathlib.Path(sys.argv[2]).write_text(private_key_pem())
+        os.chmod(sys.argv[2], 0o600)
     elif cmd == "builds":
         builds()
     elif cmd == "cleanup":

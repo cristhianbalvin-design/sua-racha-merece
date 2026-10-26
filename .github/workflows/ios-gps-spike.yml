@@ -74,7 +74,7 @@ jobs:
           "$RUNNER_TEMP/venv/bin/pip" install -q pyjwt cryptography requests
           "$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py setup "$RUNNER_TEMP/signing"
           KEY_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
-          printf '%s\n' "$ASC_API_KEY_P8" | tr -d '\r' > "$KEY_PATH"
+          "$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py write-key "$KEY_PATH"
           echo "KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
       - name: Configurar firma manual en el target App
