@@ -67,19 +67,45 @@ jobs:
             echo "::notice title=TestFlight::Faltan secretos de Apple; se omite la firma y la subida."
           fi
 
-      - name: Firmar y archivar
+      - name: Preparar firma (certificado y perfil temporales vía API de Apple)
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -q pyjwt cryptography requests
+          "$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py setup "$RUNNER_TEMP/signing"
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_API_KEY_P8" | tr -d '\r' > "$KEY_PATH"
+          echo "KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Configurar firma manual en el target App
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          python3 - <<'PY'
+          import os, re
+          p = "ios/App/App.xcodeproj/project.pbxproj"
+          s = open(p).read()
+          team = os.environ["APPLE_TEAM_ID"].strip()
+          profile = os.environ["IOS_PROFILE_NAME"]
+          def patch(block):
+              if "PRODUCT_BUNDLE_IDENTIFIER = com.tresbuk.app;" not in block:
+                  return block
+              block = block.replace("CODE_SIGN_STYLE = Automatic;",
+                  f'CODE_SIGN_STYLE = Manual;\n\t\t\t\tCODE_SIGN_IDENTITY = "Apple Distribution";'
+                  f'\n\t\t\t\tDEVELOPMENT_TEAM = {team};\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "{profile}";')
+              return block
+          s2 = re.sub(r"buildSettings = \{.*?\n\t\t\t\};", lambda m: patch(m.group(0)), s, flags=re.S)
+          assert s2 != s, "no se encontró el target App"
+          open(p, "w").write(s2)
+          print("firma manual configurada")
+          PY
+
+      - name: Archivar
         if: steps.secrets.outputs.ready == 'true'
         run: |
           set -o pipefail
-          KEY_PATH="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
-          printf '%s\n' "$ASC_API_KEY_P8" > "$KEY_PATH"
-          echo "KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" archive \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" MARKETING_VERSION="$MARKETING_VERSION" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee xcode-archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
           grep -q "ARCHIVE SUCCEEDED" xcode-archive.log
 
@@ -95,7 +121,10 @@ jobs:
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>upload</string>
             <key>teamID</key><string>${APPLE_TEAM_ID}</string>
-            <key>signingStyle</key><string>automatic</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict><key>com.tresbuk.app</key><string>${IOS_PROFILE_NAME}</string></dict>
             <key>uploadSymbols</key><true/>
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict>
@@ -103,7 +132,6 @@ jobs:
           PLIST
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
-            -allowProvisioningUpdates \
             -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             2>&1 | tee xcode-export.log | grep -E "error:|EXPORT (SUCCEEDED|FAILED)|Upload succeeded|Uploaded" || true
           grep -qE "EXPORT SUCCEEDED|Upload succeeded" xcode-export.log
@@ -114,11 +142,13 @@ jobs:
         run: |
           for f in xcode-sim.log xcode-archive.log xcode-export.log; do
             [ -f "$f" ] || continue
-            grep -E "error:|error -|Error Domain|No profiles|requires a provisioning profile|No signing certificate" "$f" | sort -u | head -15 | while IFS= read -r l; do
+            grep -E "error:|error -|Error Domain|No profiles|requires a provisioning profile|No signing certificate|ERROR ITMS|Validation failed" "$f" | sort -u | head -15 | while IFS= read -r l; do
               echo "::error title=$f::$l"
             done
           done
 
-      - name: Borrar la clave del runner
+      - name: Borrar la clave y el llavero del runner
         if: always()
-        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8
+        run: |
+          rm -f "$RUNNER_TEMP"/AuthKey_*.p8
+          [ -x "$RUNNER_TEMP/venv/bin/python" ] && "$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py cleanup "$RUNNER_TEMP/signing" || true
