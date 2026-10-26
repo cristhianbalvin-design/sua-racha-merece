@@ -43,3 +43,4 @@ supabase/.temp/
 test_insert.js
 dev-dist/
 .vercel
+__pycache__/
