@@ -119,7 +119,7 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
+            <key>destination</key><string>export</string>
             <key>teamID</key><string>${APPLE_TEAM_ID}</string>
             <key>signingStyle</key><string>manual</string>
             <key>signingCertificate</key><string>Apple Distribution</string>
@@ -132,17 +132,24 @@ jobs:
           PLIST
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
-            -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            2>&1 | tee xcode-export.log | grep -E "error:|EXPORT (SUCCEEDED|FAILED)|Upload succeeded|Uploaded" || true
-          grep -qE "EXPORT SUCCEEDED|Upload succeeded" xcode-export.log
+            2>&1 | tee xcode-export.log | grep -E "error:|EXPORT (SUCCEEDED|FAILED)" || true
+          grep -q "EXPORT SUCCEEDED" xcode-export.log
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa)
+          echo "::notice title=IPA::$(basename "$IPA") ($(du -h "$IPA" | cut -f1))"
+          # altool busca la clave en ~/.appstoreconnect/private_keys/AuthKey_<ID>.p8
+          mkdir -p ~/.appstoreconnect/private_keys
+          cp "$KEY_PATH" ~/.appstoreconnect/private_keys/
+          xcrun altool --upload-app -f "$IPA" -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" --output-format normal \
+            2>&1 | tee xcode-upload.log | grep -vE "^\s*$" | tail -20 || true
+          grep -qiE "No errors uploading|UPLOAD SUCCEEDED|successfully uploaded" xcode-upload.log
           echo "::notice title=TestFlight::Compilación ${{ github.run_number }} (versión $MARKETING_VERSION) subida. Apple la procesa en unos minutos."
 
       - name: Publicar errores de Xcode
         if: failure()
         run: |
-          for f in xcode-sim.log xcode-archive.log xcode-export.log; do
+          for f in xcode-sim.log xcode-archive.log xcode-export.log xcode-upload.log; do
             [ -f "$f" ] || continue
-            grep -E "error:|error -|Error Domain|No profiles|requires a provisioning profile|No signing certificate|ERROR ITMS|Validation failed" "$f" | sort -u | head -15 | while IFS= read -r l; do
+            grep -iE "error|ITMS|Validation failed|No profiles" "$f" | sort -u | head -15 | while IFS= read -r l; do
               echo "::error title=$f::$l"
             done
           done
@@ -150,5 +157,5 @@ jobs:
       - name: Borrar la clave y el llavero del runner
         if: always()
         run: |
-          rm -f "$RUNNER_TEMP"/AuthKey_*.p8
+          rm -f "$RUNNER_TEMP"/AuthKey_*.p8 ~/.appstoreconnect/private_keys/AuthKey_*.p8
           [ -x "$RUNNER_TEMP/venv/bin/python" ] && "$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py cleanup "$RUNNER_TEMP/signing" || true
