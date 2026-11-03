@@ -8,6 +8,7 @@ import CouponList from "../components/CouponList";
 import { isToday, Sheet, Spinner } from "../components/ui";
 import { useBukyProfile, useMySessions, useZoneCoupons } from "../lib/hooks";
 import { training, useTraining } from "../training/useTraining";
+import { getGpsSource } from "../training/gpsSource";
 
 /** Entrenamiento en curso (mockup "Entrenamiento en curso"). */
 export default function Treino() {
@@ -112,6 +113,16 @@ export default function Treino() {
           {[pt.treino.coletados(live), pt.treino.perto(remaining), profile?.neighborhood].filter(Boolean).join(" · ")}
         </p>
         <p className="mt-1 text-xs text-[var(--buky-faint)]">{t.routeName}</p>
+        {t.error === "permission_denied" && (
+          <div className="mt-4 rounded-2xl border border-[#ffb020]/40 p-4 text-sm text-[#ffd27a]" role="alert">
+            {pt.treino.semPermissao}
+            {getGpsSource().openSettings && (
+              <button type="button" onClick={() => void getGpsSource().openSettings?.()} className="mt-2 block font-semibold text-[var(--buky-neon)]">
+                {pt.treino.abrirAjustes}
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="mt-8">
           <CouponList coupons={coupons} />

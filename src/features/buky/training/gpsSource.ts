@@ -21,6 +21,8 @@ export interface GpsSource {
   /** true si sigue registrando con la pantalla apagada. */
   background: boolean;
   start(onFix: (fix: RawFix) => void, onError: (message: string) => void): Promise<() => Promise<void>>;
+  /** Abre los ajustes del sistema para dar permiso de ubicación (solo nativo). */
+  openSettings?: () => Promise<void>;
 }
 
 let nativeSource: GpsSource | null = null;

@@ -1,0 +1,109 @@
+name: Android · app 3BUK
+
+# Compila el APK de prueba de la app 3BUK (Buky en /app, GPS en segundo plano).
+# Firma de depuración: es para probar en teléfonos, no para la Play Store.
+on:
+  push:
+    branches: [feat/buky-fase3-nativo]
+  workflow_dispatch:
+
+concurrency:
+  group: app-android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Pruebas de Buky
+        run: npx vitest run src/test/buky
+
+      - name: Compilar la web
+        env:
+          # Proyecto Supabase de producción de 3BUK. La clave anónima es pública por diseño
+          # (va dentro de la web de www.3buk.com); si se define el secreto, tiene prioridad.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://ljizlialjsonmmvppoqh.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqaXpsaWFsanNvbm1tdnBwb3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzODI1OTcsImV4cCI6MjA4OTk1ODU5N30.1WAPo_YSHlseQj5j7z6GkyyQ0-oeTeSZIf6sR9Ox1iw' }}
+          VITE_SHOW_FACE_SEARCH: ${{ vars.VITE_SHOW_FACE_SEARCH || 'true' }}
+        run: npm run build
+
+      - name: Copiar la web y los plugins al proyecto Android
+        run: npx cap sync android
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Compilar APK
+        working-directory: android
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          VERSION_NAME: "0.4.${{ github.run_number }}"
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --no-daemon 2>&1 | tee ../gradle.log
+
+      - name: Publicar el error de Gradle
+        if: failure()
+        run: |
+          # Cada línea relevante se publica como anotación para poder leerla por la API.
+          grep -A 25 "What went wrong" gradle.log | head -40 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+          grep -E "^e: |error:|ERROR:" gradle.log | head -20 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+
+      - name: Renombrar APK
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/3buk-app-${{ github.run_number }}.apk"
+          sha256sum out/*.apk
+
+      - name: Revisar el APK
+        run: |
+          set -e
+          APK=$(ls out/*.apk)
+          AAPT=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)
+          "$AAPT" dump badging "$APK" | grep -E "^package:|sdkVersion|targetSdkVersion" | while IFS= read -r l; do echo "::notice title=APK::$l"; done
+          "$AAPT" dump permissions "$APK" | grep -i "permission" | while IFS= read -r l; do echo "::notice title=Permiso::$l"; done
+          unzip -l "$APK" | grep -E "assets/public/index.html|assets/capacitor.plugins.json" | while IFS= read -r l; do echo "::notice title=Contenido::$l"; done
+          unzip -p "$APK" assets/capacitor.plugins.json | tr -d '\n' | sed 's/^/::notice title=Plugins::/'
+          echo
+          "$AAPT" dump xmltree "$APK" --file AndroidManifest.xml | grep -B1 -A4 "BackgroundGeolocationService" | tr -s ' ' | tr '\n' ' ' | sed 's/^/::notice title=Servicio GPS::/'
+          echo
+          grep -l "BackgroundGeolocation" <(unzip -p "$APK" 'classes*.dex' | strings) >/dev/null && echo "::notice title=Clases::BackgroundGeolocationService incluido en el dex" || echo "::warning title=Clases::No se encontró BackgroundGeolocation en el dex"
+          echo "::notice title=SHA-256::$(sha256sum "$APK" | cut -d' ' -f1)"
+
+      - name: Publicar APK como pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=app-android-${{ github.run_number }}
+          gh release create "$TAG" out/*.apk --prerelease --target "${{ github.sha }}" \
+            --title "App 3BUK (Android) · compilación ${{ github.run_number }}" \
+            --notes "APK de prueba de la app 3BUK con Buky (rama ${{ github.ref_name }}). Firma de depuración: se instala encima de la prueba de GPS. No es la versión de la tienda."
+          echo "::notice title=Descarga::https://github.com/${{ github.repository }}/releases/tag/$TAG"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 3buk-app-${{ github.run_number }}
+          path: out/*.apk
+          retention-days: 30
