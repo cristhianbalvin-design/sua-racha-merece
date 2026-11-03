@@ -26,6 +26,7 @@ INSERT INTO public.app_settings (key, value, description) VALUES
   ('buky_vehicle_window_s', '60', 'Segundos seguidos por encima de la máxima que anulan el entrenamiento (vehículo)'),
   ('buky_speed_window_s', '30', 'Ventana (s) para medir la velocidad del atleta al llegar a un punto'),
   ('buky_max_accuracy_m', '25', 'Precisión GPS máxima para usar una lectura (m)'),
+  ('buky_mock_max_ratio', '0.05', 'Proporción de lecturas con ubicación falsa que anula el entrenamiento'),
   ('buky_athlete_route_min_point_gap_m', '200', 'Rutas del atleta: distancia mínima entre puntos (m)'),
   ('buky_athlete_route_min_length_m', '1000', 'Rutas del atleta: largo mínimo de la ruta (m)'),
   ('buky_athlete_route_min_points', '3', 'Rutas del atleta: cantidad mínima de puntos'),
