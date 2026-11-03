@@ -87,6 +87,7 @@ const AdminLayout = () => {
     { to: '/admin/dashboard', label: 'Dashboard' },
     { to: '/admin/usuarios', label: 'Usuários' },
     { to: '/admin/campanhas', label: 'Campanhas' },
+    { to: '/admin/buky', label: 'Buky' },
     ...(SHOW_FACE_SEARCH ? [{ to: '/admin/fotos', label: 'Fotos Eventos' }] : []),
     ...(SHOW_FACE_SEARCH ? [{ to: '/admin/fotos/moderacao', label: 'Moderação' }] : []),
     ...(SHOW_FACE_SEARCH ? [{ to: '/admin/fotografos', label: 'Fotógrafos' }] : []),
@@ -155,7 +156,7 @@ const AdminLayout = () => {
           <nav className="flex items-center px-2 md:px-6 overflow-x-auto hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
             {links.map(({ to, label }) => {
-              const active = location.pathname === to;
+              const active = location.pathname === to || (to === '/admin/buky' && location.pathname.startsWith('/admin/buky/'));
               return (
                 <Link
                   key={to}

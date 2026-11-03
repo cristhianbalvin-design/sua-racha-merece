@@ -1,0 +1,537 @@
+/**
+ * Datos del panel de administración de Buky. Escribe directo en las tablas de configuración
+ * (RLS: solo admin) y usa las funciones admin_buky_* para lo que mueve Bukys o sortea.
+ */
+import { supabase } from "@/lib/supabase";
+import { haversineMeters } from "@/features/buky/engine";
+import { BukyApiError } from "../lib/api";
+
+function fail(error: { message?: string } | null): never {
+  const msg = error?.message ?? "unknown_error";
+  throw new BukyApiError(msg.split(":")[0].trim(), msg);
+}
+
+type One<T> = T | T[] | null;
+const one = <T,>(v: One<T>): T | null => (Array.isArray(v) ? v[0] ?? null : v);
+
+// ------------------------------------------------------------------ rutas
+
+export interface AdminPoint {
+  id?: string;
+  seq: number;
+  label: string;
+  lat: number;
+  lon: number;
+  radius_m: number;
+}
+
+export interface AdminRoute {
+  id: string;
+  name: string;
+  city_code: number;
+  city_name: string;
+  uf: string;
+  kind: "official" | "athlete";
+  owner_name: string | null;
+  active: boolean;
+  length_m: number | null;
+  points: AdminPoint[];
+  created_at: string;
+}
+
+interface RouteRow {
+  id: string;
+  name: string;
+  city_code: number;
+  kind: "official" | "athlete";
+  active: boolean;
+  length_m: number | null;
+  created_at: string;
+  br_cities: One<{ name: string; br_states: One<{ uf: string }> }>;
+  users: One<{ name: string | null; email: string | null }>;
+  buky_points: AdminPoint[] | null;
+}
+
+export async function listRoutes(filter: { cityCode?: number | null; kind?: "official" | "athlete" | "all" }): Promise<AdminRoute[]> {
+  let q = supabase
+    .from("buky_routes")
+    .select("id, name, city_code, kind, active, length_m, created_at, br_cities(name, br_states(uf)), users:owner_id(name, email), buky_points(id, seq, label, lat, lon, radius_m)")
+    .order("created_at", { ascending: false })
+    .limit(300);
+  if (filter.cityCode) q = q.eq("city_code", filter.cityCode);
+  if (filter.kind && filter.kind !== "all") q = q.eq("kind", filter.kind);
+  const { data, error } = await q;
+  if (error) fail(error);
+  return ((data ?? []) as unknown as RouteRow[]).map((r) => {
+    const city = one(r.br_cities);
+    const owner = one(r.users);
+    return {
+      id: r.id,
+      name: r.name,
+      city_code: r.city_code,
+      city_name: city?.name ?? "",
+      uf: one(city?.br_states ?? null)?.uf ?? "",
+      kind: r.kind,
+      owner_name: owner ? owner.name || owner.email : null,
+      active: r.active,
+      length_m: r.length_m,
+      created_at: r.created_at,
+      points: [...(r.buky_points ?? [])].sort((a, b) => a.seq - b.seq).map((p) => ({ ...p, label: p.label ?? "" })),
+    };
+  });
+}
+
+export function routeLength(points: { lat: number; lon: number }[]): number {
+  let m = 0;
+  for (let i = 1; i < points.length; i++) m += haversineMeters(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon);
+  return Math.round(m);
+}
+
+/**
+ * Guarda una ruta oficial con sus puntos. Los puntos existentes se actualizan, los nuevos se
+ * crean y los quitados se borran (si un punto ya tiene pasadas registradas, no se puede borrar:
+ * la base lo impide para no perder el historial; en ese caso conviene desactivar la ruta).
+ */
+export async function saveOfficialRoute(input: {
+  id?: string;
+  name: string;
+  city_code: number;
+  active: boolean;
+  points: AdminPoint[];
+}): Promise<string> {
+  const length_m = routeLength(input.points);
+  let routeId = input.id;
+  if (routeId) {
+    const { error } = await supabase
+      .from("buky_routes")
+      .update({ name: input.name, city_code: input.city_code, active: input.active, length_m, updated_at: new Date().toISOString() })
+      .eq("id", routeId);
+    if (error) fail(error);
+  } else {
+    const { data, error } = await supabase
+      .from("buky_routes")
+      .insert({ name: input.name, city_code: input.city_code, kind: "official", active: input.active, length_m })
+      .select("id")
+      .single();
+    if (error) fail(error);
+    routeId = (data as { id: string }).id;
+  }
+
+  const { data: current, error: cErr } = await supabase.from("buky_points").select("id").eq("route_id", routeId);
+  if (cErr) fail(cErr);
+  const keep = new Set(input.points.filter((p) => p.id).map((p) => p.id));
+  const remove = (current ?? []).map((p: { id: string }) => p.id).filter((id) => !keep.has(id));
+  if (remove.length) {
+    const { error } = await supabase.from("buky_points").delete().in("id", remove);
+    if (error) fail(error);
+  }
+  // seq es único por ruta: primero se mueven los existentes a valores temporales
+  const existing = input.points.filter((p) => p.id);
+  for (const p of existing) {
+    const { error } = await supabase.from("buky_points").update({ seq: 1000 + p.seq }).eq("id", p.id!);
+    if (error) fail(error);
+  }
+  for (const [i, p] of input.points.entries()) {
+    const row = { route_id: routeId, seq: i, label: p.label || `BUKY_${String(i + 1).padStart(2, "0")}`, lat: p.lat, lon: p.lon, radius_m: p.radius_m };
+    const { error } = p.id
+      ? await supabase.from("buky_points").update(row).eq("id", p.id)
+      : await supabase.from("buky_points").insert(row);
+    if (error) fail(error);
+  }
+  return routeId!;
+}
+
+export async function setRouteActive(id: string, active: boolean): Promise<void> {
+  const { error } = await supabase.from("buky_routes").update({ active, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) fail(error);
+}
+
+// ------------------------------------------------------------------ patrocinadores
+
+export interface Sponsor {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  instagram: string | null;
+  website: string | null;
+  city_code: number | null;
+  active: boolean;
+}
+
+export async function listSponsors(): Promise<Sponsor[]> {
+  const { data, error } = await supabase.from("buky_sponsors").select("id, name, logo_url, instagram, website, city_code, active").order("name");
+  if (error) fail(error);
+  return (data ?? []) as Sponsor[];
+}
+
+export async function saveSponsor(s: Partial<Sponsor> & { name: string }): Promise<void> {
+  const row = { name: s.name, logo_url: s.logo_url || null, instagram: s.instagram || null, website: s.website || null, city_code: s.city_code ?? null, active: s.active ?? true };
+  const { error } = s.id ? await supabase.from("buky_sponsors").update(row).eq("id", s.id) : await supabase.from("buky_sponsors").insert(row);
+  if (error) fail(error);
+}
+
+// ------------------------------------------------------------------ sorteos
+
+export interface Period {
+  id: string;
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  draw_at: string;
+  cadence: "weekly" | "monthly" | "none";
+  status: "scheduled" | "open" | "closed" | "drawn" | "cancelled";
+  drawn_at: string | null;
+  entries: number;
+  bukys: number;
+  athletes: number;
+}
+
+export async function listPeriods(): Promise<Period[]> {
+  const { data, error } = await supabase
+    .from("buky_raffle_periods")
+    .select("id, name, starts_at, ends_at, draw_at, cadence, status, drawn_at")
+    .order("starts_at", { ascending: false })
+    .limit(60);
+  if (error) fail(error);
+  const periods = (data ?? []) as Omit<Period, "entries" | "bukys" | "athletes">[];
+  const ids = periods.map((p) => p.id);
+  const stats = new Map<string, { entries: number; bukys: number; athletes: Set<string> }>();
+  if (ids.length) {
+    const { data: e, error: eErr } = await supabase.from("buky_entries").select("period_id, user_id, amount").in("period_id", ids);
+    if (eErr) fail(eErr);
+    for (const row of (e ?? []) as { period_id: string; user_id: string; amount: number }[]) {
+      const s = stats.get(row.period_id) ?? { entries: 0, bukys: 0, athletes: new Set<string>() };
+      s.entries++;
+      s.bukys += row.amount;
+      s.athletes.add(row.user_id);
+      stats.set(row.period_id, s);
+    }
+  }
+  return periods.map((p) => {
+    const s = stats.get(p.id);
+    return { ...p, entries: s?.entries ?? 0, bukys: s?.bukys ?? 0, athletes: s?.athletes.size ?? 0 };
+  });
+}
+
+export async function createPeriod(p: { name: string; starts_at: string; ends_at: string; draw_at: string; cadence: Period["cadence"] }): Promise<string> {
+  const { data, error } = await supabase.from("buky_raffle_periods").insert(p).select("id").single();
+  if (error) fail(error);
+  return (data as { id: string }).id;
+}
+
+export async function updatePeriod(id: string, p: Partial<Pick<Period, "name" | "starts_at" | "ends_at" | "draw_at" | "cadence">>): Promise<void> {
+  const { error } = await supabase.from("buky_raffle_periods").update(p).eq("id", id);
+  if (error) fail(error);
+}
+
+export interface Coupon {
+  id: string;
+  period_id: string;
+  sponsor_id: string;
+  sponsor_name?: string;
+  title: string;
+  description: string | null;
+  benefit: string | null;
+  image_url: string | null;
+  kind: "physical" | "digital";
+  scope: "city" | "state" | "national";
+  city_code: number | null;
+  city_name?: string | null;
+  state_code: number | null;
+  winners_count: number;
+  draw_order: number;
+  redeem_instructions: string | null;
+  valid_until: string | null;
+  repeat_next: boolean;
+  codes_total?: number;
+  codes_free?: number;
+}
+
+export async function listCoupons(periodId: string): Promise<Coupon[]> {
+  const { data, error } = await supabase
+    .from("buky_coupons")
+    .select("*, buky_sponsors(name), br_cities(name), buky_coupon_codes(assigned)")
+    .eq("period_id", periodId)
+    .order("draw_order")
+    .order("created_at");
+  if (error) fail(error);
+  return ((data ?? []) as unknown as (Coupon & { buky_sponsors: One<{ name: string }>; br_cities: One<{ name: string }>; buky_coupon_codes: { assigned: boolean }[] })[]).map((c) => ({
+    ...c,
+    sponsor_name: one(c.buky_sponsors)?.name,
+    city_name: one(c.br_cities)?.name ?? null,
+    codes_total: c.buky_coupon_codes?.length ?? 0,
+    codes_free: c.buky_coupon_codes?.filter((x) => !x.assigned).length ?? 0,
+  }));
+}
+
+export async function saveCoupon(c: Omit<Coupon, "id" | "sponsor_name" | "city_name" | "codes_total" | "codes_free"> & { id?: string }): Promise<string> {
+  const row = {
+    period_id: c.period_id,
+    sponsor_id: c.sponsor_id,
+    title: c.title,
+    description: c.description || null,
+    benefit: c.benefit || null,
+    image_url: c.image_url || null,
+    kind: c.kind,
+    scope: c.scope,
+    city_code: c.scope === "city" ? c.city_code : null,
+    state_code: c.scope === "state" ? c.state_code : c.scope === "city" ? c.state_code : null,
+    winners_count: c.winners_count,
+    draw_order: c.draw_order,
+    redeem_instructions: c.redeem_instructions || null,
+    valid_until: c.valid_until || null,
+    repeat_next: c.repeat_next,
+  };
+  if (c.id) {
+    const { error } = await supabase.from("buky_coupons").update(row).eq("id", c.id);
+    if (error) fail(error);
+    return c.id;
+  }
+  const { data, error } = await supabase.from("buky_coupons").insert(row).select("id").single();
+  if (error) fail(error);
+  return (data as { id: string }).id;
+}
+
+export async function deleteCoupon(id: string): Promise<void> {
+  const { error } = await supabase.from("buky_coupons").delete().eq("id", id);
+  if (error) fail(error);
+}
+
+/** Agrega códigos de canje (uno por línea); ignora repetidos. Devuelve cuántos se agregaron. */
+export async function addCodes(couponId: string, text: string): Promise<number> {
+  const codes = [...new Set(text.split(/\r?\n|,|;/).map((c) => c.trim()).filter(Boolean))];
+  if (!codes.length) return 0;
+  const { data, error } = await supabase
+    .from("buky_coupon_codes")
+    .upsert(codes.map((code) => ({ coupon_id: couponId, code })), { onConflict: "coupon_id,code", ignoreDuplicates: true })
+    .select("id");
+  if (error) fail(error);
+  return data?.length ?? 0;
+}
+
+export async function drawPeriod(id: string): Promise<{ status: string; results?: number; duplicate: boolean }> {
+  const { data, error } = await supabase.rpc("admin_buky_draw_period", { p_period_id: id });
+  if (error) fail(error);
+  return data;
+}
+
+export async function cancelPeriod(id: string, reason: string): Promise<{ changed: boolean; bukys_refunded?: number }> {
+  const { data, error } = await supabase.rpc("admin_buky_cancel_period", { p_period_id: id, p_reason: reason });
+  if (error) fail(error);
+  return data;
+}
+
+export interface RaffleResult {
+  id: string;
+  coupon_id: string;
+  coupon_title: string;
+  sponsor_name: string;
+  rank: number;
+  user_id: string | null;
+  user_name: string | null;
+  user_email: string | null;
+  user_instagram: string | null;
+  user_phone: string | null;
+  winning_ticket: string | null;
+  redeem_code: string | null;
+  total_weight: number;
+  winning_number: number | null;
+  candidates: { user_id: string; weight: number }[];
+  candidates_sha256: string;
+  drawn_at: string;
+  delivery_status: "pending" | "notified" | "delivered" | "unclaimed";
+  delivery_note: string | null;
+}
+
+export async function listResults(periodId: string): Promise<RaffleResult[]> {
+  const { data, error } = await supabase
+    .from("buky_raffle_results")
+    .select("*, buky_coupons(title, draw_order, buky_sponsors(name)), users(name, email, instagram, phone)")
+    .eq("period_id", periodId)
+    .order("drawn_at");
+  if (error) fail(error);
+  type Row = RaffleResult & {
+    buky_coupons: One<{ title: string; draw_order: number; buky_sponsors: One<{ name: string }> }>;
+    users: One<{ name: string | null; email: string | null; instagram: string | null; phone: string | null }>;
+  };
+  return ((data ?? []) as unknown as Row[]).map((r) => {
+    const c = one(r.buky_coupons);
+    const u = one(r.users);
+    return {
+      ...r,
+      coupon_title: c?.title ?? "",
+      sponsor_name: one(c?.buky_sponsors ?? null)?.name ?? "",
+      user_name: u?.name ?? null,
+      user_email: u?.email ?? null,
+      user_instagram: u?.instagram ?? null,
+      user_phone: u?.phone ?? null,
+    };
+  });
+}
+
+export async function setDelivery(id: string, status: RaffleResult["delivery_status"], note: string | null): Promise<void> {
+  const { error } = await supabase
+    .from("buky_raffle_results")
+    .update({ delivery_status: status, delivery_note: note, delivered_at: status === "delivered" ? new Date().toISOString() : null })
+    .eq("id", id);
+  if (error) fail(error);
+}
+
+// ------------------------------------------------------------------ entrenamientos y atletas
+
+export interface AdminSession {
+  id: string;
+  status: string;
+  started_at: string;
+  ended_at: string | null;
+  distance_m: number | null;
+  duration_s: number | null;
+  max_speed_kmh: number | null;
+  avg_speed_kmh: number | null;
+  passes_valid: number;
+  passes_rejected: number;
+  bukys_awarded: number;
+  invalid_reason: string | null;
+  route_name: string;
+  route_kind: string;
+  city_name: string | null;
+  user_id: string;
+  user_name: string | null;
+  user_email: string | null;
+}
+
+export async function listSessions(filter: { status?: string; since?: string }): Promise<AdminSession[]> {
+  let q = supabase
+    .from("buky_sessions")
+    .select("id, status, started_at, ended_at, distance_m, duration_s, max_speed_kmh, avg_speed_kmh, passes_valid, passes_rejected, bukys_awarded, invalid_reason, user_id, buky_routes(name, kind, br_cities(name)), users(name, email)")
+    .order("started_at", { ascending: false })
+    .limit(200);
+  if (filter.status && filter.status !== "all") q = q.eq("status", filter.status);
+  if (filter.since) q = q.gte("started_at", filter.since);
+  const { data, error } = await q;
+  if (error) fail(error);
+  type Row = Omit<AdminSession, "route_name" | "route_kind" | "city_name" | "user_name" | "user_email"> & {
+    buky_routes: One<{ name: string; kind: string; br_cities: One<{ name: string }> }>;
+    users: One<{ name: string | null; email: string | null }>;
+  };
+  return ((data ?? []) as unknown as Row[]).map((s) => {
+    const r = one(s.buky_routes);
+    const u = one(s.users);
+    return {
+      ...s,
+      route_name: r?.name ?? "",
+      route_kind: r?.kind ?? "",
+      city_name: one(r?.br_cities ?? null)?.name ?? null,
+      user_name: u?.name ?? null,
+      user_email: u?.email ?? null,
+    };
+  });
+}
+
+export async function sessionPasses(sessionId: string) {
+  const { data, error } = await supabase
+    .from("buky_passes")
+    .select("passed_at, distance_m, accuracy_m, speed_kmh, valid, awarded, reject_reason, buky_points(label, seq)")
+    .eq("session_id", sessionId)
+    .order("passed_at");
+  if (error) fail(error);
+  return (data ?? []) as unknown as {
+    passed_at: string;
+    distance_m: number | null;
+    accuracy_m: number | null;
+    speed_kmh: number | null;
+    valid: boolean;
+    awarded: boolean;
+    reject_reason: string | null;
+    buky_points: One<{ label: string | null; seq: number }>;
+  }[];
+}
+
+export async function invalidateSession(id: string, reason: string) {
+  const { data, error } = await supabase.rpc("admin_buky_invalidate_session", { p_session_id: id, p_reason: reason });
+  if (error) fail(error);
+  return data as { changed: boolean; bukys_removed?: number; bukys_not_recovered?: number };
+}
+
+export interface AthleteHit {
+  id: string;
+  name: string | null;
+  email: string | null;
+  instagram: string | null;
+  city: string | null;
+  balance: number;
+}
+
+export async function searchAthletes(q: string): Promise<AthleteHit[]> {
+  const term = q.trim().replace(/[%,()]/g, "");
+  if (term.length < 2) return [];
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, name, email, instagram, city, buky_balances(balance)")
+    .or(`name.ilike.%${term}%,email.ilike.%${term}%,instagram.ilike.%${term}%`)
+    .limit(10);
+  if (error) fail(error);
+  return ((data ?? []) as unknown as (Omit<AthleteHit, "balance"> & { buky_balances: One<{ balance: number }> })[]).map((u) => ({
+    ...u,
+    balance: one(u.buky_balances)?.balance ?? 0,
+  }));
+}
+
+export async function giftBukys(userId: string, amount: number, note: string) {
+  const { data, error } = await supabase.rpc("admin_buky_gift", { p_user_id: userId, p_amount: amount, p_note: note });
+  if (error) fail(error);
+  return data as { balance: number };
+}
+
+// ------------------------------------------------------------------ parámetros e indicadores
+
+export interface Setting {
+  key: string;
+  value: unknown;
+  description: string | null;
+}
+
+export async function listBukySettings(): Promise<Setting[]> {
+  const { data, error } = await supabase.from("app_settings").select("key, value, description").like("key", "buky_%").order("key");
+  if (error) fail(error);
+  return (data ?? []) as Setting[];
+}
+
+export async function saveSetting(key: string, value: unknown): Promise<void> {
+  const { error } = await supabase.from("app_settings").update({ value, updated_at: new Date().toISOString() }).eq("key", key);
+  if (error) fail(error);
+}
+
+export interface Kpis {
+  athletes7d: number;
+  sessions7d: number;
+  invalid7d: number;
+  bukysFound: number;
+  bukysSent: number;
+  bukysGift: number;
+  officialRoutes: number;
+  athleteRoutes: number;
+}
+
+export async function getKpis(): Promise<Kpis> {
+  const since = new Date(Date.now() - 7 * 864e5).toISOString();
+  const [s7, routes, balances] = await Promise.all([
+    supabase.from("buky_sessions").select("user_id, status").gte("started_at", since).in("status", ["valid", "invalid"]).limit(5000),
+    supabase.from("buky_routes").select("kind").eq("active", true),
+    supabase.from("buky_balances").select("found_total, sent_total, gift_total").limit(10000),
+  ]);
+  for (const r of [s7, routes, balances]) if (r.error) fail(r.error);
+  const sessions = (s7.data ?? []) as { user_id: string; status: string }[];
+  const b = (balances.data ?? []) as { found_total: number; sent_total: number; gift_total: number }[];
+  const rk = (routes.data ?? []) as { kind: string }[];
+  return {
+    athletes7d: new Set(sessions.map((x) => x.user_id)).size,
+    sessions7d: sessions.length,
+    invalid7d: sessions.filter((x) => x.status === "invalid").length,
+    bukysFound: b.reduce((a, x) => a + x.found_total, 0),
+    bukysSent: b.reduce((a, x) => a + x.sent_total, 0),
+    bukysGift: b.reduce((a, x) => a + x.gift_total, 0),
+    officialRoutes: rk.filter((x) => x.kind === "official").length,
+    athleteRoutes: rk.filter((x) => x.kind === "athlete").length,
+  };
+}

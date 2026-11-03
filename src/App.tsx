@@ -53,7 +53,7 @@ import PhotographerLayout from "./components/photographer/PhotographerLayout";
 import ProtectedPhotographerRoute from "./components/photographer/ProtectedPhotographerRoute";
 import { SHOW_BUKY_APP, SHOW_FACE_SEARCH } from "./config/features";
 import { IS_NATIVE } from "./lib/platform";
-import { bukyRoutes } from "./features/buky/routes";
+import { bukyRoutes, BukyAdminRoute } from "./features/buky/routes";
 import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -137,6 +137,7 @@ const AnimatedRoutes = () => {
         <Route path="/admin/fotos/moderacao" element={<AdminPhotoModeration />} />
         <Route path="/admin/fotografos" element={<AdminPhotographers />} />
         <Route path="/admin/creditos" element={<AdminCredits />} />
+        <Route path="/admin/buky/*" element={<BukyAdminRoute />} />
       </Route>
 
       <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
