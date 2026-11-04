@@ -1,17 +1,21 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Gift } from "lucide-react";
 import { toast } from "sonner";
 import mascote from "../assets/buky-mascote.webp";
 import { pt } from "../i18n";
 import { fmtDate, ScreenHeader, Sheet, Spinner, ErrorBox } from "../components/ui";
 import { BukyApiError } from "../lib/api";
-import { useSendToRaffle, useSummary } from "../lib/hooks";
+import { useBukyProfile, useSendToRaffle, useSummary, useZoneCoupons } from "../lib/hooks";
 
 /** Bolsa (mockup 2): saldo, enviar al sorteo, último entrenamiento, ticket y movimientos en 3 totales. */
 export default function Bolsa() {
   const { data: s, isLoading, isError, refetch } = useSummary();
   const send = useSendToRaffle();
+  const { data: profile } = useBukyProfile();
+  // Premios = cupones del sorteio abierto (o del próximo) que aplican a la ciudad del atleta
+  const { data: zone = [] } = useZoneCoupons(profile?.city_code);
+  const prizes = zone.some((c) => c.period_status === "open") ? zone.filter((c) => c.period_status === "open") : zone;
   const [confirm, setConfirm] = useState(false);
   const keyRef = useRef<string | null>(null);
 
@@ -111,6 +115,43 @@ export default function Bolsa() {
         </li>
       </ul>
 
+      <section className="mt-4 px-6" aria-label={pt.bolsa.emJogo}>
+        <h2 className="buky-label flex items-center gap-2 py-2 text-[var(--buky-neon)]">
+          <Gift size={14} /> {pt.bolsa.emJogo}
+        </h2>
+        {prizes.length === 0 ? (
+          <p className="buky-row py-4 text-sm text-[var(--buky-faint)]">{s.open_period ? pt.bolsa.semPremios : pt.bolsa.semPeriodo}</p>
+        ) : (
+          <>
+            {prizes[0].period_status === "scheduled" && (
+              <p className="pb-2 text-xs text-[var(--buky-muted)]">{pt.bolsa.proximoSorteio(fmtDate(prizes[0].ends_at, { day: "2-digit", month: "2-digit" }))}</p>
+            )}
+            <ul>
+              {prizes.map((c) => (
+                <li key={c.coupon_id} className="buky-row flex items-center gap-4 py-4">
+                  {c.image_url || c.sponsor_logo_url ? (
+                    <img src={(c.image_url || c.sponsor_logo_url)!} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
+                  ) : (
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--buky-neon-soft)] text-[var(--buky-neon)]">
+                      <Gift size={20} />
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[16px] font-semibold">{c.title}</p>
+                    <p className="truncate text-[13px] text-[var(--buky-muted)]">
+                      {c.sponsor_name} · {c.kind === "physical" ? pt.bolsa.fisicoLoja : pt.bolsa.digitalApp}
+                    </p>
+                    <p className="text-[12px] text-[var(--buky-faint)]">{pt.bolsa.ganhadores(c.winners_count)}</p>
+                  </div>
+                  {c.benefit && <span className="font-buky shrink-0 text-right text-[26px] leading-none text-[var(--buky-neon)]">{c.benefit}</span>}
+                </li>
+              ))}
+            </ul>
+            <p className="pt-2 text-xs text-[var(--buky-muted)]">{pt.bolsa.emJogoTexto}</p>
+          </>
+        )}
+      </section>
+
       <section className="mt-4 px-6">
         <h2 className="buky-label py-2 text-[var(--buky-muted)]">{pt.bolsa.movimentos}</h2>
         <ul>
@@ -152,6 +193,12 @@ export default function Bolsa() {
       <Sheet open={confirm} onClose={() => setConfirm(false)} label={pt.bolsa.enviar}>
         <h2 className="font-buky text-[36px]">{pt.bolsa.enviar}</h2>
         <p className="mt-3 text-[15px] text-[var(--buky-muted)]">{pt.bolsa.confirmar(s.balance)}</p>
+        {prizes.length > 0 && (
+          <p className="mt-2 text-[15px]">
+            {pt.bolsa.concorre(prizes.length)}{" "}
+            <span className="text-[var(--buky-muted)]">{prizes.map((c) => c.benefit || c.title).join(" · ")}</span>
+          </p>
+        )}
         <button type="button" className="buky-btn mt-6" onClick={doSend} disabled={send.isPending}>
           {send.isPending ? pt.comum.carregando : pt.comum.confirmar}
         </button>

@@ -13,6 +13,7 @@ export default function CouponList({ coupons, title = true, away = false }: { co
           <span className="text-[var(--buky-faint)]">{coupons.length}</span>
         </div>
       )}
+      {title && <p className="-mt-1 pb-3 text-xs text-[var(--buky-muted)]">{pt.treino.cuponsSub}</p>}
       <ul>
         {coupons.map((c) => (
           <li key={c.coupon_id} className="buky-row flex items-center justify-between gap-4 py-4">

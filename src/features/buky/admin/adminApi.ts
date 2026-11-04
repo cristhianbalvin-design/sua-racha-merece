@@ -578,3 +578,22 @@ export async function removeRouteTester(userId: string): Promise<void> {
   const { error } = await supabase.from("buky_route_testers").delete().eq("user_id", userId);
   if (error) fail(error);
 }
+
+/** Códigos únicos de canje, p. ej. "NIT-7K4M-Q9XA". Sin 0/O/1/I para que no se confundan al leerlos. */
+export function generateCodes(n: number, prefix: string): string[] {
+  const abc = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const out = new Set<string>();
+  const p = prefix.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) || "3BUK";
+  while (out.size < n) {
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
+    const s = Array.from(bytes, (b) => abc[b % abc.length]).join("");
+    out.add(`${p}-${s.slice(0, 4)}-${s.slice(4)}`);
+  }
+  return [...out];
+}
+
+export async function listCodes(couponId: string): Promise<{ code: string; assigned: boolean }[]> {
+  const { data, error } = await supabase.from("buky_coupon_codes").select("code, assigned").eq("coupon_id", couponId).order("created_at");
+  if (error) fail(error);
+  return (data ?? []) as { code: string; assigned: boolean }[];
+}

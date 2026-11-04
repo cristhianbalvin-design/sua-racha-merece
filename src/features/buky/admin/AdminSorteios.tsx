@@ -10,6 +10,8 @@ import {
   createPeriod,
   deleteCoupon,
   drawPeriod,
+  generateCodes,
+  listCodes,
   listCoupons,
   listPeriods,
   listResults,
@@ -493,6 +495,22 @@ function CouponForm({ periodId, initial, editable, onDone }: { periodId: string;
 function CodesButton({ coupon, onDone }: { coupon: Coupon; onDone: () => void }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
+  const [n, setN] = useState(Math.max(1, coupon.winners_count - (coupon.codes_total ?? 0)));
+  const [prefix, setPrefix] = useState((coupon.sponsor_name ?? "3BUK").slice(0, 4));
+  const { data: codes = [], refetch } = useQuery({ queryKey: ["admin-buky", "codes", coupon.id], queryFn: () => listCodes(coupon.id), enabled: open });
+
+  const save = async (value: string) => {
+    try {
+      const added = await addCodes(coupon.id, value);
+      toast.success(`${added} códigos adicionados.`);
+      setText("");
+      await refetch();
+      onDone();
+    } catch (e) {
+      toast.error(`Erro: ${(e as Error).message}`);
+    }
+  };
+
   if (!open)
     return (
       <button type="button" className={btnGhost} onClick={() => setOpen(true)} title="Códigos de resgate">
@@ -501,30 +519,56 @@ function CodesButton({ coupon, onDone }: { coupon: Coupon; onDone: () => void })
     );
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setOpen(false)}>
-      <div className={`${card} w-full max-w-md p-4`} onClick={(e) => e.stopPropagation()}>
-        <h4 className="font-bold italic">CÓDIGOS · {coupon.title}</h4>
-        <p className="mt-1 text-xs text-muted-foreground">Um por linha. Cada ganhador recebe um código livre (opcional; os repetidos são ignorados).</p>
-        <textarea className={`${inputCls} mt-3 font-mono`} rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={"NIT-0001\nNIT-0002"} />
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            className={btnPrimary}
-            onClick={async () => {
-              try {
-                const n = await addCodes(coupon.id, text);
-                toast.success(`${n} códigos adicionados.`);
-                setText("");
-                setOpen(false);
-                onDone();
-              } catch (e) {
-                toast.error(`Erro: ${(e as Error).message}`);
-              }
-            }}
-          >
+      <div className={`${card} max-h-[90vh] w-full max-w-lg overflow-auto p-4`} onClick={(e) => e.stopPropagation()}>
+        <h4 className="font-bold italic">CÓDIGOS DE RESGATE · {coupon.title}</h4>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Cada ganhador recebe um código único, que o patrocinador valida na loja ou no site. Use os códigos que o patrocinador já tem, ou gere
+          aqui e envie a lista para ele. {codes.length} cadastrados · {codes.filter((c) => !c.assigned).length} livres · {coupon.winners_count} ganhador(es).
+        </p>
+
+        <div className="mt-4 rounded-xl border border-border p-3">
+          <p className="text-xs font-bold">GERAR CÓDIGOS ÚNICOS</p>
+          <div className="mt-2 flex flex-wrap items-end gap-2">
+            <Field label="Prefixo">
+              <input className={inputCls.replace("w-full", "") + " w-28 uppercase"} value={prefix} maxLength={6} onChange={(e) => setPrefix(e.target.value)} />
+            </Field>
+            <Field label="Quantidade">
+              <input type="number" min={1} max={500} className={inputCls.replace("w-full", "") + " w-24"} value={n} onChange={(e) => setN(Math.min(500, Math.max(1, Number(e.target.value))))} />
+            </Field>
+            <button type="button" className={btnPrimary} onClick={() => void save(generateCodes(n, prefix).join("\n"))}>
+              <KeyRound size={14} /> GERAR
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <p className="text-xs font-bold">OU COLAR OS CÓDIGOS DO PATROCINADOR</p>
+          <textarea className={`${inputCls} mt-2 font-mono`} rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder={"Um por linha\nNIT-0001\nNIT-0002"} />
+          <button type="button" className={`${btnPrimary} mt-2`} disabled={!text.trim()} onClick={() => void save(text)}>
             <Save size={14} /> ADICIONAR
           </button>
-          <button type="button" className={btnGhost} onClick={() => setOpen(false)}>FECHAR</button>
         </div>
+
+        {codes.length > 0 && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold">CADASTRADOS</p>
+              <button
+                type="button"
+                className={btnGhost}
+                onClick={() => downloadCsv(`codigos-${coupon.title.replace(/\W+/g, "-")}.csv`, [["Código", "Atribuído"], ...codes.map((c) => [c.code, c.assigned ? "sim" : "não"])])}
+              >
+                <Download size={14} /> CSV
+              </button>
+            </div>
+            <ul className="mt-2 grid max-h-40 grid-cols-2 gap-1 overflow-auto font-mono text-xs">
+              {codes.map((c) => (
+                <li key={c.code} className={c.assigned ? "text-muted-foreground line-through" : ""}>{c.code}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <button type="button" className={`${btnGhost} mt-4`} onClick={() => setOpen(false)}>FECHAR</button>
       </div>
     </div>
   );
