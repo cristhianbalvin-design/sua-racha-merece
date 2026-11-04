@@ -50,6 +50,8 @@ export interface BukyRoute {
   owner_id: string | null;
   active: boolean;
   length_m: number | null;
+  /** Trazo dibujado (rutas del atleta, paso 21); null en rutas por puntos. */
+  path?: { lat: number; lon: number }[] | null;
   points: RoutePoint[];
 }
 
@@ -155,7 +157,7 @@ type One<T> = T | T[] | null;
 const one = <T,>(v: One<T>): T | null => (Array.isArray(v) ? v[0] ?? null : v);
 interface CityRow { code: number; name: string; state_code: number; lat: number; lon: number; br_states: One<{ uf: string }> }
 interface PointRow { id: string; seq: number; label: string | null; lat: number; lon: number; radius_m: number }
-interface RouteRow { id: string; name: string; city_code: number; kind: "official" | "athlete"; owner_id: string | null; active: boolean; length_m: number | null; buky_points: PointRow[] | null }
+interface RouteRow { id: string; name: string; city_code: number; kind: "official" | "athlete"; owner_id: string | null; active: boolean; length_m: number | null; path: { lat: number; lon: number }[] | null; buky_points: PointRow[] | null }
 interface SessionRow {
   id: string; status: string; started_at: string; ended_at: string | null; bukys_awarded: number; passes_valid: number;
   distance_m: number | null; invalid_reason: string | null;
@@ -246,7 +248,7 @@ export async function listStates(): Promise<BrState[]> {
 export async function listRoutes(cityCode: number): Promise<BukyRoute[]> {
   const { data, error } = await supabase
     .from("buky_routes")
-    .select("id, name, city_code, kind, owner_id, active, length_m, buky_points(id, seq, label, lat, lon, radius_m)")
+    .select("id, name, city_code, kind, owner_id, active, length_m, path, buky_points(id, seq, label, lat, lon, radius_m)")
     .eq("city_code", cityCode)
     .eq("active", true)
     .order("kind")
@@ -260,6 +262,7 @@ export async function listRoutes(cityCode: number): Promise<BukyRoute[]> {
     owner_id: r.owner_id,
     active: r.active,
     length_m: r.length_m,
+    path: r.path ?? null,
     points: (r.buky_points ?? [])
       .sort((a, b) => a.seq - b.seq)
       .map((p) => ({ id: p.id, seq: p.seq, label: p.label ?? `BUKY_${String(p.seq + 1).padStart(2, "0")}`, lat: p.lat, lon: p.lon, radiusM: p.radius_m })),

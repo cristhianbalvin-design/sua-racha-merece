@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cleanInstagram, isValidInstagram, isValidNeighborhood, isValidPassword, normalizeName } from "@/features/buky/lib/validation";
-import { checkDraft } from "@/features/buky/lib/routeDraft";
+import { checkDraft, placeBukys } from "@/features/buky/lib/routeDraft";
+import { haversineMeters } from "@/features/buky/engine";
 
 describe("validaciones del registro", () => {
   it("Instagram acepta @usuario, enlaces y rechaza caracteres prohibidos", () => {
@@ -25,24 +26,28 @@ describe("validaciones del registro", () => {
   });
 });
 
-describe("borrador de ruta del atleta (mismas reglas que el servidor)", () => {
-  const rules = { minGapM: 200, minLengthM: 1000, minPoints: 3, maxPoints: 30, dailyCap: 10, maxCityKm: 60 };
+describe("trazo de ruta del atleta (mismas reglas que el servidor, paso 21)", () => {
+  const rules = { minGapM: 200, radiusM: 50, minLengthM: 1000, minPoints: 3, maxPoints: 30, dailyCap: 10, maxCityKm: 60 };
   const M = 1 / 111_320;
   const at = (m: number) => ({ lat: -22.9 - m * M, lon: -43.12 });
 
-  it("ruta válida: 4 puntos cada 400 m", () => {
-    const c = checkDraft([0, 400, 800, 1200].map(at), rules, at(0));
+  it("ubica un Buky cada 200 m; los vértices pueden estar pegados (curvas)", () => {
+    const c = checkDraft([at(0), at(5), at(12), at(1112)], rules, at(0));
     expect(c.ok).toBe(true);
-    expect(Math.round(c.lengthM)).toBeGreaterThan(1190);
+    expect(c.bukys).toHaveLength(5);
+    expect(Math.abs(c.lengthM - 1112)).toBeLessThan(3);
+    expect(Math.round(haversineMeters(at(0).lat, at(0).lon, c.bukys[0].lat, c.bukys[0].lon))).toBe(200);
   });
-  it("marca puntos demasiado cerca, ruta corta y pocos puntos", () => {
-    const c = checkDraft([0, 100, 600].map(at), rules, at(0));
-    expect(c.problems).toEqual(expect.arrayContaining(["points_too_close", "route_too_short"]));
-    expect(c.tooClose).toEqual([0, 1]);
-    expect(checkDraft([0, 1500].map(at), rules).problems).toContain("points_count");
+  it("ida y vuelta por la misma calle no duplica Bukys", () => {
+    const c = placeBukys([at(0), at(667), at(0)], 200, 50);
+    expect(c.bukys).toHaveLength(3);
   });
-  it("marca puntos fuera de la ciudad", () => {
-    const c = checkDraft([at(0), at(400), { lat: -23.55, lon: -46.63 }], rules, at(0));
+  it("corta, larga y fuera de la ciudad", () => {
+    expect(checkDraft([at(0), at(300)], rules, at(0)).problems).toContain("route_too_short");
+    expect(checkDraft([at(0), at(7800)], rules, at(0)).problems).toContain("route_too_long");
+    const c = checkDraft([at(0), at(1200), { lat: -23.55, lon: -46.63 }], rules, at(0));
     expect(c.outside).toEqual([2]);
+    expect(c.problems).toContain("point_outside_city");
+    expect(checkDraft([at(0)], rules).problems).toContain("path_points");
   });
 });

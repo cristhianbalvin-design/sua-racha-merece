@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, LocateFixed, Trash2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
-import { haversineMeters } from "@/features/buky/engine";
 import { pt } from "../i18n";
 import BukyMap from "../components/BukyMap";
 import { fmtKm, Spinner } from "../components/ui";
@@ -15,9 +14,11 @@ import { checkDraft, type DraftPoint } from "../lib/routeDraft";
 const R = pt.rota;
 
 /**
- * Crear ruta propia (opción C del cliente). Editor sobre el mapa:
- * tocar el mapa agrega un punto · arrastrar un punto lo mueve · tocar un punto lo elige para
- * quitarlo o para insertar otro después · Desfazer revierte cualquier cambio.
+ * Crear ruta propia (opción C del cliente). El atleta DIBUJA el recorrido por las calles: tocar el
+ * mapa agrega un punto del trazo (pueden estar cerca, para las curvas) · arrastrar un punto lo mueve ·
+ * tocar un punto lo elige para quitarlo o insertar otro después · Desfazer revierte cualquier cambio.
+ * Los Bukys se ubican SOLOS a lo largo del trazo, cada N metros (Configurações), y se pintan en verde
+ * con su zona de captura; los puntos del trazo son blancos.
  */
 export default function CriarRota() {
   const navigate = useNavigate();
@@ -42,16 +43,6 @@ export default function CriarRota() {
     [Boolean(pos), city], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  // Pares de puntos demasiado cerca, para decir cuáles son
-  const closePairs = useMemo(() => {
-    if (!rules) return [];
-    const out: [number, number][] = [];
-    for (let i = 0; i < points.length; i++)
-      for (let j = 0; j < i; j++)
-        if (haversineMeters(points[i].lat, points[i].lon, points[j].lat, points[j].lon) < rules.minGapM) out.push([j + 1, i + 1]);
-    return out.slice(0, 3);
-  }, [points, rules]);
-
   if (!rules || !profile) return <Spinner label={pt.comum.carregando} />;
 
   const commit = (next: DraftPoint[]) => {
@@ -60,7 +51,7 @@ export default function CriarRota() {
   };
 
   const onMapClick = (p: DraftPoint) => {
-    if (points.length >= rules.maxPoints) return;
+    if (points.length >= 400) return;
     if (selected !== null) {
       // Con un punto elegido, el nuevo va justo después de él
       const next = [...points.slice(0, selected + 1), p, ...points.slice(selected + 1)];
@@ -121,7 +112,7 @@ export default function CriarRota() {
     }
   };
 
-  const flagged = new Set([...(check?.tooClose ?? []), ...(check?.outside ?? [])]);
+  const bukys = check?.bukys ?? [];
   const chip = "flex items-center gap-2 rounded-full bg-black/75 px-4 py-2 text-sm backdrop-blur disabled:opacity-40";
 
   return (
@@ -131,11 +122,12 @@ export default function CriarRota() {
           center={recenter?.at ?? center}
           recenterKey={recenter?.n}
           zoom={15}
-          showPath
           editable
+          showRadius
           selected={selected}
           user={pos}
-          points={points.map((p, i) => ({ id: String(i), lat: p.lat, lon: p.lon, state: flagged.has(i) ? "pending" : "visited" }))}
+          vertices={points}
+          points={bukys.map((b, i) => ({ id: `b${i}`, lat: b.lat, lon: b.lon, radiusM: rules.radiusM, state: "idle" as const }))}
           onMapClick={onMapClick}
           onPointTap={(i) => setSelected((s) => (s === i ? null : i))}
           onPointDrag={onDrag}
@@ -191,22 +183,27 @@ export default function CriarRota() {
           ))}
         </ul>
         <p className="mt-2 text-xs text-[var(--buky-faint)]">
-          {R.regras(rules.minGapM, rules.minLengthM, rules.minPoints)} {R.limiteDiario(rules.dailyCap)}
+          {R.regras(rules.minGapM, rules.minLengthM, rules.minPoints, rules.maxPoints)} {R.limiteDiario(rules.dailyCap)}
         </p>
 
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--buky-muted)]" aria-label={R.legenda}>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full border-2 border-[#050505] bg-white ring-1 ring-white/40" /> {R.legendaTrazo}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-[var(--buky-neon)] shadow-[0_0_0_4px_rgba(57,255,20,0.2)]" /> {R.legendaBuky}
+          </span>
+        </div>
+
         <div className="mt-4 flex items-baseline gap-4">
-          <span className="font-buky text-[28px] text-[var(--buky-neon)]">{R.pontos(points.length)}</span>
+          <span className="font-buky text-[28px] text-[var(--buky-neon)]">{R.bukys(bukys.length)}</span>
           <span className="font-buky text-[28px]">{fmtKm(check?.lengthM ?? 0)}</span>
         </div>
-        {points.length > 0 && check && !check.ok && (
+        {points.length > 1 && check && !check.ok && (
           <ul className="mt-2 space-y-1 text-sm text-[#ffb020]" aria-live="polite">
-            {check.problems.map((p) =>
-              p === "points_too_close" && closePairs.length ? (
-                closePairs.map(([a, b]) => <li key={`${a}-${b}`}>{R.pertoDemais(a, b, rules.minGapM)}</li>)
-              ) : (
-                <li key={p}>{R.erros[p]}</li>
-              ),
-            )}
+            {check.problems.map((p) => (
+              <li key={p}>{p === "route_too_long" ? R.longaDemais(rules.maxPoints) : R.erros[p]}</li>
+            ))}
           </ul>
         )}
 

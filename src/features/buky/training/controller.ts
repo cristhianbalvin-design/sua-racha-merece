@@ -34,6 +34,7 @@ export interface TrainingState {
   routeKind: "official" | "athlete" | null;
   cityName: string;
   points: api.RoutePoint[];
+  path: { lat: number; lon: number }[] | null;
   startedAt: number | null;
   passes: LivePass[];
   /** Puntos visitados en este entrenamiento (para pintar el mapa). */
@@ -56,6 +57,7 @@ const INITIAL: TrainingState = {
   routeKind: null,
   cityName: "",
   points: [],
+  path: null,
   startedAt: null,
   passes: [],
   visited: [],
@@ -133,6 +135,7 @@ class TrainingController {
       routeKind: route.kind,
       cityName,
       points: route.points,
+      path: route.path ?? null,
       startedAt: Date.now(),
       phase: "running",
     };
@@ -157,6 +160,7 @@ class TrainingController {
         routeKind: meta.routeKind,
         cityName: meta.cityName,
         points: meta.points,
+        path: meta.path ?? null,
         startedAt: meta.startedAt,
       });
       void this.sendPending();
@@ -188,6 +192,7 @@ class TrainingController {
       routeKind: meta.routeKind,
       cityName: meta.cityName,
       points: meta.points,
+      path: meta.path ?? null,
       startedAt: meta.startedAt,
       passes,
       visited: [...new Set(passes.map((p) => p.pointId))],

@@ -98,7 +98,10 @@ export function useMySessions() {
 }
 
 export interface RouteRules {
+  /** Distancia entre Bukys a lo largo del trazo (m). */
   minGapM: number;
+  /** Radio de cada Buky (m). */
+  radiusM: number;
   minLengthM: number;
   minPoints: number;
   maxPoints: number;
@@ -118,6 +121,7 @@ export function useRouteRules() {
         "buky_athlete_route_max_points",
         "buky_athlete_route_daily_cap",
         "buky_athlete_route_max_city_km",
+        "buky_point_radius_default_m",
       ]);
       return {
         minGapM: s.buky_athlete_route_min_point_gap_m ?? 200,
@@ -126,6 +130,7 @@ export function useRouteRules() {
         maxPoints: s.buky_athlete_route_max_points ?? 30,
         dailyCap: s.buky_athlete_route_daily_cap ?? 10,
         maxCityKm: s.buky_athlete_route_max_city_km ?? 60,
+        radiusM: s.buky_point_radius_default_m ?? 50,
       };
     },
   });
