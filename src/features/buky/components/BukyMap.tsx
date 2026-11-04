@@ -23,13 +23,19 @@ interface Props {
   follow?: boolean;
   interactive?: boolean;
   onMapClick?: (lngLat: { lat: number; lon: number }) => void;
-  /** Línea que une los puntos en orden (crear ruta). */
+  /** Línea que une los puntos en orden (si no se da `path`). */
   showPath?: boolean;
+  /** Trazo del recorrido (rutas dibujadas): se dibuja como línea. */
+  path?: { lat: number; lon: number }[] | null;
+  /** Editor: vértices del trazo (puntos blancos que se tocan y arrastran). */
+  vertices?: { lat: number; lon: number }[];
+  /** Dibuja el radio de captura de cada Buky (m reales, escala con el zoom). */
+  showRadius?: boolean;
   /** Cambiarlo vuelve a centrar el mapa en `center` (botón "mi posición"). */
   recenterKey?: number;
-  /** Editor de ruta: los puntos se arrastran y se tocan para elegirlos. */
+  /** Editor de ruta: los vértices se arrastran y se tocan para elegirlos. */
   editable?: boolean;
-  /** Índice del punto elegido (se resalta). */
+  /** Índice del vértice elegido (se resalta). */
   selected?: number | null;
   onPointTap?: (index: number) => void;
   /** Durante el arrastre (en vivo) y al soltar (`done`). */
@@ -39,12 +45,25 @@ interface Props {
 
 const NEON = "#39FF14";
 
+// Radio en píxeles al zoom 22 (MapLibre usa teselas de 512 px): el círculo escala con el zoom.
+const radiusAtZ22 = (lat: number, m: number) => m / ((78271.517 * Math.cos((lat * Math.PI) / 180)) / 2 ** 22);
+
 const toFeatures = (points: MapPoint[]) => ({
   type: "FeatureCollection" as const,
   features: points.map((p, i) => ({
     type: "Feature" as const,
     id: i,
-    properties: { id: p.id, state: p.state ?? "idle", n: i + 1, i },
+    properties: { id: p.id, state: p.state ?? "idle", n: i + 1, i, r22: radiusAtZ22(p.lat, p.radiusM ?? 50) },
+    geometry: { type: "Point" as const, coordinates: [p.lon, p.lat] },
+  })),
+});
+
+const toVertexFeatures = (vs: { lat: number; lon: number }[]) => ({
+  type: "FeatureCollection" as const,
+  features: vs.map((p, i) => ({
+    type: "Feature" as const,
+    id: i,
+    properties: { i, first: i === 0 ? 1 : 0 },
     geometry: { type: "Point" as const, coordinates: [p.lon, p.lat] },
   })),
 });
@@ -73,6 +92,9 @@ export default function BukyMap({
   interactive = true,
   onMapClick,
   showPath,
+  path,
+  vertices,
+  showRadius,
   recenterKey,
   editable,
   selected = null,
@@ -88,8 +110,8 @@ export default function BukyMap({
   clickRef.current = onMapClick;
   const editRef = useRef({ editable, onPointTap, onPointDrag });
   editRef.current = { editable, onPointTap, onPointDrag };
-  const latest = useRef({ points, user, nearRadiusM, showPath, selected });
-  latest.current = { points, user, nearRadiusM, showPath, selected };
+  const latest = useRef({ points, user, nearRadiusM, showPath, selected, path, vertices, showRadius });
+  latest.current = { points, user, nearRadiusM, showPath, selected, path, vertices, showRadius };
 
   // Crear el mapa una sola vez
   useEffect(() => {
@@ -124,6 +146,22 @@ export default function BukyMap({
         m.addSource("path", { type: "geojson", data: EMPTY });
         m.addLayer({ id: "path-line", type: "line", source: "path", paint: { "line-color": NEON, "line-width": 2, "line-opacity": 0.6 } });
         m.addSource("points", { type: "geojson", data: EMPTY });
+        // Zona de captura real de cada Buky (editor de rutas)
+        m.addLayer({
+          id: "points-radius",
+          type: "circle",
+          source: "points",
+          filter: ["==", ["get", "state"], "idle"],
+          layout: { visibility: "none" },
+          paint: {
+            "circle-radius": ["interpolate", ["exponential", 2], ["zoom"], 0, ["/", ["get", "r22"], 4194304], 22, ["get", "r22"]],
+            "circle-color": NEON,
+            "circle-opacity": 0.1,
+            "circle-stroke-color": NEON,
+            "circle-stroke-opacity": 0.45,
+            "circle-stroke-width": 1,
+          },
+        });
         // halo de los puntos recogidos / por recoger
         m.addLayer({
           id: "points-glow",
@@ -148,17 +186,29 @@ export default function BukyMap({
             "circle-stroke-width": ["match", ["get", "state"], "pending", 1.4, 0],
           },
         });
-        // Editor: anillo del punto elegido y zona de toque amplia (invisible) para tocar/arrastrar con el dedo
+        // Editor: vértices del trazo (blancos), el elegido con anillo y una zona de toque amplia e invisible
+        m.addSource("vertices", { type: "geojson", data: EMPTY });
         m.addLayer({
-          id: "points-selected",
+          id: "vertex-core",
           type: "circle",
-          source: "points",
-          filter: ["==", ["get", "i"], -1],
-          paint: { "circle-radius": 15, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2.5 },
+          source: "vertices",
+          paint: {
+            "circle-radius": ["case", ["==", ["get", "first"], 1], 6.5, 5],
+            "circle-color": "#ffffff",
+            "circle-stroke-color": "#050505",
+            "circle-stroke-width": 2,
+          },
         });
-        m.addLayer({ id: "points-hit", type: "circle", source: "points", paint: { "circle-radius": 22, "circle-opacity": 0 } });
+        m.addLayer({
+          id: "vertex-selected",
+          type: "circle",
+          source: "vertices",
+          filter: ["==", ["get", "i"], -1],
+          paint: { "circle-radius": 13, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2.5 },
+        });
+        m.addLayer({ id: "vertex-hit", type: "circle", source: "vertices", paint: { "circle-radius": 20, "circle-opacity": 0 } });
         // Números de orden (crear ruta); solo si el estilo trae tipografías (sin teselas no hay)
-        if (latest.current.showPath && m.getStyle().glyphs) {
+        if ((latest.current.showPath || latest.current.vertices) && m.getStyle().glyphs) {
           m.addLayer({
             id: "points-number",
             type: "symbol",
@@ -172,7 +222,7 @@ export default function BukyMap({
         sync();
       });
       m.on("click", (e) => {
-        const hit = editRef.current.editable && ready.current ? m.queryRenderedFeatures(e.point, { layers: ["points-hit"] })[0] : undefined;
+        const hit = editRef.current.editable && ready.current ? m.queryRenderedFeatures(e.point, { layers: ["vertex-hit"] })[0] : undefined;
         if (hit) return editRef.current.onPointTap?.(Number(hit.properties?.i));
         clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng });
       });
@@ -205,10 +255,10 @@ export default function BukyMap({
         m.once("mouseup", end);
         m.once("touchend", end);
       };
-      m.on("mousedown", "points-hit", startDrag);
-      m.on("touchstart", "points-hit", startDrag);
-      m.on("mouseenter", "points-hit", () => editRef.current.editable && (m.getCanvas().style.cursor = "grab"));
-      m.on("mouseleave", "points-hit", () => (m.getCanvas().style.cursor = ""));
+      m.on("mousedown", "vertex-hit", startDrag);
+      m.on("touchstart", "vertex-hit", startDrag);
+      m.on("mouseenter", "vertex-hit", () => editRef.current.editable && (m.getCanvas().style.cursor = "grab"));
+      m.on("mouseleave", "vertex-hit", () => (m.getCanvas().style.cursor = ""));
     });
     return () => {
       cancelled = true;
@@ -224,17 +274,18 @@ export default function BukyMap({
   const sync = () => {
     const m = map.current;
     if (!m || !ready.current) return;
-    const { points: pts, user: u, nearRadiusM: near, showPath: path, selected: sel } = latest.current;
-    m.setFilter("points-selected", ["==", ["get", "i"], sel ?? -1]);
+    const { points: pts, user: u, nearRadiusM: near, showPath: linePts, selected: sel, path: trace, vertices: vs, showRadius: radius } = latest.current;
+    m.setFilter("vertex-selected", ["==", ["get", "i"], sel ?? -1]);
+    m.setLayoutProperty("points-radius", "visibility", radius ? "visible" : "none");
     (m.getSource("points") as GeoJSONSource).setData(toFeatures(pts));
+    (m.getSource("vertices") as GeoJSONSource).setData(toVertexFeatures(vs ?? []));
     if (el.current) {
       el.current.dataset.points = String(pts.length);
       el.current.dataset.zoom = m.getZoom().toFixed(2);
     }
+    const line = trace && trace.length > 1 ? trace : vs && vs.length > 1 ? vs : linePts && pts.length > 1 ? pts : null;
     (m.getSource("path") as GeoJSONSource).setData(
-      path && pts.length > 1
-        ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: pts.map((p) => [p.lon, p.lat]) } }
-        : EMPTY,
+      line ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: line.map((p) => [p.lon, p.lat]) } } : EMPTY,
     );
     (m.getSource("near") as GeoJSONSource).setData(u && near ? circle(u.lat, u.lon, near) : EMPTY);
     if (u) {
@@ -255,7 +306,7 @@ export default function BukyMap({
     }
   };
 
-  useEffect(sync, [points, user, nearRadiusM, showPath, selected]);
+  useEffect(sync, [points, user, nearRadiusM, showPath, selected, path, vertices, showRadius]);
 
   // Centrar cuando cambia el centro pedido o al seguir al atleta
   useEffect(() => {

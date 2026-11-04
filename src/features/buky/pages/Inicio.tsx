@@ -87,6 +87,7 @@ export default function Inicio() {
         center={center}
         zoom={13.4}
         points={route ? route.points.map((p) => ({ ...p, state: "idle" as const })) : []}
+        path={route?.path}
         showPath
         user={pos}
         nearRadiusM={pos ? NEAR_M : undefined}
@@ -177,7 +178,7 @@ export default function Inicio() {
                           <span className="min-w-0">
                             <span className="block truncate text-[16px] font-semibold">{r.name}</span>
                             <span className="block text-[13px] text-[var(--buky-muted)]">
-                              {pt.rota.pontos(r.points.length)}
+                              {pt.rota.bukys(r.points.length)}
                               {r.length_m ? ` · ${(r.length_m / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km` : ""}
                             </span>
                           </span>

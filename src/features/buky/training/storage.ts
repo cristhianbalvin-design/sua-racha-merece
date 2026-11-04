@@ -19,6 +19,8 @@ export interface TrainingMeta {
   routeKind: "official" | "athlete";
   cityName: string;
   points: RoutePoint[];
+  /** Trazo de la ruta (para dibujarlo en el mapa del entrenamiento). */
+  path?: { lat: number; lon: number }[] | null;
   startedAt: number;
   /** running: registrando; pending: terminado, falta enviarlo al servidor. */
   phase: "running" | "pending";

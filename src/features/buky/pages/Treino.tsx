@@ -71,7 +71,7 @@ export default function Treino() {
   return (
     <div className="relative min-h-svh">
       <div className="relative h-[300px] overflow-hidden">
-        <BukyMap center={t.lastFix ?? t.points[0] ?? null} zoom={15} points={points} user={t.lastFix} follow interactive={false} />
+        <BukyMap center={t.lastFix ?? t.points[0] ?? null} zoom={15} points={points} path={t.path} user={t.lastFix} follow interactive={false} />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-[var(--buky-bg)]" />
         <p className="absolute left-6 top-[calc(env(safe-area-inset-top,0px)+26px)] flex items-center gap-2 text-[13px] font-bold tracking-[0.12em]">
           <span className="buky-pulse h-3 w-3 rounded-full bg-[var(--buky-neon)]" /> {pt.treino.emCurso.toUpperCase()}
