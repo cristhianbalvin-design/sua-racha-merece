@@ -35,6 +35,7 @@ export default function AdminConfig() {
   const qc = useQueryClient();
   const { data = [], isLoading } = useQuery({ queryKey: ["admin-buky", "settings"], queryFn: listBukySettings });
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [tab, setTab] = useState(GROUPS[0].title);
   const byKey = new Map(data.map((s) => [s.key, s]));
   const known = new Set(GROUPS.flatMap((g) => g.keys));
   const others = data.filter((s) => !known.has(s.key));
@@ -58,13 +59,14 @@ export default function AdminConfig() {
 
   const row = (s?: Setting) =>
     s && (
-      <div key={s.key} className="flex flex-wrap items-center gap-3 px-4 py-3">
+      <div key={s.key} className="flex items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold">{LABELS[s.key] ?? s.description ?? s.key}</p>
-          <p className="font-mono text-[11px] text-muted-foreground">{s.key}</p>
+          {/* "notranslate": el traductor del navegador no debe cambiar el nombre técnico */}
+          <p className="notranslate font-mono text-[11px] text-muted-foreground" translate="no">{s.key}</p>
         </div>
         <input
-          className={inputCls + " w-40"}
+          className={inputCls.replace("w-full", "") + " w-36 shrink-0"}
           value={draft[s.key] ?? String(s.value ?? "")}
           onChange={(e) => setDraft({ ...draft, [s.key]: e.target.value })}
           aria-label={s.key}
@@ -80,18 +82,23 @@ export default function AdminConfig() {
       <p className="text-sm text-muted-foreground">
         As regras são lidas no servidor a cada treino: mudar um valor aqui vale imediatamente para os próximos treinos, sem publicar o app.
       </p>
-      {GROUPS.map((g) => (
-        <section key={g.title}>
-          <h3 className="mb-2 font-bold italic">{g.title.toUpperCase()}</h3>
-          <div className={`${card} divide-y divide-border`}>{g.keys.map((k) => row(byKey.get(k)))}</div>
-        </section>
-      ))}
-      {others.length > 0 && (
-        <section>
-          <h3 className="mb-2 font-bold italic">OUTROS</h3>
-          <div className={`${card} divide-y divide-border`}>{others.map((s) => row(s))}</div>
-        </section>
-      )}
+      <div className="flex flex-wrap gap-1 border-b border-border" role="tablist" aria-label="Grupos de configurações">
+        {[...GROUPS.map((g) => g.title), ...(others.length ? ["Outros"] : [])].map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={`-mb-px border-b-2 px-4 py-2.5 text-xs font-bold ${tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          >
+            {t.toUpperCase()}
+          </button>
+        ))}
+      </div>
+      <div className={`${card} divide-y divide-border`} role="tabpanel">
+        {tab === "Outros" ? others.map((s) => row(s)) : GROUPS.find((g) => g.title === tab)?.keys.map((k) => row(byKey.get(k)))}
+      </div>
     </div>
   );
 }
