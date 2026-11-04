@@ -50,8 +50,9 @@ export default function CompletarPerfil() {
   const E = pt.cadastro.erros;
   const errs = {
     nome: !isValidName(f.nome) ? E.nome : null,
-    instagram: !isValidInstagram(f.instagram) ? E.instagram : null,
-    bairro: !isValidNeighborhood(f.bairro) ? E.bairro : null,
+    // Opcionales: solo se validan si el atleta escribió algo
+    instagram: f.instagram.trim() && !isValidInstagram(f.instagram) ? E.instagram : null,
+    bairro: f.bairro.trim() && !isValidNeighborhood(f.bairro) ? E.bairro : null,
     cidade: !city ? E.cidade : null,
   };
   const firstError = Object.values(errs).find(Boolean);
@@ -66,8 +67,8 @@ export default function CompletarPerfil() {
     try {
       const saved = await save.mutateAsync({
         name: f.nome.trim(),
-        instagram: cleanInstagram(f.instagram),
-        neighborhood: f.bairro.trim(),
+        instagram: cleanInstagram(f.instagram) || null,
+        neighborhood: f.bairro.trim() || null,
         city_code: city!.code,
       });
       clearPendingProfile();
@@ -122,14 +123,14 @@ export default function CompletarPerfil() {
           <input autoComplete="name" value={f.nome} onChange={(e) => setF((s) => ({ ...s, nome: e.target.value }))} />
         </label>
         <label className="buky-field" data-invalid={inv("instagram")}>
-          <span>{pt.cadastro.instagram}</span>
+          <span>{pt.cadastro.instagram} <em className="not-italic font-normal opacity-70">· {pt.cadastro.opcional}</em></span>
           <div className="flex items-center gap-1">
             <span className="text-[17px] text-[var(--buky-faint)]">@</span>
             <input autoCapitalize="none" autoCorrect="off" placeholder={pt.cadastro.instagramPh} value={f.instagram} onChange={(e) => setF((s) => ({ ...s, instagram: e.target.value }))} />
           </div>
         </label>
         <label className="buky-field" data-invalid={inv("bairro")}>
-          <span>{pt.cadastro.bairro}</span>
+          <span>{pt.cadastro.bairro} <em className="not-italic font-normal opacity-70">· {pt.cadastro.opcional}</em></span>
           <input value={f.bairro} maxLength={80} onChange={(e) => setF((s) => ({ ...s, bairro: e.target.value }))} />
         </label>
         <CityPicker value={city} onChange={setCity} invalid={touched && !city} />

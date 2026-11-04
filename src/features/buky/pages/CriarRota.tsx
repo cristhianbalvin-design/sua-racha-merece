@@ -92,7 +92,7 @@ export default function CriarRota() {
 
         <label className="buky-field mt-5">
           <span>{pt.rota.nome}</span>
-          <input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder={`Rota de ${profile.neighborhood ?? ""}`} />
+          <input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} placeholder={`Rota de ${profile.neighborhood ?? city?.name ?? ""}`.trim()} />
         </label>
 
         <button type="button" className="buky-btn mt-6" onClick={save} disabled={!check?.ok || saving}>

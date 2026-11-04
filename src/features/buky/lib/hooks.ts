@@ -23,9 +23,12 @@ export function useBukyProfile() {
   });
 }
 
-/** El perfil está completo para jugar cuando tiene ciudad, barrio e Instagram. */
+/**
+ * Para jugar basta la ciudad del catálogo (decisión del cliente, 3/11/2026): barrio e Instagram
+ * son obligatorios al crear cuenta nueva, pero opcionales para los atletas que ya existían.
+ */
 export function isProfileComplete(p?: api.BukyProfile | null): boolean {
-  return Boolean(p?.city_code && p.neighborhood && p.neighborhood.trim().length >= 3 && p.instagram);
+  return Boolean(p?.city_code);
 }
 
 export function useUpdateProfile() {
