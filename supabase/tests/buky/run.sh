@@ -18,6 +18,8 @@ run() { psql -q -v ON_ERROR_STOP=1 -f "$1" >/dev/null && echo "ok  $(basename "$
 run "$HERE/00_supabase_stubs.sql"
 for f in "$SQL"/[0-9][0-9]_*.sql; do run "$f"; done
 for f in "$HERE"/test_*.sql; do run "$f"; done
+# Datos de prueba de Niterói sobre la base ya poblada (verifica que el script corre)
+run "$SQL/datos_prueba_niteroi.sql"
 # Contrato Edge Function → SQL (si Deno está instalado)
 if command -v deno >/dev/null 2>&1; then
   deno run --quiet "$HERE/contract_close_session.ts" > "$DATA/contract.sql" && run "$DATA/contract.sql" && echo "ok  contrato buky-close-session"
