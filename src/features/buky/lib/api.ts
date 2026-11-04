@@ -206,6 +206,24 @@ export async function searchCities(query: string, stateCode?: number | null, lim
   return ((data ?? []) as unknown as CityRow[]).map(toCity);
 }
 
+/** Catálogo completo de ciudades (5.571) para el buscador del dispositivo. Se pide una vez. */
+export async function listAllCities(): Promise<import("./citySearch").CatalogCity[]> {
+  const page = 1000; // límite de filas por respuesta de la API
+  const out: import("./citySearch").CatalogCity[] = [];
+  for (let from = 0; ; from += page) {
+    const { data, error } = await supabase
+      .from("br_cities")
+      .select("code, name, state_code, lat, lon, is_capital, br_states!inner(uf)")
+      .order("code")
+      .range(from, from + page - 1);
+    if (error) fail(error);
+    const rows = (data ?? []) as unknown as (CityRow & { is_capital: boolean })[];
+    for (const c of rows) out.push({ ...toCity(c), is_capital: c.is_capital, norm: normalizeName(c.name) });
+    if (rows.length < page) break;
+  }
+  return out;
+}
+
 export async function getCity(code: number): Promise<City | null> {
   const { data, error } = await supabase
     .from("br_cities")

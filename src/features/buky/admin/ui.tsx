@@ -1,5 +1,7 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { searchCities, type City } from "../lib/api";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import type { City } from "../lib/api";
+import { searchCatalog } from "../lib/citySearch";
+import { useAllCities } from "../lib/hooks";
 
 // Estilos del admin actual de 3BUK (tarjetas, campos y botones).
 export const inputCls =
@@ -35,15 +37,13 @@ export function Badge({ children, tone = "muted" }: { children: ReactNode; tone?
 
 /** Selector de ciudad del catálogo IBGE (estilo admin). */
 export function AdminCityPicker({ value, onChange, placeholder = "Buscar cidade…" }: { value: City | null; onChange: (c: City | null) => void; placeholder?: string }) {
-  const [text, setText] = useState(value ? `${value.name} · ${value.uf}` : "");
-  const [opts, setOpts] = useState<City[]>([]);
+  const { data: cities = [] } = useAllCities();
+  const label = value ? `${value.name} · ${value.uf}` : "";
+  const [text, setText] = useState(label);
   const [open, setOpen] = useState(false);
-  useEffect(() => setText(value ? `${value.name} · ${value.uf}` : ""), [value?.code]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!open || text.trim().length < 2 || (value && text === `${value.name} · ${value.uf}`)) return setOpts([]);
-    const t = window.setTimeout(() => searchCities(text).then(setOpts).catch(() => setOpts([])), 200);
-    return () => window.clearTimeout(t);
-  }, [text, open, value]);
+  useEffect(() => setText(label), [value?.code]); // eslint-disable-line react-hooks/exhaustive-deps
+  const query = value && text === label ? "" : text;
+  const opts = useMemo(() => searchCatalog(cities, query, null, 30), [cities, query]);
   return (
     <div className="relative">
       <input
@@ -55,7 +55,10 @@ export function AdminCityPicker({ value, onChange, placeholder = "Buscar cidade�
           setOpen(true);
           if (value) onChange(null);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={(e) => {
+          setOpen(true);
+          e.currentTarget.select();
+        }}
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
       />
       {open && opts.length > 0 && (

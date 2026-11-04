@@ -50,6 +50,11 @@ export function useCity(code?: number | null) {
   });
 }
 
+/** Catálogo completo en memoria (se descarga una vez por sesión). */
+export function useAllCities(enabled = true) {
+  return useQuery({ queryKey: ["buky", "all-cities"], queryFn: api.listAllCities, staleTime: Infinity, gcTime: Infinity, enabled });
+}
+
 export function useStates() {
   return useQuery({ queryKey: qk.states, queryFn: api.listStates, staleTime: Infinity });
 }
