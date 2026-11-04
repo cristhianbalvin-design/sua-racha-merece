@@ -21,6 +21,10 @@ on:
         description: "Publicar la Edge Function buky-close-session"
         type: boolean
         default: true
+      ciudades:
+        description: "Paso 18: normalizar la ciudad de los usuarios existentes (con respaldo)"
+        type: boolean
+        default: false
 
 concurrency:
   group: buky-supabase-deploy
@@ -59,6 +63,14 @@ jobs:
             psql "$DB" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
             echo "::notice title=SQL aplicado::$(basename "$f") · sha256 $(sha256sum "$f" | cut -c1-12)"
           done
+
+      - name: Normalizar ciudades de usuarios (paso 18)
+        if: inputs.ciudades
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          psql "$DB" -q -v ON_ERROR_STOP=1 -At -F ' · ' -f supabase/manual-sql/buky/18_normalizar_ciudades_usuarios.sql \
+            | sed 's/^/::notice title=Ciudades (paso 18)::/'
 
       - name: Cargar datos de prueba
         if: inputs.datos_prueba
