@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       sql:
-        description: "Aplicar los pasos SQL 15, 16, 17 y 19"
+        description: "Aplicar los pasos SQL 15, 16, 17, 19 y 20"
         type: boolean
         default: true
       datos_prueba:
@@ -23,6 +23,10 @@ on:
         default: true
       ciudades:
         description: "Paso 18: normalizar la ciudad de los usuarios existentes (con respaldo)"
+        type: boolean
+        default: false
+      datos_sorteios:
+        description: "Cargar los datos de prueba de sorteos (premios con imágenes, próximo y pasado)"
         type: boolean
         default: false
 
@@ -53,13 +57,13 @@ jobs:
       - name: Instalar psql
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null && psql --version
 
-      - name: Aplicar pasos SQL 15, 16, 17 y 19
+      - name: Aplicar pasos SQL 15, 16, 17, 19 y 20
         if: inputs.sql
         env:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -e
-          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql; do
+          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql; do
             psql "$DB" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
             echo "::notice title=SQL aplicado::$(basename "$f") · sha256 $(sha256sum "$f" | cut -c1-12)"
           done
@@ -77,6 +81,12 @@ jobs:
         env:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: psql "$DB" -q -v ON_ERROR_STOP=1 -f supabase/manual-sql/buky/datos_prueba_niteroi.sql | tail -3 | sed 's/^/::notice title=Datos de prueba::/'
+
+      - name: Cargar datos de prueba de sorteos
+        if: inputs.datos_sorteios
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: psql "$DB" -q -v ON_ERROR_STOP=1 -At -F ' · ' -f supabase/manual-sql/buky/datos_prueba_sorteios.sql | tail -3 | sed 's/^/::notice title=Datos de sorteos::/'
 
       - name: Verificar en la base
         env:

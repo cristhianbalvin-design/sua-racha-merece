@@ -386,3 +386,74 @@ export async function isRouteTester(): Promise<boolean> {
   if (error) return false; // si el paso 19 aún no está aplicado, se comporta como atleta común
   return data === true;
 }
+
+// ------------------------------------------------------------------ pantalla Sorteios (paso 20)
+
+export interface Prize {
+  id: string;
+  title: string;
+  description: string | null;
+  benefit: string | null;
+  image_url: string | null;
+  kind: "physical" | "digital";
+  scope: "city" | "state" | "national";
+  city: string | null;
+  uf: string | null;
+  winners_count: number;
+  valid_until: string | null;
+  redeem_instructions: string | null;
+  sponsor: { name: string; logo_url: string | null; instagram: string | null; website: string | null };
+}
+
+export interface RafflePeriod {
+  id: string;
+  name: string;
+  status: "scheduled" | "open" | "closed" | "drawn" | "cancelled";
+  starts_at: string;
+  ends_at: string;
+  draw_at: string;
+  drawn_at: string | null;
+  my_bukys: number;
+  my_tickets: string[];
+  prizes: Prize[];
+}
+
+/** Resultado anónimo de un premio: cuántos ganaron y en qué ciudades, nunca quiénes. */
+export interface PrizeResult {
+  prize_id: string;
+  title: string;
+  benefit: string | null;
+  image_url: string | null;
+  sponsor: string;
+  winners: number;
+  cities: string[];
+  mine: boolean;
+}
+
+export interface PastRaffle extends RafflePeriod {
+  my_wins: number;
+  participants: number;
+  results: PrizeResult[];
+}
+
+export interface MyPrize extends Prize {
+  result_id: string;
+  period: string;
+  ticket: string | null;
+  redeem_code: string | null;
+  delivery_status: "pending" | "notified" | "delivered" | "unclaimed";
+  drawn_at: string;
+}
+
+export interface MyRaffles {
+  current: RafflePeriod | null;
+  upcoming: RafflePeriod[];
+  past: PastRaffle[];
+  my_prizes: MyPrize[];
+}
+
+export async function getMyRaffles(): Promise<MyRaffles> {
+  const { data, error } = await supabase.rpc("buky_my_raffles");
+  if (error) fail(error);
+  return (data ?? { current: null, upcoming: [], past: [], my_prizes: [] }) as MyRaffles;
+}

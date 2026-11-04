@@ -196,6 +196,9 @@ export default function Inicio() {
       </Sheet>
       <Sheet open={showCoupons} onClose={() => setShowCoupons(false)} label={away ? pt.treino.cuponsDigitais : pt.treino.cupons}>
         <CouponList coupons={coupons} away={away} />
+        <Link to="/app/bolsa/sorteios" className="buky-btn buky-btn-ghost mt-4">
+          {pt.treino.verSorteios}
+        </Link>
       </Sheet>
     </div>
   );

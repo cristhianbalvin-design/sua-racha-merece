@@ -8,6 +8,7 @@ const Inicio = lazy(() => import("./pages/Inicio"));
 const Treino = lazy(() => import("./pages/Treino"));
 const Resumo = lazy(() => import("./pages/Resumo"));
 const Bolsa = lazy(() => import("./pages/Bolsa"));
+const Sorteios = lazy(() => import("./pages/Sorteios"));
 const Fotos = lazy(() => import("./pages/Fotos"));
 const Patrocinio = lazy(() => import("./pages/Patrocinio"));
 const Campanha = lazy(() => import("./pages/Campanha"));
@@ -45,6 +46,7 @@ export const bukyRoutes = (
       <Route path="treino" element={<S><Treino /></S>} />
       <Route path="treino/resumo" element={<S><Resumo /></S>} />
       <Route path="bolsa" element={<S><Bolsa /></S>} />
+      <Route path="bolsa/sorteios" element={<S><Sorteios /></S>} />
       <Route path="fotos" element={<S><Fotos /></S>} />
       <Route path="patrocinio" element={<S><Patrocinio /></S>} />
       <Route path="patrocinio/:id" element={<S><Campanha /></S>} />
