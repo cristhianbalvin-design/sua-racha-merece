@@ -51,7 +51,8 @@ import PhotographerUpload from "./pages/photographer/PhotographerUpload";
 import PhotographerPhotos from "./pages/photographer/PhotographerPhotos";
 import PhotographerLayout from "./components/photographer/PhotographerLayout";
 import ProtectedPhotographerRoute from "./components/photographer/ProtectedPhotographerRoute";
-import { SHOW_FACE_SEARCH } from "./config/features";
+import { SHOW_BUKY_APP, SHOW_FACE_SEARCH } from "./config/features";
+import { bukyRoutes } from "./features/buky/routes";
 import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -69,8 +70,11 @@ const AnimatedRoutes = () => {
 
   return (
     <Routes location={location}>
+      {/* App del atleta (Buky dentro de 3BUK). Con SHOW_BUKY_APP pasa a ser la entrada principal. */}
+      {bukyRoutes}
+
       {/* Public */}
-      <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
+      <Route path="/" element={SHOW_BUKY_APP ? <Navigate to="/app" replace /> : <PageTransition><Landing /></PageTransition>} />
       <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
       <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
       <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
@@ -83,7 +87,7 @@ const AnimatedRoutes = () => {
 
       {/* User (with layout) */}
       <Route element={<ProtectedRoute><UserLayout /></ProtectedRoute>}>
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={SHOW_BUKY_APP ? <Navigate to="/app" replace /> : <Dashboard />} />
         <Route path="/campanhas" element={<Dashboard />} />
         <Route path="/campanha/:id" element={<CampaignDetail />} />
         <Route path="/campanha/:id/participar" element={<SubmitEvidence />} />

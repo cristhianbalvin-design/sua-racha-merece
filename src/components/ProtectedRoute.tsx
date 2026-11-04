@@ -23,7 +23,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   if (!user) {
     return (
       <Navigate
-        to="/login"
+        to={location.pathname.startsWith('/app') ? '/entrar' : '/login'}
         replace
         state={{ redirectTo: buildAuthRedirect(location.pathname, location.search) }}
       />

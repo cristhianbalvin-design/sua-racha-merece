@@ -15,7 +15,9 @@ export default defineConfig(({ mode }) => {
         overlay: false,
       },
       proxy: {
-        "/supabase": {
+        // Todo /supabase/* va a Supabase salvo el código compartido del motor de Buky
+        // (supabase/functions/_shared), que Vite sirve como archivo local en desarrollo.
+        "^/supabase/(?!functions/_shared/)": {
           target: env.VITE_SUPABASE_URL || "https://tmkhmndwmaxzozluqkme.supabase.co",
           changeOrigin: true,
           secure: true,
@@ -47,7 +49,7 @@ export default defineConfig(({ mode }) => {
       },
       workbox: {
         importScripts: ["https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js"],
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
         globIgnores: ["**/OneSignalSDKWorker.js"],
         cleanupOutdatedCaches: true,
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
