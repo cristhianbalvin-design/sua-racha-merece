@@ -57,7 +57,8 @@ export const pt = {
     },
     completarTitulo1: "Falta",
     completarTitulo2: "pouco",
-    completarTexto: "Para jogar Buky precisamos da sua cidade, bairro e Instagram.",
+    completarTexto: "Para jogar Buky só precisamos da sua cidade. Bairro e Instagram são opcionais.",
+    opcional: "opcional",
     salvar: "Salvar e continuar",
   },
 
