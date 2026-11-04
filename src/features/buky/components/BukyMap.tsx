@@ -87,13 +87,17 @@ export default function BukyMap({
         style,
         center: [start.lon, start.lat],
         zoom,
-        attributionControl: { compact: true, customAttribution: "© OpenStreetMap" },
+        attributionControl: false,
         interactive,
         pitchWithRotate: false,
         dragRotate: false,
       });
       map.current = m;
+      // Créditos del mapa arriba a la derecha (bajo el avatar) y plegados en una "i", para que no
+      // tapen los datos ni el botón Iniciar
+      m.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: "© OpenStreetMap" }), "top-right");
       m.on("load", () => {
+        el.current?.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
         m.addSource("near", { type: "geojson", data: EMPTY });
         m.addLayer({
           id: "near-line",

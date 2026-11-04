@@ -78,6 +78,20 @@ export default function Inicio() {
       </div>
 
       <div className="absolute inset-x-0 bottom-[110px] px-6">
+        {/* Botón Iniciar flotando sobre el mapa, siempre encima del bloque de datos */}
+        <div className="absolute bottom-full right-6 z-10 mb-5 flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => setAskStart(true)}
+            disabled={!route}
+            aria-label={pt.inicio.iniciar}
+            className="flex h-[124px] w-[124px] items-center justify-center rounded-full bg-[var(--buky-neon)] text-[#050505] shadow-[0_0_0_10px_rgba(57,255,20,0.14),0_12px_40px_rgba(0,0,0,0.6)] transition active:scale-95 disabled:opacity-40"
+          >
+            <Play size={30} fill="currentColor" />
+          </button>
+          <span className="font-buky mt-3 text-[15px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">{pt.inicio.iniciar}</span>
+        </div>
+
         {/* selector de ruta */}
         {routes.length > 1 && (
           <div className="-mx-6 mb-5 flex gap-2 overflow-x-auto px-6 pb-1" role="radiogroup" aria-label={pt.inicio.escolherRota}>
@@ -102,7 +116,7 @@ export default function Inicio() {
           </div>
         )}
 
-        <div className="flex items-end justify-between gap-4">
+        <div>
           <div className="min-w-0">
             {zone && <p className="buky-label truncate text-[var(--buky-neon)]">{zone}</p>}
             {loadingRoutes ? null : routes.length === 0 ? (
@@ -124,19 +138,6 @@ export default function Inicio() {
                 <Ticket size={16} className="text-[var(--buky-neon)]" /> {pt.treino.cupons} · {coupons.length}
               </button>
             )}
-          </div>
-
-          <div className="flex shrink-0 flex-col items-center">
-            <button
-              type="button"
-              onClick={() => setAskStart(true)}
-              disabled={!route}
-              aria-label={pt.inicio.iniciar}
-              className="flex h-[124px] w-[124px] items-center justify-center rounded-full bg-[var(--buky-neon)] text-[#050505] shadow-[0_0_0_10px_rgba(57,255,20,0.12)] transition active:scale-95 disabled:opacity-40"
-            >
-              <Play size={30} fill="currentColor" />
-            </button>
-            <span className="font-buky mt-3 text-[15px]">{pt.inicio.iniciar}</span>
           </div>
         </div>
       </div>
