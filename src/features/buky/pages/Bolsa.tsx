@@ -1,51 +1,32 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Gift } from "lucide-react";
-import { toast } from "sonner";
+import { ChevronRight, Gift, Ticket } from "lucide-react";
 import mascote from "../assets/buky-mascote.webp";
 import { pt } from "../i18n";
-import { fmtDate, ScreenHeader, Sheet, Spinner, ErrorBox } from "../components/ui";
-import { BukyApiError } from "../lib/api";
-import { useBukyProfile, useSendToRaffle, useSummary, useZoneCoupons } from "../lib/hooks";
+import { ScreenHeader, Spinner, ErrorBox } from "../components/ui";
+import SendToRaffleSheet from "../components/SendToRaffleSheet";
+import { fmtCountdown } from "../lib/countdown";
+import { useMyRaffles, useSummary } from "../lib/hooks";
 
-/** Bolsa (mockup 2): saldo, enviar al sorteo, último entrenamiento, ticket y movimientos en 3 totales. */
+const S = pt.sorteios;
+
+/**
+ * Bolsa (mockup 2): solo el saldo de Bukys y sus movimientos. Todo lo del sorteo (premios, tickets,
+ * resultados) vive en la pantalla Sorteios; aquí queda una tarjeta que lleva a ella.
+ */
 export default function Bolsa() {
   const { data: s, isLoading, isError, refetch } = useSummary();
-  const send = useSendToRaffle();
-  const { data: profile } = useBukyProfile();
-  // Premios = cupones del sorteio abierto (o del próximo) que aplican a la ciudad del atleta
-  const { data: zone = [] } = useZoneCoupons(profile?.city_code);
-  const prizes = zone.some((c) => c.period_status === "open") ? zone.filter((c) => c.period_status === "open") : zone;
+  const { data: raffles } = useMyRaffles();
   const [confirm, setConfirm] = useState(false);
-  const keyRef = useRef<string | null>(null);
 
   if (isLoading) return <Spinner label={pt.comum.carregando} />;
   if (isError || !s) return <ErrorBox message={pt.comum.erro} onRetry={() => refetch()} />;
 
-  const lastWin = s.wins[0];
-  const lastTicket = s.open_period?.my_tickets.at(-1);
-
-  const doSend = async () => {
-    keyRef.current ??= crypto.randomUUID();
-    try {
-      const r = await send.mutateAsync(keyRef.current);
-      keyRef.current = null;
-      setConfirm(false);
-      toast.success(pt.bolsa.enviado(r.ticket));
-    } catch (e) {
-      const code = (e as BukyApiError).code;
-      // Con una respuesta del servidor el envío no ocurrió: la próxima vez usa otra clave.
-      // Si falló la red, se conserva la clave: reintentar no duplica el envío.
-      if (["no_open_period", "city_required", "no_bukys"].includes(code)) keyRef.current = null;
-      setConfirm(false);
-      toast.error(
-        code === "no_open_period" ? pt.bolsa.semPeriodo : code === "city_required" ? pt.bolsa.semCidade : code === "no_bukys" ? pt.bolsa.semSaldo : pt.comum.erro,
-      );
-    }
-  };
+  const current = raffles?.current ?? null;
+  const toRedeem = (raffles?.my_prizes ?? []).filter((p) => p.delivery_status === "pending" || p.delivery_status === "notified").length;
 
   return (
-    <div>
+    <div className="pb-4">
       <ScreenHeader title={pt.bolsa.titulo} />
 
       <div className="relative h-[244px]">
@@ -58,25 +39,48 @@ export default function Bolsa() {
       </div>
 
       <div className="px-7">
-        <button type="button" className="buky-btn" onClick={() => setConfirm(true)} disabled={s.balance < 1 || send.isPending}>
+        <button type="button" className="buky-btn" onClick={() => setConfirm(true)} disabled={s.balance < 1 || !s.open_period}>
           {pt.bolsa.enviar}
         </button>
-        <p className="mt-2.5 text-center text-xs text-[var(--buky-muted)]">{pt.bolsa.regra}</p>
+        <p className="mt-2.5 text-center text-xs text-[var(--buky-muted)]">{s.open_period ? pt.bolsa.regra : pt.bolsa.semPeriodo}</p>
       </div>
 
-      <ul className="mt-6 px-6">
-        {s.open_period && (
-          <li className="buky-row flex items-center justify-between py-4 text-[15px]">
-            <span>{pt.bolsa.sorteioAtual}</span>
-            <span className="text-right text-[var(--buky-muted)]">
-              {s.open_period.name}
-              <span className="block text-xs text-[var(--buky-faint)]">
-                {pt.bolsa.encerra(fmtDate(s.open_period.ends_at, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}
-                {s.open_period.my_bukys > 0 && ` · ${pt.bolsa.participando}: ${s.open_period.my_bukys}`}
+      {/* Tarjeta del sorteio: lleva a la pantalla Sorteios */}
+      <Link
+        to="/app/bolsa/sorteios"
+        className="mx-6 mt-6 flex items-center gap-3.5 rounded-[20px] border border-[var(--buky-neon)] bg-[rgba(57,255,20,0.06)] p-4"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--buky-neon-soft)] text-[var(--buky-neon)]">
+          <Gift size={22} />
+        </span>
+        <span className="min-w-0 flex-1">
+          {current ? (
+            <>
+              <span className="buky-label block text-[11px] text-[var(--buky-neon)]">
+                {current.status === "open" ? S.cardAtual(fmtCountdown(current.ends_at)) : S.encerrado}
               </span>
-            </span>
-          </li>
-        )}
+              <span className="mt-1 block text-[16px] font-semibold">{S.cardPremios(current.prizes.length)}</span>
+              <span className="mt-0.5 block text-[13px] text-[var(--buky-muted)]">{S.cardEnviados(current.my_bukys)}</span>
+            </>
+          ) : (
+            <>
+              <span className="block text-[16px] font-semibold">{S.cardSemAberto}</span>
+              <span className="mt-0.5 block text-[13px] text-[var(--buky-muted)]">{S.cardSemAbertoSub}</span>
+            </>
+          )}
+        </span>
+        <ChevronRight size={18} className="shrink-0 text-[var(--buky-muted)]" />
+      </Link>
+
+      {toRedeem > 0 && (
+        <Link to="/app/bolsa/sorteios?aba=resultados" className="mx-6 mt-3 flex items-center gap-3 rounded-2xl bg-[#111] px-4 py-3 text-[14px]">
+          <Ticket size={18} className="shrink-0 text-[#ffd27a]" />
+          <span className="flex-1">{S.premioParaResgatar(toRedeem)}</span>
+          <ChevronRight size={16} className="text-[var(--buky-faint)]" />
+        </Link>
+      )}
+
+      <ul className="mt-4 px-6">
         <li className="buky-row">
           <Link to="/app/perfil" className="flex items-center justify-between py-4 text-[15px]">
             <span>{pt.bolsa.ultimoTreino}</span>
@@ -93,66 +97,9 @@ export default function Bolsa() {
             )}
           </Link>
         </li>
-        <li className="buky-row flex items-center justify-between py-4 text-[15px]">
-          <span>{pt.bolsa.ticketGanho}</span>
-          {lastWin ? (
-            <span className="text-right">
-              <span className="text-[var(--buky-muted)]">{lastWin.coupon} · </span>
-              <span className="font-semibold text-[var(--buky-neon)]">{lastWin.ticket}</span>
-              {lastWin.redeem_code && (
-                <span className="block text-xs text-[var(--buky-muted)]">
-                  {pt.bolsa.codigo}: <span className="font-mono text-white">{lastWin.redeem_code}</span>
-                </span>
-              )}
-            </span>
-          ) : lastTicket ? (
-            <span className="text-[var(--buky-muted)]">
-              {pt.bolsa.participando} · <span className="font-semibold text-[var(--buky-neon)]">{lastTicket}</span>
-            </span>
-          ) : (
-            <span className="text-[var(--buky-faint)]">{pt.bolsa.nenhum}</span>
-          )}
-        </li>
       </ul>
 
-      <section className="mt-4 px-6" aria-label={pt.bolsa.emJogo}>
-        <h2 className="buky-label flex items-center gap-2 py-2 text-[var(--buky-neon)]">
-          <Gift size={14} /> {pt.bolsa.emJogo}
-        </h2>
-        {prizes.length === 0 ? (
-          <p className="buky-row py-4 text-sm text-[var(--buky-faint)]">{s.open_period ? pt.bolsa.semPremios : pt.bolsa.semPeriodo}</p>
-        ) : (
-          <>
-            {prizes[0].period_status === "scheduled" && (
-              <p className="pb-2 text-xs text-[var(--buky-muted)]">{pt.bolsa.proximoSorteio(fmtDate(prizes[0].ends_at, { day: "2-digit", month: "2-digit" }))}</p>
-            )}
-            <ul>
-              {prizes.map((c) => (
-                <li key={c.coupon_id} className="buky-row flex items-center gap-4 py-4">
-                  {c.image_url || c.sponsor_logo_url ? (
-                    <img src={(c.image_url || c.sponsor_logo_url)!} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
-                  ) : (
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--buky-neon-soft)] text-[var(--buky-neon)]">
-                      <Gift size={20} />
-                    </span>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[16px] font-semibold">{c.title}</p>
-                    <p className="truncate text-[13px] text-[var(--buky-muted)]">
-                      {c.sponsor_name} · {c.kind === "physical" ? pt.bolsa.fisicoLoja : pt.bolsa.digitalApp}
-                    </p>
-                    <p className="text-[12px] text-[var(--buky-faint)]">{pt.bolsa.ganhadores(c.winners_count)}</p>
-                  </div>
-                  {c.benefit && <span className="font-buky shrink-0 text-right text-[26px] leading-none text-[var(--buky-neon)]">{c.benefit}</span>}
-                </li>
-              ))}
-            </ul>
-            <p className="pt-2 text-xs text-[var(--buky-muted)]">{pt.bolsa.emJogoTexto}</p>
-          </>
-        )}
-      </section>
-
-      <section className="mt-4 px-6">
+      <section className="mt-2 px-6">
         <h2 className="buky-label py-2 text-[var(--buky-muted)]">{pt.bolsa.movimentos}</h2>
         <ul>
           {[
@@ -170,42 +117,7 @@ export default function Bolsa() {
         </ul>
       </section>
 
-      {s.wins.length > 1 && (
-        <section className="mt-4 px-6">
-          <h2 className="buky-label py-2 text-[var(--buky-muted)]">{pt.bolsa.premios}</h2>
-          <ul>
-            {s.wins.map((w, i) => (
-              <li key={i} className="buky-row py-3 text-[15px]">
-                <p className="flex justify-between">
-                  <span>{w.coupon}</span>
-                  <span className="text-[var(--buky-neon)]">{w.ticket}</span>
-                </p>
-                <p className="text-xs text-[var(--buky-faint)]">
-                  {w.sponsor} · {w.period}
-                  {w.redeem_code && ` · ${pt.bolsa.codigo} ${w.redeem_code}`}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <Sheet open={confirm} onClose={() => setConfirm(false)} label={pt.bolsa.enviar}>
-        <h2 className="font-buky text-[36px]">{pt.bolsa.enviar}</h2>
-        <p className="mt-3 text-[15px] text-[var(--buky-muted)]">{pt.bolsa.confirmar(s.balance)}</p>
-        {prizes.length > 0 && (
-          <p className="mt-2 text-[15px]">
-            {pt.bolsa.concorre(prizes.length)}{" "}
-            <span className="text-[var(--buky-muted)]">{prizes.map((c) => c.benefit || c.title).join(" · ")}</span>
-          </p>
-        )}
-        <button type="button" className="buky-btn mt-6" onClick={doSend} disabled={send.isPending}>
-          {send.isPending ? pt.comum.carregando : pt.comum.confirmar}
-        </button>
-        <button type="button" className="mt-3 w-full py-3 text-sm text-[var(--buky-muted)]" onClick={() => setConfirm(false)}>
-          {pt.comum.cancelar}
-        </button>
-      </Sheet>
+      <SendToRaffleSheet open={confirm} onClose={() => setConfirm(false)} balance={s.balance} prizes={current?.prizes ?? []} />
     </div>
   );
 }

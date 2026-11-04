@@ -6,6 +6,7 @@ import * as api from "./api";
 export const qk = {
   profile: (id?: string) => ["buky", "profile", id] as const,
   summary: ["buky", "summary"] as const,
+  raffles: ["buky", "raffles"] as const,
   city: (code?: number | null) => ["buky", "city", code] as const,
   routes: (city?: number | null) => ["buky", "routes", city] as const,
   coupons: (city?: number | null) => ["buky", "coupons", city] as const,
@@ -135,8 +136,17 @@ export function useSendToRaffle() {
   return useMutation({
     // La clave la genera la pantalla al confirmar: si la red falla y se reintenta, no se duplica el envío.
     mutationFn: (idempotencyKey: string) => api.sendToRaffle(idempotencyKey),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.summary }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.summary });
+      void qc.invalidateQueries({ queryKey: qk.raffles });
+    },
   });
+}
+
+/** Sorteios del atleta: atual, próximos, resultados y mis premios. */
+export function useMyRaffles() {
+  const { user } = useAuth();
+  return useQuery({ queryKey: qk.raffles, queryFn: api.getMyRaffles, enabled: Boolean(user), staleTime: 30_000 });
 }
 
 export function useIsRouteTester() {
