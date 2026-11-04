@@ -184,6 +184,8 @@ export interface Period {
   entries: number;
   bukys: number;
   athletes: number;
+  /** Premios del periodo (sus cupones), para la lista. */
+  prizes: { title: string; winners: number }[];
 }
 
 export async function listPeriods(): Promise<Period[]> {
@@ -193,10 +195,16 @@ export async function listPeriods(): Promise<Period[]> {
     .order("starts_at", { ascending: false })
     .limit(60);
   if (error) fail(error);
-  const periods = (data ?? []) as Omit<Period, "entries" | "bukys" | "athletes">[];
+  const periods = (data ?? []) as Omit<Period, "entries" | "bukys" | "athletes" | "prizes">[];
   const ids = periods.map((p) => p.id);
   const stats = new Map<string, { entries: number; bukys: number; athletes: Set<string> }>();
+  const prizes = new Map<string, Period["prizes"]>();
   if (ids.length) {
+    const { data: c, error: cErr } = await supabase.from("buky_coupons").select("period_id, title, winners_count, draw_order").in("period_id", ids).order("draw_order");
+    if (cErr) fail(cErr);
+    for (const row of (c ?? []) as { period_id: string; title: string; winners_count: number }[]) {
+      prizes.set(row.period_id, [...(prizes.get(row.period_id) ?? []), { title: row.title, winners: row.winners_count }]);
+    }
     const { data: e, error: eErr } = await supabase.from("buky_entries").select("period_id, user_id, amount").in("period_id", ids);
     if (eErr) fail(eErr);
     for (const row of (e ?? []) as { period_id: string; user_id: string; amount: number }[]) {
@@ -209,7 +217,7 @@ export async function listPeriods(): Promise<Period[]> {
   }
   return periods.map((p) => {
     const s = stats.get(p.id);
-    return { ...p, entries: s?.entries ?? 0, bukys: s?.bukys ?? 0, athletes: s?.athletes.size ?? 0 };
+    return { ...p, entries: s?.entries ?? 0, bukys: s?.bukys ?? 0, athletes: s?.athletes.size ?? 0, prizes: prizes.get(p.id) ?? [] };
   });
 }
 
