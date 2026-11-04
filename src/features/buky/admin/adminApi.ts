@@ -35,6 +35,10 @@ export interface AdminRoute {
   owner_name: string | null;
   active: boolean;
   length_m: number | null;
+  /** Trazo dibujado (paso 21/23); null en rutas antiguas por puntos. */
+  path: { lat: number; lon: number }[] | null;
+  /** Distancia entre Bukys guardada en la ruta (paso 23); null = valor de Configurações. */
+  buky_every_m: number | null;
   points: AdminPoint[];
   created_at: string;
 }
@@ -46,6 +50,8 @@ interface RouteRow {
   kind: "official" | "athlete";
   active: boolean;
   length_m: number | null;
+  path: { lat: number; lon: number }[] | null;
+  buky_every_m: number | null;
   created_at: string;
   br_cities: One<{ name: string; br_states: One<{ uf: string }> }>;
   users: One<{ name: string | null; email: string | null }>;
@@ -55,7 +61,7 @@ interface RouteRow {
 export async function listRoutes(filter: { cityCode?: number | null; kind?: "official" | "athlete" | "all" }): Promise<AdminRoute[]> {
   let q = supabase
     .from("buky_routes")
-    .select("id, name, city_code, kind, active, length_m, created_at, br_cities(name, br_states(uf)), users:owner_id(name, email), buky_points(id, seq, label, lat, lon, radius_m)")
+    .select("id, name, city_code, kind, active, length_m, path, buky_every_m, created_at, br_cities(name, br_states(uf)), users:owner_id(name, email), buky_points(id, seq, label, lat, lon, radius_m)")
     .order("created_at", { ascending: false })
     .limit(300);
   if (filter.cityCode) q = q.eq("city_code", filter.cityCode);
@@ -75,6 +81,8 @@ export async function listRoutes(filter: { cityCode?: number | null; kind?: "off
       owner_name: owner ? owner.name || owner.email : null,
       active: r.active,
       length_m: r.length_m,
+      path: r.path ?? null,
+      buky_every_m: r.buky_every_m ?? null,
       created_at: r.created_at,
       points: [...(r.buky_points ?? [])].sort((a, b) => a.seq - b.seq).map((p) => ({ ...p, label: p.label ?? "" })),
     };
@@ -88,53 +96,58 @@ export function routeLength(points: { lat: number; lon: number }[]): number {
 }
 
 /**
- * Guarda una ruta oficial con sus puntos. Los puntos existentes se actualizan, los nuevos se
- * crean y los quitados se borran (si un punto ya tiene pasadas registradas, no se puede borrar:
- * la base lo impide para no perder el historial; en ese caso conviene desactivar la ruta).
+ * Guarda una ruta oficial dibujada como trazo, con sus Bukys ya calculados a lo largo del camino
+ * (mismo cálculo que las rutas del atleta). Los puntos existentes se reutilizan en orden (se mueven
+ * a su nuevo lugar), los que faltan se crean y los que sobran se borran. Si un punto que sobra ya
+ * tiene pasadas registradas, la base no deja borrarlo: en ese caso conviene crear una ruta nueva.
  */
 export async function saveOfficialRoute(input: {
   id?: string;
   name: string;
   city_code: number;
   active: boolean;
-  points: AdminPoint[];
+  path: { lat: number; lon: number }[];
+  everyM: number;
+  radiusM: number;
+  bukys: { lat: number; lon: number }[];
+  lengthM: number;
 }): Promise<string> {
-  const length_m = routeLength(input.points);
+  const route = {
+    name: input.name,
+    city_code: input.city_code,
+    active: input.active,
+    length_m: Math.round(input.lengthM),
+    path: input.path.map((p) => ({ lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6) })),
+    buky_every_m: Math.round(input.everyM),
+  };
   let routeId = input.id;
   if (routeId) {
-    const { error } = await supabase
-      .from("buky_routes")
-      .update({ name: input.name, city_code: input.city_code, active: input.active, length_m, updated_at: new Date().toISOString() })
-      .eq("id", routeId);
+    const { error } = await supabase.from("buky_routes").update({ ...route, updated_at: new Date().toISOString() }).eq("id", routeId);
     if (error) fail(error);
   } else {
-    const { data, error } = await supabase
-      .from("buky_routes")
-      .insert({ name: input.name, city_code: input.city_code, kind: "official", active: input.active, length_m })
-      .select("id")
-      .single();
+    const { data, error } = await supabase.from("buky_routes").insert({ ...route, kind: "official" }).select("id").single();
     if (error) fail(error);
     routeId = (data as { id: string }).id;
   }
 
-  const { data: current, error: cErr } = await supabase.from("buky_points").select("id").eq("route_id", routeId);
+  const { data: current, error: cErr } = await supabase.from("buky_points").select("id, seq").eq("route_id", routeId).order("seq");
   if (cErr) fail(cErr);
-  const keep = new Set(input.points.filter((p) => p.id).map((p) => p.id));
-  const remove = (current ?? []).map((p: { id: string }) => p.id).filter((id) => !keep.has(id));
-  if (remove.length) {
-    const { error } = await supabase.from("buky_points").delete().in("id", remove);
+  const existing = (current ?? []) as { id: string; seq: number }[];
+  const surplus = existing.slice(input.bukys.length).map((p) => p.id);
+  if (surplus.length) {
+    const { error } = await supabase.from("buky_points").delete().in("id", surplus);
     if (error) fail(error);
   }
-  // seq es único por ruta: primero se mueven los existentes a valores temporales
-  const existing = input.points.filter((p) => p.id);
-  for (const p of existing) {
-    const { error } = await supabase.from("buky_points").update({ seq: 1000 + p.seq }).eq("id", p.id!);
+  // seq es único por ruta: primero los existentes pasan a valores temporales
+  const reused = existing.slice(0, input.bukys.length);
+  for (const p of reused) {
+    const { error } = await supabase.from("buky_points").update({ seq: 1000 + p.seq }).eq("id", p.id);
     if (error) fail(error);
   }
-  for (const [i, p] of input.points.entries()) {
-    const row = { route_id: routeId, seq: i, label: p.label || `BUKY_${String(i + 1).padStart(2, "0")}`, lat: p.lat, lon: p.lon, radius_m: p.radius_m };
-    const { error } = p.id
-      ? await supabase.from("buky_points").update(row).eq("id", p.id)
+  for (const [i, b] of input.bukys.entries()) {
+    const row = { route_id: routeId, seq: i, label: `Buky ${i + 1}`, lat: +b.lat.toFixed(6), lon: +b.lon.toFixed(6), radius_m: Math.round(input.radiusM) };
+    const { error } = reused[i]
+      ? await supabase.from("buky_points").update(row).eq("id", reused[i].id)
       : await supabase.from("buky_points").insert(row);
     if (error) fail(error);
   }
