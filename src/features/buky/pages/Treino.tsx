@@ -6,7 +6,7 @@ import { pt } from "../i18n";
 import BukyMap from "../components/BukyMap";
 import CouponList from "../components/CouponList";
 import { isToday, Sheet, Spinner } from "../components/ui";
-import { useBukyProfile, useMySessions, useZoneCoupons } from "../lib/hooks";
+import { useBukyProfile, useCouponsHere, useMySessions } from "../lib/hooks";
 import { training, useTraining } from "../training/useTraining";
 import { getGpsSource } from "../training/gpsSource";
 
@@ -15,7 +15,7 @@ export default function Treino() {
   const navigate = useNavigate();
   const t = useTraining();
   const { data: profile } = useBukyProfile();
-  const { data: coupons = [] } = useZoneCoupons(profile?.city_code);
+  const { coupons, away } = useCouponsHere(t.lastFix);
   const { data: sessions = [] } = useMySessions();
   const [toast, setToast] = useState<string | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -125,7 +125,7 @@ export default function Treino() {
         )}
 
         <div className="mt-8">
-          <CouponList coupons={coupons} />
+          <CouponList coupons={coupons} away={away} />
         </div>
       </div>
 

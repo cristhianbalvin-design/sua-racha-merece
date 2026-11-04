@@ -91,6 +91,7 @@ export const pt = {
     terminar: "Terminar",
     maisUm: "+1 Buky",
     cupons: "Cupons nesta zona",
+    cuponsDigitais: "Cupons digitais",
     fisico: "Físico · na loja",
     digital: "Digital · no app",
     gpsFraco: "Sinal de GPS fraco",

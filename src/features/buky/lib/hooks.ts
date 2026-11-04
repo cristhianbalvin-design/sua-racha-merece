@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { haversineMeters } from "@/features/buky/engine";
 import { useAuth } from "@/contexts/AuthContext";
 import * as api from "./api";
 
@@ -141,4 +142,18 @@ export function useSendToRaffle() {
 export function useIsRouteTester() {
   const { user } = useAuth();
   return useQuery({ queryKey: ["buky", "route-tester", user?.id], queryFn: api.isRouteTester, enabled: Boolean(user), staleTime: 5 * 60_000 });
+}
+
+/**
+ * Cupones "en esta zona": los de la ciudad del atleta solo cuentan si está físicamente en ella
+ * (dentro del radio de la ciudad). Lejos de su ciudad (p. ej. probando desde otro país) solo
+ * quedan los digitales, que se usan en la app. Sin ubicación se muestran todos.
+ */
+export function useCouponsHere(pos?: { lat: number; lon: number } | null) {
+  const { data: profile } = useBukyProfile();
+  const { data: city } = useCity(profile?.city_code);
+  const { data: rules } = useRouteRules();
+  const { data: all = [] } = useZoneCoupons(profile?.city_code);
+  const away = Boolean(pos && city && haversineMeters(pos.lat, pos.lon, city.lat, city.lon) > (rules?.maxCityKm ?? 60) * 1000);
+  return { coupons: away ? all.filter((c) => c.kind === "digital") : all, away };
 }
