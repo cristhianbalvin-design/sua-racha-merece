@@ -137,3 +137,8 @@ export function useSendToRaffle() {
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.summary }),
   });
 }
+
+export function useIsRouteTester() {
+  const { user } = useAuth();
+  return useQuery({ queryKey: ["buky", "route-tester", user?.id], queryFn: api.isRouteTester, enabled: Boolean(user), staleTime: 5 * 60_000 });
+}

@@ -4,6 +4,9 @@ import { Save } from "lucide-react";
 import { toast } from "sonner";
 import { listBukySettings, saveSetting, type Setting } from "./adminApi";
 import { btnPrimary, card, inputCls } from "./ui";
+import AdminTesters from "./AdminTesters";
+
+const TESTERS = "Testadores";
 
 // Orden y agrupación de las claves buky_* para el admin
 const GROUPS: { title: string; keys: string[] }[] = [
@@ -83,7 +86,7 @@ export default function AdminConfig() {
         As regras são lidas no servidor a cada treino: mudar um valor aqui vale imediatamente para os próximos treinos, sem publicar o app.
       </p>
       <div className="flex flex-wrap gap-1 border-b border-border" role="tablist" aria-label="Grupos de configurações">
-        {[...GROUPS.map((g) => g.title), ...(others.length ? ["Outros"] : [])].map((t) => (
+        {[...GROUPS.map((g) => g.title), TESTERS, ...(others.length ? ["Outros"] : [])].map((t) => (
           <button
             key={t}
             type="button"
@@ -97,7 +100,7 @@ export default function AdminConfig() {
         ))}
       </div>
       <div className={`${card} divide-y divide-border`} role="tabpanel">
-        {tab === "Outros" ? others.map((s) => row(s)) : GROUPS.find((g) => g.title === tab)?.keys.map((k) => row(byKey.get(k)))}
+        {tab === TESTERS ? <AdminTesters /> : tab === "Outros" ? others.map((s) => row(s)) : GROUPS.find((g) => g.title === tab)?.keys.map((k) => row(byKey.get(k)))}
       </div>
     </div>
   );

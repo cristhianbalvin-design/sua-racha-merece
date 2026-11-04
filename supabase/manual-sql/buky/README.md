@@ -8,6 +8,7 @@ Scripts para correr **a mano en el SQL Editor de Supabase**, en orden y uno por 
 | 15 | `15_catalogo_ibge_y_perfil.sql` | Catálogo IBGE (27 estados y 5.571 ciudades), perfil del atleta con ciudad/estado por código, Instagram y barrio; vista previa y aplicación de la normalización de las ciudades escritas a mano |
 | 16 | `16_buky_nucleo.sql` | Rutas oficiales y del atleta, puntos, entrenamientos, pasadas, libro de Bukys inmutable, saldos, bucket privado `buky-tracks`, parámetros `buky_*` en `app_settings` |
 | 17 | `17_buky_sorteos.sql` | Patrocinadores, periodos de sorteo, cupones por alcance, envío del saldo, sorteo auditable, cancelación con devolución y tarea `pg_cron` `buky-raffle-tick` (cada 5 min) |
+| 19 | `19_testadores_rutas.sql` | Testadores de rutas: el admin marca atletas que pueden crear rutas fuera de su ciudad (pruebas fuera de Brasil). Va siempre **después** del 16, porque reemplaza `buky_create_athlete_route` |
 
 Después de los SQL se despliega la Edge Function (verify_jwt activado; no necesita secrets nuevos):
 

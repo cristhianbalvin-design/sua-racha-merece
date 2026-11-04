@@ -379,3 +379,10 @@ export async function sendToRaffle(idempotencyKey: string): Promise<{ ticket: st
   if (error) fail(error);
   return data;
 }
+
+/** Testador de rutas o admin (paso 19): puede crear rutas propias fuera de su ciudad. */
+export async function isRouteTester(): Promise<boolean> {
+  const { data, error } = await supabase.rpc("buky_is_route_tester");
+  if (error) return false; // si el paso 19 aún no está aplicado, se comporta como atleta común
+  return data === true;
+}

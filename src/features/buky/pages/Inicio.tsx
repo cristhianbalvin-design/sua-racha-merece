@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Play, Plus, Ticket } from "lucide-react";
+import { Check, ChevronDown, Play, Plus, Route as RouteIcon, Ticket } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { haversineMeters } from "@/features/buky/engine";
@@ -24,21 +24,47 @@ export default function Inicio() {
   const { data: summary } = useSummary();
   const { data: coupons = [] } = useZoneCoupons(profile?.city_code);
   const { pos, error: geoError } = useGeolocation();
-  const [routeId, setRouteId] = useState<string | null>(null);
+  const [routeId, setRouteIdState] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("buky.route");
+    } catch {
+      return null;
+    }
+  });
+  const [pickRoute, setPickRoute] = useState(false);
+  // Al elegir una ruta a mano, el mapa va a ella (aunque estés lejos, p. ej. probando desde otro país)
+  const [focusRoute, setFocusRoute] = useState(false);
+  const setRouteId = (id: string) => {
+    setRouteIdState(id);
+    setFocusRoute(true);
+    setPickRoute(false);
+    try {
+      localStorage.setItem("buky.route", id);
+    } catch {
+      /* sin almacenamiento: solo dura esta visita */
+    }
+  };
   const [askStart, setAskStart] = useState(false);
   const [showCoupons, setShowCoupons] = useState(false);
   const [starting, setStarting] = useState(false);
 
   const route = routes.find((r) => r.id === routeId) ?? routes[0] ?? null;
-  const allPoints = useMemo(() => routes.flatMap((r) => r.points), [routes]);
+  const official = routes.filter((r) => r.kind === "official");
+  const mine = routes.filter((r) => r.kind === "athlete");
 
-  // "N waypoints perto de você": a menos de 1 km; sin ubicación, los de la ruta elegida
+  // "N waypoints perto de você": de la ruta elegida, a menos de 1 km; sin ubicación, todos los de la ruta
   const nearCount = useMemo(() => {
-    if (!pos) return route?.points.length ?? 0;
-    return allPoints.filter((p) => haversineMeters(pos.lat, pos.lon, p.lat, p.lon) <= NEAR_M).length;
-  }, [pos, allPoints, route]);
+    const pts = route?.points ?? [];
+    if (!pos) return pts.length;
+    return pts.filter((p) => haversineMeters(pos.lat, pos.lon, p.lat, p.lon) <= NEAR_M).length;
+  }, [pos, route]);
 
-  const center = pos ?? (route?.points[0] ? { lat: route.points[0].lat, lon: route.points[0].lon } : city ? { lat: city.lat, lon: city.lon } : null);
+  const routeCenter = useMemo(() => {
+    const pts = route?.points ?? [];
+    if (!pts.length) return null;
+    return { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lon: pts.reduce((a, p) => a + p.lon, 0) / pts.length };
+  }, [route]);
+  const center = (focusRoute && routeCenter) || pos || routeCenter || (city ? { lat: city.lat, lon: city.lon } : null);
   const zone = [profile?.neighborhood, city?.name].filter(Boolean).join(" · ");
 
   const start = async () => {
@@ -60,7 +86,8 @@ export default function Inicio() {
       <BukyMap
         center={center}
         zoom={13.4}
-        points={(route ? routes.flatMap((r) => r.points.map((p) => ({ ...p, state: "idle" as const }))) : [])}
+        points={route ? route.points.map((p) => ({ ...p, state: "idle" as const })) : []}
+        showPath
         user={pos}
         nearRadiusM={pos ? NEAR_M : undefined}
         className="absolute inset-x-0 top-0 h-[68%]"
@@ -79,42 +106,18 @@ export default function Inicio() {
 
       <div className="absolute inset-x-0 bottom-[110px] px-6">
         {/* Botón Iniciar flotando sobre el mapa, siempre encima del bloque de datos */}
-        <div className="absolute bottom-full right-6 z-10 mb-5 flex flex-col items-center">
+        <div className="absolute bottom-full right-6 z-10 mb-2 flex flex-col items-center">
           <button
             type="button"
             onClick={() => setAskStart(true)}
             disabled={!route}
             aria-label={pt.inicio.iniciar}
-            className="flex h-[124px] w-[124px] items-center justify-center rounded-full bg-[var(--buky-neon)] text-[#050505] shadow-[0_0_0_10px_rgba(57,255,20,0.14),0_12px_40px_rgba(0,0,0,0.6)] transition active:scale-95 disabled:opacity-40"
+            className="flex h-[84px] w-[84px] items-center justify-center rounded-full bg-[var(--buky-neon)] text-[#050505] shadow-[0_0_0_7px_rgba(57,255,20,0.14),0_10px_30px_rgba(0,0,0,0.6)] transition active:scale-95 disabled:opacity-40"
           >
-            <Play size={30} fill="currentColor" />
+            <Play size={26} fill="currentColor" />
           </button>
-          <span className="font-buky mt-3 text-[15px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">{pt.inicio.iniciar}</span>
+          <span className="font-buky mt-2 text-[13px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">{pt.inicio.iniciar}</span>
         </div>
-
-        {/* selector de ruta */}
-        {routes.length > 1 && (
-          <div className="-mx-6 mb-5 flex gap-2 overflow-x-auto px-6 pb-1" role="radiogroup" aria-label={pt.inicio.escolherRota}>
-            {routes.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                role="radio"
-                aria-checked={r.id === route?.id}
-                onClick={() => setRouteId(r.id)}
-                className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold ${
-                  r.id === route?.id ? "border-[var(--buky-neon)] text-[var(--buky-neon)]" : "border-[var(--buky-line)] text-[var(--buky-muted)]"
-                }`}
-              >
-                {r.name}
-                {r.kind === "athlete" && " · minha"}
-              </button>
-            ))}
-            <Link to="/app/rotas/nova" className="flex shrink-0 items-center gap-1 rounded-full border border-dashed border-[var(--buky-line)] px-4 py-2 text-sm text-[var(--buky-muted)]">
-              <Plus size={14} /> {pt.inicio.criarRota}
-            </Link>
-          </div>
-        )}
 
         <div>
           <div className="min-w-0">
@@ -130,6 +133,16 @@ export default function Inicio() {
               <>
                 <p className="font-buky-xcond mt-1 text-[96px]">{nearCount}</p>
                 <p className="mt-2 text-[15px] text-[var(--buky-muted)]">{pt.inicio.pertoDeVoce(nearCount)}</p>
+                <button
+                  type="button"
+                  onClick={() => setPickRoute(true)}
+                  className="mt-3 flex max-w-full items-center gap-2 rounded-full border border-[var(--buky-line)] bg-[#0d0d0d] py-2 pl-3 pr-3 text-sm"
+                  aria-label={`${pt.inicio.escolherRota}: ${route?.name ?? ""}`}
+                >
+                  <RouteIcon size={16} className="shrink-0 text-[var(--buky-neon)]" />
+                  <span className="truncate font-semibold">{route?.name}</span>
+                  <ChevronDown size={16} className="shrink-0 text-[var(--buky-muted)]" />
+                </button>
               </>
             )}
             {geoError && <p className="mt-2 max-w-[220px] text-xs text-[var(--buky-faint)]">{pt.inicio.localizacao}</p>}
@@ -143,6 +156,44 @@ export default function Inicio() {
       </div>
 
       <StartSheet open={askStart} onClose={() => setAskStart(false)} onStart={start} busy={starting} routeName={route?.name ?? ""} />
+      <Sheet open={pickRoute} onClose={() => setPickRoute(false)} label={pt.inicio.escolherRota}>
+        <div className="max-h-[60svh] overflow-auto">
+          {[
+            { title: pt.inicio.rotasOficiais, list: official },
+            { title: pt.inicio.minhasRotas, list: mine },
+          ].map(
+            (g) =>
+              g.list.length > 0 && (
+                <div key={g.title} className="mb-4">
+                  <p className="buky-label mb-1 text-[var(--buky-muted)]">{g.title}</p>
+                  <ul className="-mx-2">
+                    {g.list.map((r) => (
+                      <li key={r.id}>
+                        <button
+                          type="button"
+                          onClick={() => setRouteId(r.id)}
+                          className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-3 text-left hover:bg-[#161616]"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-[16px] font-semibold">{r.name}</span>
+                            <span className="block text-[13px] text-[var(--buky-muted)]">
+                              {pt.rota.pontos(r.points.length)}
+                              {r.length_m ? ` · ${(r.length_m / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km` : ""}
+                            </span>
+                          </span>
+                          {r.id === route?.id && <Check size={18} className="shrink-0 text-[var(--buky-neon)]" />}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ),
+          )}
+        </div>
+        <Link to="/app/rotas/nova" className="buky-btn buky-btn-ghost mt-2">
+          <Plus size={18} /> {pt.inicio.criarRota}
+        </Link>
+      </Sheet>
       <Sheet open={showCoupons} onClose={() => setShowCoupons(false)} label={pt.treino.cupons}>
         <CouponList coupons={coupons} />
       </Sheet>
