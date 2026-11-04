@@ -13,5 +13,13 @@ if (IS_NATIVE) {
     .finally(render);
 } else {
   render();
-  import("virtual:pwa-register").then(({ registerSW }) => registerSW({ immediate: true }));
+  // Mismo registro simple que inyectaba vite-plugin-pwa antes (registerSW.js): sin recargar la
+  // página. No usar registerSW() de virtual:pwa-register con autoUpdate: recarga al cambiar el
+  // controlador, y OneSignal registra su propio worker en /sw.js → ambos se reemplazan y la
+  // página entra en un bucle de recargas.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+    });
+  }
 }
