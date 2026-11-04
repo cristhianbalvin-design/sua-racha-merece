@@ -14,9 +14,9 @@ trap cleanup EXIT
 "$PGBIN/initdb" -D "$DATA" -U postgres --auth=trust -E UTF8 --locale=C.UTF-8 >/dev/null
 "$PGBIN/pg_ctl" -D "$DATA" -o "-p $PORT -k $DATA -c listen_addresses=''" -l "$DATA/log" start >/dev/null
 export PGHOST="$DATA" PGPORT="$PORT" PGUSER=postgres PGDATABASE=postgres
-run() { psql -q -v ON_ERROR_STOP=1 -f "$1" >/dev/null && echo "ok  $(basename "$1")"; }
+run() { psql -q -v ON_ERROR_STOP=1 -v sqldir="$SQL" -f "$1" >/dev/null && echo "ok  $(basename "$1")"; }
 run "$HERE/00_supabase_stubs.sql"
-for f in "$SQL"/[0-9][0-9]_*.sql; do run "$f"; done
+for f in "$SQL"/1[5-7]_*.sql; do run "$f"; done
 for f in "$HERE"/test_*.sql; do run "$f"; done
 # Datos de prueba de Niterói sobre la base ya poblada (verifica que el script corre)
 run "$SQL/datos_prueba_niteroi.sql"
