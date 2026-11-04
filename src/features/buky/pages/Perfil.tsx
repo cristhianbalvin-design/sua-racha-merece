@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LogOut, Pencil, Route, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, LogOut, Pencil, Route, SlidersHorizontal } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { pt } from "../i18n";
 import { fmtDate, isToday, ProfileAvatar, Sheet, Spinner } from "../components/ui";
@@ -71,18 +71,23 @@ export default function Perfil() {
         ) : (
           <ul className="mt-2">
             {sessions.map((x) => (
-              <li key={x.id} className="buky-row flex items-center justify-between py-3">
+              <li key={x.id} className="buky-row">
+                <Link to={`/app/perfil/treino/${x.id}`} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-[16px]">
                     {isToday(x.started_at) ? pt.perfil.hoje : fmtDate(x.started_at)} · {x.route_name}
                   </p>
                   <p className="text-[13px] text-[var(--buky-faint)]">
-                    {x.status === "valid" ? pt.perfil.waypoints(x.passes_valid) : pt.perfil.invalido}
+                    {[x.status === "valid" ? pt.perfil.waypoints(x.passes_valid) : pt.perfil.invalido, x.distance_m ? `${(x.distance_m / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} km` : null].filter(Boolean).join(" · ")}
                   </p>
                 </div>
-                <span className={`font-buky text-[26px] ${x.status === "valid" ? "text-[var(--buky-neon)]" : "text-[var(--buky-faint)]"}`}>
-                  +{x.bukys_awarded}
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className={`font-buky text-[26px] ${x.status === "valid" ? "text-[var(--buky-neon)]" : "text-[var(--buky-faint)]"}`}>
+                    +{x.bukys_awarded}
+                  </span>
+                  <ChevronRight size={16} className="text-[var(--buky-faint)]" />
                 </span>
+                </Link>
               </li>
             ))}
           </ul>

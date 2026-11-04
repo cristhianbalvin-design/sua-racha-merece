@@ -460,3 +460,78 @@ export async function getMyRaffles(): Promise<MyRaffles> {
   if (error) fail(error);
   return (data ?? { current: null, upcoming: [], past: [], my_prizes: [] }) as MyRaffles;
 }
+
+// ------------------------------------------------------------------ historial de un entrenamiento
+
+export interface SessionPass {
+  point_id: string;
+  passed_at: string;
+  speed_kmh: number | null;
+  valid: boolean;
+  awarded: boolean;
+  reject_reason: string | null;
+}
+
+export interface SessionDetail {
+  id: string;
+  status: "running" | "valid" | "invalid" | "abandoned";
+  started_at: string;
+  ended_at: string | null;
+  distance_m: number | null;
+  duration_s: number | null;
+  avg_speed_kmh: number | null;
+  max_speed_kmh: number | null;
+  passes_valid: number;
+  passes_rejected: number;
+  bukys_awarded: number;
+  invalid_reason: string | null;
+  track_path: string | null;
+  route: { id: string; name: string; kind: "official" | "athlete"; path: { lat: number; lon: number }[] | null; city: string | null; points: RoutePoint[] } | null;
+  passes: SessionPass[];
+}
+
+export async function getSessionDetail(id: string): Promise<SessionDetail> {
+  const { data, error } = await supabase
+    .from("buky_sessions")
+    .select(
+      "id, status, started_at, ended_at, distance_m, duration_s, avg_speed_kmh, max_speed_kmh, passes_valid, passes_rejected, bukys_awarded, invalid_reason, track_path, " +
+        "buky_routes(id, name, kind, path, br_cities(name), buky_points(id, seq, label, lat, lon, radius_m)), " +
+        "buky_passes(point_id, passed_at, speed_kmh, valid, awarded, reject_reason)",
+    )
+    .eq("id", id)
+    .single();
+  if (error) fail(error);
+  type Row = Omit<SessionDetail, "route" | "passes"> & {
+    buky_routes: One<RouteRow & { br_cities: One<{ name: string }> }>;
+    buky_passes: SessionPass[] | null;
+  };
+  const r = data as unknown as Row;
+  const route = one(r.buky_routes);
+  const num = (v: unknown) => (v == null ? null : Number(v));
+  return {
+    ...r,
+    avg_speed_kmh: num(r.avg_speed_kmh),
+    max_speed_kmh: num(r.max_speed_kmh),
+    route: route
+      ? {
+          id: route.id,
+          name: route.name,
+          kind: route.kind,
+          path: route.path ?? null,
+          city: one(route.br_cities)?.name ?? null,
+          points: (route.buky_points ?? [])
+            .sort((a, b) => a.seq - b.seq)
+            .map((p) => ({ id: p.id, seq: p.seq, label: p.label ?? `BUKY_${String(p.seq + 1).padStart(2, "0")}`, lat: p.lat, lon: p.lon, radiusM: p.radius_m })),
+        }
+      : null,
+    passes: (r.buky_passes ?? []).sort((a, b) => a.passed_at.localeCompare(b.passed_at)),
+  };
+}
+
+/** Lecturas GPS del recorrido guardado (archivo .json.gz privado del atleta, paso 22). */
+export async function getSessionTrack(trackPath: string): Promise<{ lat: number; lon: number; t: number; acc: number }[]> {
+  const { data, error } = await supabase.storage.from("buky-tracks").download(trackPath);
+  if (error || !data) throw new BukyApiError("track_unavailable", error?.message ?? "track_unavailable");
+  const { parseTrackFile } = await import("./trackFile");
+  return parseTrackFile(data);
+}

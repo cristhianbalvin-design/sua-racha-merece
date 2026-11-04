@@ -27,6 +27,8 @@ interface Props {
   showPath?: boolean;
   /** Trazo del recorrido (rutas dibujadas): se dibuja como línea. */
   path?: { lat: number; lon: number }[] | null;
+  /** Encuadra el mapa para que entren todos estos puntos (historial). */
+  fitTo?: { lat: number; lon: number }[];
   /** Recorrido ya hecho por el atleta (entrenamiento): línea blanca sobre la ruta. */
   trail?: { lat: number; lon: number }[];
   /** Editor: vértices del trazo (puntos blancos que se tocan y arrastran). */
@@ -96,6 +98,7 @@ export default function BukyMap({
   showPath,
   path,
   trail,
+  fitTo,
   vertices,
   showRadius,
   recenterKey,
@@ -115,6 +118,17 @@ export default function BukyMap({
   editRef.current = { editable, onPointTap, onPointDrag };
   const latest = useRef({ points, user, nearRadiusM, showPath, selected, path, vertices, showRadius, trail });
   latest.current = { points, user, nearRadiusM, showPath, selected, path, vertices, showRadius, trail };
+  const fitRef = useRef(fitTo);
+  fitRef.current = fitTo;
+
+  const fit = () => {
+    const m = map.current;
+    const pts = fitRef.current;
+    if (!m || !ready.current || !pts || pts.length < 2) return;
+    const b = new maplibregl.LngLatBounds([pts[0].lon, pts[0].lat], [pts[0].lon, pts[0].lat]);
+    for (const p of pts) b.extend([p.lon, p.lat]);
+    m.fitBounds(b, { padding: 48, maxZoom: 17, duration: 0 });
+  };
 
   // Crear el mapa una sola vez
   useEffect(() => {
@@ -237,6 +251,7 @@ export default function BukyMap({
         ready.current = true;
         if (el.current) el.current.dataset.ready = "1";
         sync();
+        fit();
       });
       m.on("click", (e) => {
         const hit = editRef.current.editable && ready.current ? m.queryRenderedFeatures(e.point, { layers: ["vertex-hit"] })[0] : undefined;
@@ -329,6 +344,7 @@ export default function BukyMap({
   };
 
   useEffect(sync, [points, user, nearRadiusM, showPath, selected, path, vertices, showRadius, trail]);
+  useEffect(fit, [fitTo?.length, fitTo?.[0]?.lat]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Centrar cuando cambia el centro pedido o al seguir al atleta
   useEffect(() => {
