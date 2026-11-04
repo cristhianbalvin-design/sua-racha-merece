@@ -1,0 +1,92 @@
+name: Supabase · aplicar Buky en producción
+
+# Manual (Actions → este workflow → Run workflow). Aplica los pasos SQL de Buky,
+# opcionalmente los datos de prueba de Niterói, y publica la Edge Function buky-close-session.
+# Secretos necesarios (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL        cadena de conexión de Postgres (Project Settings → Database → Connection string, modo Session)
+#   SUPABASE_ACCESS_TOKEN  token personal de Supabase (Account → Access Tokens), solo para publicar la función
+# Los pasos SQL son idempotentes: volver a correrlos no rompe ni duplica nada.
+on:
+  workflow_dispatch:
+    inputs:
+      sql:
+        description: "Aplicar los pasos SQL 15, 16 y 17"
+        type: boolean
+        default: true
+      datos_prueba:
+        description: "Cargar los datos de prueba de Niterói ([TESTE])"
+        type: boolean
+        default: true
+      funcion:
+        description: "Publicar la Edge Function buky-close-session"
+        type: boolean
+        default: true
+
+concurrency:
+  group: buky-supabase-deploy
+  cancel-in-progress: false
+
+env:
+  PROJECT_REF: ljizlialjsonmmvppoqh
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verificar secretos
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          [ -n "$DB" ] || { echo "::error::Falta el secreto SUPABASE_DB_URL"; exit 1; }
+          if [ "${{ inputs.funcion }}" = "true" ] && [ -z "$TOKEN" ]; then echo "::error::Falta el secreto SUPABASE_ACCESS_TOKEN"; exit 1; fi
+          echo "$DB" | grep -q "$PROJECT_REF" || { echo "::error::SUPABASE_DB_URL no es del proyecto $PROJECT_REF"; exit 1; }
+          echo "::notice title=Proyecto::$PROJECT_REF"
+
+      - name: Instalar psql
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null && psql --version
+
+      - name: Aplicar pasos SQL 15, 16 y 17
+        if: inputs.sql
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -e
+          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql; do
+            psql "$DB" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
+            echo "::notice title=SQL aplicado::$(basename "$f") · sha256 $(sha256sum "$f" | cut -c1-12)"
+          done
+
+      - name: Cargar datos de prueba
+        if: inputs.datos_prueba
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: psql "$DB" -q -v ON_ERROR_STOP=1 -f supabase/manual-sql/buky/datos_prueba_niteroi.sql | tail -3 | sed 's/^/::notice title=Datos de prueba::/'
+
+      - name: Verificar en la base
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          psql "$DB" -At -F ' · ' -c "
+            SELECT 'ciudades=' || (SELECT count(*) FROM public.br_cities),
+                   'estados=' || (SELECT count(*) FROM public.br_states),
+                   'rutas activas=' || (SELECT count(*) FROM public.buky_routes WHERE active),
+                   'puntos=' || (SELECT count(*) FROM public.buky_points),
+                   'periodos=' || (SELECT string_agg(status, ',') FROM public.buky_raffle_periods),
+                   'cupones=' || (SELECT count(*) FROM public.buky_coupons),
+                   'cron=' || (SELECT count(*) FROM cron.job WHERE jobname = 'buky-raffle-tick'),
+                   'bucket=' || (SELECT count(*) FROM storage.buckets WHERE id = 'buky-tracks')" \
+            | sed 's/^/::notice title=Base::/'
+          psql "$DB" -At -F ' ' -c "SELECT status, count(*) FROM public.buky_match_user_cities() GROUP BY status ORDER BY 1" \
+            | sed 's/^/::notice title=Ciudades de usuarios (vista previa, sin aplicar)::/'
+
+      - name: Publicar la Edge Function
+        if: inputs.funcion
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          npx --yes supabase@2 functions deploy buky-close-session --project-ref "$PROJECT_REF" --use-api 2>&1 | tail -5
+          echo "::notice title=Edge Function::buky-close-session publicada en $PROJECT_REF"
