@@ -9,7 +9,7 @@ import BukyMap from "../components/BukyMap";
 import StartSheet from "../components/StartSheet";
 import CouponList from "../components/CouponList";
 import { ProfileAvatar, Sheet } from "../components/ui";
-import { useBukyProfile, useCity, useRoutes, useSummary, useZoneCoupons } from "../lib/hooks";
+import { useBukyProfile, useCity, useRoutes, useSummary, useCouponsHere } from "../lib/hooks";
 import { useGeolocation } from "../lib/useGeolocation";
 import { training } from "../training/useTraining";
 
@@ -22,8 +22,8 @@ export default function Inicio() {
   const { data: city } = useCity(profile?.city_code);
   const { data: routes = [], isLoading: loadingRoutes } = useRoutes(profile?.city_code);
   const { data: summary } = useSummary();
-  const { data: coupons = [] } = useZoneCoupons(profile?.city_code);
   const { pos, error: geoError } = useGeolocation();
+  const { coupons, away } = useCouponsHere(pos);
   const [routeId, setRouteIdState] = useState<string | null>(() => {
     try {
       return localStorage.getItem("buky.route");
@@ -105,8 +105,8 @@ export default function Inicio() {
       </div>
 
       <div className="absolute inset-x-0 bottom-[110px] px-6">
-        {/* Botón Iniciar flotando sobre el mapa, siempre encima del bloque de datos */}
-        <div className="absolute bottom-full right-6 z-10 mb-2 flex flex-col items-center">
+        {/* Botón Iniciar debajo del mapa, a la derecha del contador (no tapa el mapa) */}
+        <div className="absolute right-6 top-0 z-10 flex flex-col items-center">
           <button
             type="button"
             onClick={() => setAskStart(true)}
@@ -121,7 +121,7 @@ export default function Inicio() {
 
         <div>
           <div className="min-w-0">
-            {zone && <p className="buky-label truncate text-[var(--buky-neon)]">{zone}</p>}
+            {zone && <p className="buky-label truncate pr-28 text-[var(--buky-neon)]">{zone}</p>}
             {loadingRoutes ? null : routes.length === 0 ? (
               <div className="mt-2 max-w-[220px]">
                 <p className="text-[15px] text-[var(--buky-muted)]">{pt.inicio.semRotas}</p>
@@ -148,7 +148,7 @@ export default function Inicio() {
             {geoError && <p className="mt-2 max-w-[220px] text-xs text-[var(--buky-faint)]">{pt.inicio.localizacao}</p>}
             {coupons.length > 0 && (
               <button type="button" onClick={() => setShowCoupons(true)} className="mt-3 flex items-center gap-2 text-sm font-semibold text-white">
-                <Ticket size={16} className="text-[var(--buky-neon)]" /> {pt.treino.cupons} · {coupons.length}
+                <Ticket size={16} className="text-[var(--buky-neon)]" /> {away ? pt.treino.cuponsDigitais : pt.treino.cupons} · {coupons.length}
               </button>
             )}
           </div>
@@ -194,8 +194,8 @@ export default function Inicio() {
           <Plus size={18} /> {pt.inicio.criarRota}
         </Link>
       </Sheet>
-      <Sheet open={showCoupons} onClose={() => setShowCoupons(false)} label={pt.treino.cupons}>
-        <CouponList coupons={coupons} />
+      <Sheet open={showCoupons} onClose={() => setShowCoupons(false)} label={away ? pt.treino.cuponsDigitais : pt.treino.cupons}>
+        <CouponList coupons={coupons} away={away} />
       </Sheet>
     </div>
   );
