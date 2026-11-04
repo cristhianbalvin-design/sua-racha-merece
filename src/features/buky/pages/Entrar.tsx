@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { IS_NATIVE } from "@/lib/platform";
 import mascote from "../assets/buky-mascote.webp";
 import "../theme.css";
 import { pt } from "../i18n";
@@ -87,9 +88,12 @@ export default function Entrar() {
           </button>
         </form>
 
-        <button type="button" onClick={() => void loginWithGoogle("/app")} className="buky-btn buky-btn-ghost mt-3 h-12 text-[15px]">
-          {pt.entrar.google}
-        </button>
+        {/* Google en la app nativa necesita enlaces profundos (siguiente iteración) */}
+        {!IS_NATIVE && (
+          <button type="button" onClick={() => void loginWithGoogle("/app")} className="buky-btn buky-btn-ghost mt-3 h-12 text-[15px]">
+            {pt.entrar.google}
+          </button>
+        )}
 
         <Link to="/forgot-password" className="mt-4 text-center text-sm text-[var(--buky-muted)]">
           {pt.entrar.esqueceu}

@@ -30,6 +30,8 @@ export default defineConfig(({ mode }) => {
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
+      // El service worker se registra en main.tsx, solo en la web (no dentro de la app nativa).
+      injectRegister: null,
       includeAssets: ["favicon.ico", "pwa-192.svg", "pwa-512.svg"],
       devOptions: { enabled: true },
       manifest: {

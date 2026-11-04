@@ -52,6 +52,7 @@ import PhotographerPhotos from "./pages/photographer/PhotographerPhotos";
 import PhotographerLayout from "./components/photographer/PhotographerLayout";
 import ProtectedPhotographerRoute from "./components/photographer/ProtectedPhotographerRoute";
 import { SHOW_BUKY_APP, SHOW_FACE_SEARCH } from "./config/features";
+import { IS_NATIVE } from "./lib/platform";
 import { bukyRoutes } from "./features/buky/routes";
 import UserLayout from "./components/UserLayout";
 import AdminLayout from "./components/AdminLayout";
@@ -145,6 +146,7 @@ const AnimatedRoutes = () => {
 
 const App = () => {
   useEffect(() => {
+    if (IS_NATIVE) return; // OneSignal web no aplica dentro de la app nativa
     OneSignal.init({
       appId: "f4c2d37d-d6a4-4209-9814-cf2c9cce92e1",
       serviceWorkerPath: "sw.js",
@@ -159,7 +161,7 @@ const App = () => {
         <AuthProvider>
           <Toaster />
           <Sonner />
-          <PWAInstallPrompt />
+          {!IS_NATIVE && <PWAInstallPrompt />}
           <AnimatedRoutes />
         </AuthProvider>
       </TooltipProvider>

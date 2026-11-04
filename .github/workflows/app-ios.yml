@@ -1,0 +1,180 @@
+name: iOS · app 3BUK
+
+# Compila la app 3BUK (Buky en /app, GPS en segundo plano) para iPhone en un Mac de GitHub.
+# - Siempre: compilación sin firmar (verifica que el proyecto compila).
+# - Con los secretos de Apple configurados: firma y sube a TestFlight.
+# Corre en la rama de la fase nativa o a mano.
+on:
+  push:
+    branches: [feat/buky-fase3-nativo]
+  workflow_dispatch:
+
+concurrency:
+  group: app-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+      MARKETING_VERSION: "0.4"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci --no-audit --no-fund
+
+      - name: Pruebas de Buky
+        run: npx vitest run src/test/buky
+
+      - name: Compilar la web
+        env:
+          # Proyecto Supabase de producción de 3BUK. La clave anónima es pública por diseño
+          # (va dentro de la web de www.3buk.com); si se define el secreto, tiene prioridad.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://ljizlialjsonmmvppoqh.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqaXpsaWFsanNvbm1tdnBwb3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzODI1OTcsImV4cCI6MjA4OTk1ODU5N30.1WAPo_YSHlseQj5j7z6GkyyQ0-oeTeSZIf6sR9Ox1iw' }}
+          VITE_SHOW_FACE_SEARCH: ${{ vars.VITE_SHOW_FACE_SEARCH || 'true' }}
+        run: npm run build
+
+      - name: Copiar la web y los plugins al proyecto iOS
+        run: npx cap sync ios
+
+      - name: Versión de Xcode
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          xcodebuild -version | while IFS= read -r l; do echo "::notice title=Xcode::$l"; done
+
+      - name: Compilar sin firmar (simulador)
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee xcode-sim.log | grep -E "error:|warning: .*BackgroundGeolocation|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" xcode-sim.log
+          echo "::notice title=iOS::Compilación sin firmar correcta"
+
+      - name: ¿Hay secretos de Apple?
+        id: secrets
+        run: |
+          if [ -n "$APPLE_TEAM_ID" ] && [ -n "$ASC_KEY_ID" ] && [ -n "$ASC_ISSUER_ID" ] && [ -n "$ASC_API_KEY_P8" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=TestFlight::Faltan secretos de Apple; se omite la firma y la subida."
+          fi
+
+      - name: Preparar firma (certificado y perfil temporales vía API de Apple)
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -q pyjwt cryptography requests
+          "$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py setup "$RUNNER_TEMP/signing"
+          # Los secretos pueden traer espacios o saltos de línea al pegarlos: se limpian.
+          KEY_ID=$(printf '%s' "$ASC_KEY_ID" | tr -d '[:space:]')
+          ISSUER_ID=$(printf '%s' "$ASC_ISSUER_ID" | tr -d '[:space:]')
+          echo "::notice title=Secretos::ASC_KEY_ID: ${#ASC_KEY_ID} caracteres (limpio ${#KEY_ID}, esperado 10) · ASC_ISSUER_ID: ${#ASC_ISSUER_ID} (limpio ${#ISSUER_ID}, esperado 36)"
+          echo "KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
+          echo "ISSUER_ID=$ISSUER_ID" >> "$GITHUB_ENV"
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${KEY_ID}.p8"
+          "$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py write-key "$KEY_PATH"
+          echo "KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Configurar firma manual en el target App
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          python3 - <<'PY'
+          import os, re
+          p = "ios/App/App.xcodeproj/project.pbxproj"
+          s = open(p).read()
+          team = os.environ["APPLE_TEAM_ID"].strip()
+          profile = os.environ["IOS_PROFILE_NAME"]
+          def patch(block):
+              if "PRODUCT_BUNDLE_IDENTIFIER = com.tresbuk.app;" not in block:
+                  return block
+              block = block.replace("CODE_SIGN_STYLE = Automatic;",
+                  f'CODE_SIGN_STYLE = Manual;\n\t\t\t\tCODE_SIGN_IDENTITY = "Apple Distribution";'
+                  f'\n\t\t\t\tDEVELOPMENT_TEAM = {team};\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "{profile}";')
+              return block
+          s2 = re.sub(r"buildSettings = \{.*?\n\t\t\t\};", lambda m: patch(m.group(0)), s, flags=re.S)
+          assert s2 != s, "no se encontró el target App"
+          open(p, "w").write(s2)
+          print("firma manual configurada")
+          PY
+
+      - name: Archivar
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" archive \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" MARKETING_VERSION="$MARKETING_VERSION" \
+            2>&1 | tee xcode-archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          grep -q "ARCHIVE SUCCEEDED" xcode-archive.log
+
+      - name: Subir a TestFlight
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          set -o pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>export</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict><key>com.tresbuk.app</key><string>${IOS_PROFILE_NAME}</string></dict>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            2>&1 | tee xcode-export.log | grep -E "error:|EXPORT (SUCCEEDED|FAILED)" || true
+          grep -q "EXPORT SUCCEEDED" xcode-export.log
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa)
+          echo "::notice title=IPA::$(basename "$IPA") ($(du -h "$IPA" | cut -f1))"
+          # altool busca la clave en ~/.appstoreconnect/private_keys/AuthKey_<ID>.p8
+          mkdir -p ~/.appstoreconnect/private_keys
+          cp "$KEY_PATH" ~/.appstoreconnect/private_keys/
+          xcrun altool --upload-app -f "$IPA" -t ios --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID" --output-format normal \
+            2>&1 | tee xcode-upload.log | grep -vE "^\s*$" | tail -20 || true
+          grep -qiE "No errors uploading|UPLOAD SUCCEEDED|successfully uploaded" xcode-upload.log
+          echo "::notice title=TestFlight::Compilación ${{ github.run_number }} (versión $MARKETING_VERSION) subida. Apple la procesa en unos minutos."
+
+      - name: Compilaciones registradas en Apple
+        if: always() && steps.secrets.outputs.ready == 'true'
+        run: '[ -x "$RUNNER_TEMP/venv/bin/python" ] && "$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py builds || true'
+
+      - name: Publicar errores
+        if: failure()
+        run: |
+          # Primero la subida (lo más reciente), luego el resto; solo líneas con error real.
+          for f in xcode-upload.log xcode-export.log xcode-archive.log xcode-sim.log; do
+            [ -f "$f" ] || continue
+            if [ "$f" = xcode-upload.log ]; then
+              tail -25 "$f" | grep -vE "^\s*$" | head -8 | while IFS= read -r l; do echo "::error title=$f::$l"; done
+            else
+              grep -E "(^|: )error:|ERROR ITMS|\*\* (ARCHIVE|EXPORT|BUILD) FAILED" "$f" | sort -u | head -5 | while IFS= read -r l; do echo "::error title=$f::$l"; done
+            fi
+          done
+
+      - name: Borrar la clave y el llavero del runner
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP"/AuthKey_*.p8 ~/.appstoreconnect/private_keys/AuthKey_*.p8
+          [ -x "$RUNNER_TEMP/venv/bin/python" ] && "$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py cleanup "$RUNNER_TEMP/signing" || true

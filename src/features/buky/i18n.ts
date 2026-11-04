@@ -87,6 +87,8 @@ export const pt = {
     fisico: "Físico · na loja",
     digital: "Digital · no app",
     gpsFraco: "Sinal de GPS fraco",
+    semPermissao: "Permita o acesso à localização “o tempo todo” para contar seus Bukys com a tela desligada.",
+    abrirAjustes: "Abrir ajustes",
     enviando: "Validando seu treino…",
     semConexao: "Sem conexão. Vamos enviar seu treino assim que a internet voltar.",
     confirmarTerminar: "Terminar o treino agora?",
