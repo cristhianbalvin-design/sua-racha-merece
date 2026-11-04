@@ -100,4 +100,5 @@
 
 /* MapLibre dentro del tema */
 .buky .maplibregl-ctrl-attrib { background: rgba(5,5,5,.6) !important; color: #8a8a8a; font-size: 10px; }
+.buky .maplibregl-ctrl-top-right { top: calc(env(safe-area-inset-top, 0px) + 96px); }
 .buky .maplibregl-ctrl-attrib a { color: #a5a5a5 !important; }
