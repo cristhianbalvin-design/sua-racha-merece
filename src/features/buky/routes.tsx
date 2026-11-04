@@ -15,6 +15,7 @@ const CompletarPerfil = lazy(() => import("./pages/CompletarPerfil"));
 const CriarRota = lazy(() => import("./pages/CriarRota"));
 const Entrar = lazy(() => import("./pages/Entrar"));
 const Cadastro = lazy(() => import("./pages/Cadastro"));
+const AdminBuky = lazy(() => import("./admin/AdminBuky"));
 
 const Loading = () => (
   <div className="flex min-h-svh items-center justify-center bg-[#050505]">
@@ -50,4 +51,11 @@ export const bukyRoutes = (
       <Route path="rotas/nova" element={<S><CriarRota /></S>} />
     </Route>
   </>
+);
+
+/** Sección Buky del admin (dentro de AdminLayout, protegida como admin). */
+export const BukyAdminRoute = () => (
+  <S>
+    <AdminBuky />
+  </S>
 );
