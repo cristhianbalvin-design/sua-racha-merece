@@ -27,6 +27,8 @@ interface Props {
   showPath?: boolean;
   /** Trazo del recorrido (rutas dibujadas): se dibuja como línea. */
   path?: { lat: number; lon: number }[] | null;
+  /** Recorrido ya hecho por el atleta (entrenamiento): línea blanca sobre la ruta. */
+  trail?: { lat: number; lon: number }[];
   /** Editor: vértices del trazo (puntos blancos que se tocan y arrastran). */
   vertices?: { lat: number; lon: number }[];
   /** Dibuja el radio de captura de cada Buky (m reales, escala con el zoom). */
@@ -93,6 +95,7 @@ export default function BukyMap({
   onMapClick,
   showPath,
   path,
+  trail,
   vertices,
   showRadius,
   recenterKey,
@@ -110,8 +113,8 @@ export default function BukyMap({
   clickRef.current = onMapClick;
   const editRef = useRef({ editable, onPointTap, onPointDrag });
   editRef.current = { editable, onPointTap, onPointDrag };
-  const latest = useRef({ points, user, nearRadiusM, showPath, selected, path, vertices, showRadius });
-  latest.current = { points, user, nearRadiusM, showPath, selected, path, vertices, showRadius };
+  const latest = useRef({ points, user, nearRadiusM, showPath, selected, path, vertices, showRadius, trail });
+  latest.current = { points, user, nearRadiusM, showPath, selected, path, vertices, showRadius, trail };
 
   // Crear el mapa una sola vez
   useEffect(() => {
@@ -144,7 +147,21 @@ export default function BukyMap({
           paint: { "line-color": NEON, "line-opacity": 0.55, "line-width": 1, "line-dasharray": [2, 2] },
         });
         m.addSource("path", { type: "geojson", data: EMPTY });
-        m.addLayer({ id: "path-line", type: "line", source: "path", paint: { "line-color": NEON, "line-width": 2, "line-opacity": 0.6 } });
+        m.addLayer({
+          id: "path-line",
+          type: "line",
+          source: "path",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": NEON, "line-width": 4, "line-opacity": 0.45 },
+        });
+        m.addSource("trail", { type: "geojson", data: EMPTY });
+        m.addLayer({
+          id: "trail-line",
+          type: "line",
+          source: "trail",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: { "line-color": "#ffffff", "line-width": 3.5, "line-opacity": 0.95 },
+        });
         m.addSource("points", { type: "geojson", data: EMPTY });
         // Zona de captura real de cada Buky (editor de rutas)
         m.addLayer({
@@ -274,7 +291,7 @@ export default function BukyMap({
   const sync = () => {
     const m = map.current;
     if (!m || !ready.current) return;
-    const { points: pts, user: u, nearRadiusM: near, showPath: linePts, selected: sel, path: trace, vertices: vs, showRadius: radius } = latest.current;
+    const { points: pts, user: u, nearRadiusM: near, showPath: linePts, selected: sel, path: trace, vertices: vs, showRadius: radius, trail: done } = latest.current;
     m.setFilter("vertex-selected", ["==", ["get", "i"], sel ?? -1]);
     m.setLayoutProperty("points-radius", "visibility", radius ? "visible" : "none");
     (m.getSource("points") as GeoJSONSource).setData(toFeatures(pts));
@@ -286,6 +303,11 @@ export default function BukyMap({
     const line = trace && trace.length > 1 ? trace : vs && vs.length > 1 ? vs : linePts && pts.length > 1 ? pts : null;
     (m.getSource("path") as GeoJSONSource).setData(
       line ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: line.map((p) => [p.lon, p.lat]) } } : EMPTY,
+    );
+    (m.getSource("trail") as GeoJSONSource).setData(
+      done && done.length > 1
+        ? { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: done.map((p) => [p.lon, p.lat]) } }
+        : EMPTY,
     );
     (m.getSource("near") as GeoJSONSource).setData(u && near ? circle(u.lat, u.lon, near) : EMPTY);
     if (u) {
@@ -306,7 +328,7 @@ export default function BukyMap({
     }
   };
 
-  useEffect(sync, [points, user, nearRadiusM, showPath, selected, path, vertices, showRadius]);
+  useEffect(sync, [points, user, nearRadiusM, showPath, selected, path, vertices, showRadius, trail]);
 
   // Centrar cuando cambia el centro pedido o al seguir al atleta
   useEffect(() => {

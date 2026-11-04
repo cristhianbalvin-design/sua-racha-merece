@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Square, WifiOff } from "lucide-react";
 import mascoteMini from "../assets/buky-mascote-mini.webp";
@@ -6,6 +7,7 @@ import { pt } from "../i18n";
 import BukyMap from "../components/BukyMap";
 import CouponList from "../components/CouponList";
 import { isToday, Sheet, Spinner } from "../components/ui";
+import { getSettings } from "../lib/api";
 import { useBukyProfile, useCouponsHere, useMySessions } from "../lib/hooks";
 import { training, useTraining } from "../training/useTraining";
 import { getGpsSource } from "../training/gpsSource";
@@ -19,6 +21,21 @@ export default function Treino() {
   const { data: sessions = [] } = useMySessions();
   const [toast, setToast] = useState<string | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  const { data: speed } = useQuery({
+    queryKey: ["buky", "speed-rules"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const s = await getSettings(["buky_speed_min_kmh", "buky_speed_max_kmh"]);
+      return { min: s.buky_speed_min_kmh ?? 6, max: s.buky_speed_max_kmh ?? 25 };
+    },
+  });
+
+  // Reloj del entrenamiento
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // "+1 Buky" y vibración en cada pasada
   useEffect(() => {
@@ -67,11 +84,27 @@ export default function Treino() {
 
   const live = t.passes.length;
   const remaining = t.points.length - t.visited.length;
+  const elapsed = t.startedAt ? Math.max(0, Math.floor((now - t.startedAt) / 1000)) : 0;
+  const v = t.speedKmh;
+  const min = speed?.min ?? 6;
+  const max = speed?.max ?? 25;
+  const zone = v == null ? "none" : v < min ? "slow" : v > max ? "fast" : "ok";
+  const speedTone = { none: "border-[var(--buky-line)]", ok: "border-[var(--buky-neon)]", slow: "border-[#ffb020]", fast: "border-[var(--buky-danger)]" }[zone];
 
   return (
-    <div className="relative min-h-svh">
-      <div className="relative h-[300px] overflow-hidden">
-        <BukyMap center={t.lastFix ?? t.points[0] ?? null} zoom={15} points={points} path={t.path} user={t.lastFix} follow interactive={false} />
+    <div className="relative min-h-svh pb-[130px]">
+      <div className="relative h-[44svh] min-h-[300px] overflow-hidden">
+        <BukyMap
+          center={t.lastFix ?? t.points[0] ?? null}
+          zoom={16}
+          points={points}
+          path={t.path}
+          showPath
+          trail={t.track}
+          user={t.lastFix}
+          follow
+          interactive={false}
+        />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-[var(--buky-bg)]" />
         <p className="absolute left-6 top-[calc(env(safe-area-inset-top,0px)+26px)] flex items-center gap-2 text-[13px] font-bold tracking-[0.12em]">
           <span className="buky-pulse h-3 w-3 rounded-full bg-[var(--buky-neon)]" /> {pt.treino.emCurso.toUpperCase()}
@@ -93,7 +126,7 @@ export default function Treino() {
         <div className="flex items-start justify-between">
           <div>
             <p className="buky-label text-[var(--buky-muted)]">{pt.treino.bukysHoje}</p>
-            <p className="font-buky-xcond mt-2 text-[150px] text-[var(--buky-neon)]" aria-live="polite">
+            <p className="font-buky-xcond mt-1 text-[112px] text-[var(--buky-neon)]" aria-live="polite">
               {confirmedToday + live}
             </p>
           </div>
@@ -109,6 +142,28 @@ export default function Treino() {
             <span className="font-buky mt-3 text-[15px]">{pt.treino.terminar}</span>
           </div>
         </div>
+        {/* Distancia, tiempo y velocidad en vivo */}
+        <div className="mt-3 grid grid-cols-3 gap-2.5" aria-live="off">
+          <div className="rounded-2xl border border-[var(--buky-line)] bg-[#0d0d0d] px-3 py-2.5">
+            <p className="buky-label text-[10px] text-[var(--buky-muted)]">{pt.treino.distancia}</p>
+            <p className="font-buky mt-1 text-[26px] leading-none">{fmtKmLive(t.distanceM)}</p>
+            <p className="mt-0.5 text-[11px] text-[var(--buky-faint)]">km</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--buky-line)] bg-[#0d0d0d] px-3 py-2.5">
+            <p className="buky-label text-[10px] text-[var(--buky-muted)]">{pt.treino.tempo}</p>
+            <p className="font-buky mt-1 text-[26px] leading-none tabular-nums">{fmtClock(elapsed)}</p>
+            <p className="mt-0.5 text-[11px] text-[var(--buky-faint)]">{elapsed >= 3600 ? "h:min:s" : "min:s"}</p>
+          </div>
+          <div className={`rounded-2xl border bg-[#0d0d0d] px-3 py-2.5 ${speedTone}`}>
+            <p className="buky-label text-[10px] text-[var(--buky-muted)]">{pt.treino.velocidade}</p>
+            <p className="font-buky mt-1 text-[26px] leading-none">{v == null ? "–" : v.toLocaleString("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 })}</p>
+            <p className={`mt-0.5 text-[11px] ${zone === "slow" ? "text-[#ffb020]" : zone === "fast" ? "text-[var(--buky-danger)]" : "text-[var(--buky-faint)]"}`}>
+              {zone === "slow" ? pt.treino.devagar : zone === "fast" ? pt.treino.rapido : "km/h"}
+            </p>
+          </div>
+        </div>
+        {zone === "slow" && <p className="mt-2 text-[13px] text-[#ffb020]">{pt.treino.acelere(min)}</p>}
+
         <p className="mt-4 text-[15px] text-[var(--buky-muted)]">
           {[pt.treino.coletados(live), pt.treino.perto(remaining), profile?.neighborhood].filter(Boolean).join(" · ")}
         </p>
@@ -147,4 +202,14 @@ export default function Treino() {
       </Sheet>
     </div>
   );
+}
+
+const fmtKmLive = (m: number) => (m / 1000).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function fmtClock(total: number) {
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = total % 60;
+  const mm = String(m).padStart(h ? 2 : 1, "0");
+  return h ? `${h}:${mm}:${String(sec).padStart(2, "0")}` : `${mm}:${String(sec).padStart(2, "0")}`;
 }

@@ -15,6 +15,7 @@
 import { CollectionEngine, type GpsReading } from "@/features/buky/engine";
 import * as api from "../lib/api";
 import type { BukyRoute, CloseResult, CompactReading } from "../lib/api";
+import { LiveStats } from "./liveStats";
 import { getGpsSource, keepScreenOn, type RawFix } from "./gpsSource";
 import * as storage from "./storage";
 
@@ -35,6 +36,10 @@ export interface TrainingState {
   cityName: string;
   points: api.RoutePoint[];
   path: { lat: number; lon: number }[] | null;
+  /** Recorrido hecho, distancia y velocidad en vivo (informativos). */
+  track: { lat: number; lon: number }[];
+  distanceM: number;
+  speedKmh: number | null;
   startedAt: number | null;
   passes: LivePass[];
   /** Puntos visitados en este entrenamiento (para pintar el mapa). */
@@ -58,6 +63,9 @@ const INITIAL: TrainingState = {
   cityName: "",
   points: [],
   path: null,
+  track: [],
+  distanceM: 0,
+  speedKmh: null,
   startedAt: null,
   passes: [],
   visited: [],
@@ -85,6 +93,7 @@ class TrainingController {
   private stopGps: (() => Promise<void>) | null = null;
   private releaseScreen: (() => void) | null = null;
   private buffer: CompactReading[] = [];
+  private live = new LiveStats();
   private seq = 0;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private weakTimer: ReturnType<typeof setInterval> | null = null;
@@ -174,9 +183,12 @@ class TrainingController {
     this.engine = new CollectionEngine(meta.points);
     const labels = new Map(meta.points.map((p) => [p.id, p.label]));
     const passes: LivePass[] = [];
-    // Reconstruye el estado del motor con lo ya registrado
+    this.live = new LiveStats();
+    // Reconstruye el estado del motor y el recorrido con lo ya registrado
     for (const r of previous) {
-      for (const p of this.engine.process(toReading(meta.sessionId, r), r[2]).passes) {
+      const res = this.engine.process(toReading(meta.sessionId, r), r[2]);
+      if (res.accepted) this.live.add(r[3], r[4], r[1]);
+      for (const p of res.passes) {
         passes.push({ pointId: p.pointId, label: labels.get(p.pointId) ?? "", at: p.at });
       }
     }
@@ -198,6 +210,7 @@ class TrainingController {
       visited: [...new Set(passes.map((p) => p.pointId))],
       readings: previous.length,
       background: source.background,
+      ...this.live.snapshot(),
     });
 
     this.stopGps = await source.start(
@@ -230,7 +243,9 @@ class TrainingController {
     if (this.buffer.length >= FLUSH_EVERY) void this.flush();
 
     const res = this.engine.process(toReading(sessionId, compact), fix.receivedAt);
+    if (res.accepted) this.live.add(fix.lat, fix.lon, fix.fixTime);
     const patch: Partial<TrainingState> = {
+      ...(res.accepted ? this.live.snapshot() : {}),
       lastFix: { lat: fix.lat, lon: fix.lon, accuracy: fix.accuracy, at: fix.receivedAt },
       readings: this.state.readings + 1,
       weakGps: fix.accuracy > 25,
