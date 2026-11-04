@@ -1,18 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { ArrowUpRight, Lock } from "lucide-react";
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowUpRight, ChevronRight, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { apiGetAvailableCampaigns } from "@/lib/mockApi";
 import mascote from "../assets/buky-mascote.webp";
 import { pt } from "../i18n";
-import { ProfileAvatar } from "../components/ui";
+import { ProfileAvatar, Sheet } from "../components/ui";
 
 /**
- * Patrocínio (mockup 4): Kit de Tribu activo (campañas existentes de 3BUK, formulario de
- * 4 evidencias) y Premium bloqueado (decisión del cliente: todo gratis por ahora).
+ * Patrocínio (mockup 4): Kit 3buk activo (campañas existentes de 3BUK, ahora con su formulario
+ * dentro de la app) y Premium bloqueado (decisión del cliente: todo gratis por ahora).
+ * Si llega desde Fotos con una foto, la pasa a la campaña elegida.
  */
 export default function Patrocinio() {
   const navigate = useNavigate();
+  const { state } = useLocation();
+  const [choose, setChoose] = useState(false);
   const { data: campaigns = [] } = useQuery({
     queryKey: ["buky", "campaigns-open"],
     queryFn: apiGetAvailableCampaigns,
@@ -25,7 +29,8 @@ export default function Patrocinio() {
       toast(pt.patrocinio.semCampanha);
       return;
     }
-    navigate(open.length === 1 ? `/campanha/${open[0].id}` : "/campanhas");
+    if (open.length === 1) navigate(`/app/patrocinio/${open[0].id}`, { state });
+    else setChoose(true);
   };
 
   return (
@@ -70,6 +75,27 @@ export default function Patrocinio() {
       <button type="button" className="buky-btn mt-6" onClick={participar}>
         {pt.patrocinio.participar} <ArrowUpRight size={18} />
       </button>
+
+      <Sheet open={choose} onClose={() => setChoose(false)} label={pt.patrocinio.escolha}>
+        <p className="buky-label mb-3 text-[var(--buky-muted)]">{pt.patrocinio.escolha}</p>
+        <ul className="-mx-2 max-h-[55svh] overflow-auto">
+          {open.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => navigate(`/app/patrocinio/${c.id}`, { state })}
+                className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-3 text-left hover:bg-[#161616]"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-[16px] font-semibold">{c.name}</span>
+                  <span className="block text-[13px] text-[var(--buky-muted)]">{[c.sport, c.city, c.prize].filter(Boolean).join(" · ")}</span>
+                </span>
+                <ChevronRight size={18} className="shrink-0 text-[var(--buky-muted)]" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Sheet>
     </div>
   );
 }

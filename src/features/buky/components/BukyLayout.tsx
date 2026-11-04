@@ -45,7 +45,7 @@ export function TabBar() {
 
 /**
  * Contenedor de la app del atleta: tema oscuro, ancho de teléfono centrado en pantallas
- * grandes y barra de pestañas. Si falta ciudad/barrio/Instagram, manda a completar el perfil.
+ * grandes y barra de pestañas. Si falta la ciudad, manda a completar el perfil.
  */
 export default function BukyLayout() {
   const location = useLocation();
@@ -60,7 +60,7 @@ export default function BukyLayout() {
     return <Navigate to="/app/treino" replace />;
   }
 
-  const hideTabs = location.pathname.startsWith("/app/completar") || location.pathname.startsWith("/app/rotas/nova");
+  const hideTabs = location.pathname.startsWith("/app/completar") || location.pathname.startsWith("/app/rotas/nova") || /^\/app\/patrocinio\/.+/.test(location.pathname);
 
   return (
     <div className="buky">
