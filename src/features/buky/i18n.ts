@@ -102,6 +102,12 @@ export const pt = {
     enviando: "Validando seu treino…",
     semConexao: "Sem conexão. Vamos enviar seu treino assim que a internet voltar.",
     confirmarTerminar: "Terminar o treino agora?",
+    distancia: "Distância",
+    tempo: "Tempo",
+    velocidade: "Velocidade",
+    devagar: "devagar",
+    rapido: "rápido demais",
+    acelere: (min: number) => `Acelere: abaixo de ${min} km/h o Buky não conta.`,
   },
 
   resumo: {
