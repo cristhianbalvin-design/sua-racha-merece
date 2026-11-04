@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Plus, Save, Trash2, X } from "lucide-react";
+import { Plus, Save, Trash2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
-import { haversineMeters } from "@/features/buky/engine";
 import type { City } from "../lib/api";
 import { getCity } from "../lib/api";
-import { listRoutes, routeLength, saveOfficialRoute, setRouteActive, type AdminPoint, type AdminRoute } from "./adminApi";
-import RouteEditorMap from "./RouteEditorMap";
+import { useRouteRules } from "../lib/hooks";
+import { placeBukys, type DraftPoint } from "../lib/routeDraft";
+import BukyMap from "../components/BukyMap";
+import { listRoutes, saveOfficialRoute, setRouteActive, type AdminRoute } from "./adminApi";
 import { AdminCityPicker, Badge, btnDanger, btnGhost, btnPrimary, card, dt, Field, inputCls } from "./ui";
 
 const NITEROI = { lat: -22.8832, lon: -43.1034 };
@@ -16,75 +17,176 @@ interface Draft {
   name: string;
   city: City | null;
   active: boolean;
-  points: AdminPoint[];
+  /** Trazo del recorrido (vértices). */
+  path: DraftPoint[];
+  everyM: number;
+  radiusM: number;
+  /** La ruta era por puntos (antes del paso 21): se convierte en trazo al guardar. */
+  legacy: boolean;
 }
 
+/**
+ * Rutas oficiales: el admin DIBUJA el recorrido (igual que el atleta) y los Bukys se ubican solos
+ * cada N metros a lo largo del camino. Distancia entre Bukys y radio se definen por ruta.
+ */
 export default function AdminRotas() {
   const qc = useQueryClient();
+  const { data: rules } = useRouteRules();
   const [city, setCity] = useState<City | null>(null);
   const [kind, setKind] = useState<"all" | "official" | "athlete">("official");
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [history, setHistory] = useState<DraftPoint[][]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const dragStart = useRef<DraftPoint[] | null>(null);
   const { data: routes = [], isLoading } = useQuery({
     queryKey: ["admin-buky", "routes", city?.code, kind],
     queryFn: () => listRoutes({ cityCode: city?.code, kind }),
   });
 
+  const placed = useMemo(() => (draft ? placeBukys(draft.path, draft.everyM, draft.radiusM) : { bukys: [], lengthM: 0 }), [draft]);
+
   const edit = async (r?: AdminRoute) => {
     setSelected(null);
-    if (!r) return setDraft({ name: "", city, active: true, points: [] });
-    setDraft({ id: r.id, name: r.name, city: await getCity(r.city_code), active: r.active, points: r.points });
+    setHistory([]);
+    const everyM = r?.buky_every_m ?? rules?.minGapM ?? 200;
+    const radiusM = r?.points[0]?.radius_m ?? rules?.radiusM ?? 50;
+    if (!r) return setDraft({ name: "", city, active: true, path: [], everyM, radiusM, legacy: false });
+    const path = r.path && r.path.length > 1 ? r.path : r.points.map((p) => ({ lat: p.lat, lon: p.lon }));
+    const routeCity = await getCity(r.city_code).catch(() => null);
+    setDraft({ id: r.id, name: r.name, city: routeCity, active: r.active, path, everyM, radiusM, legacy: !r.path });
+  };
+
+  const setPath = (next: DraftPoint[], record = true) =>
+    setDraft((d) => {
+      if (!d) return d;
+      if (record) setHistory((h) => [...h.slice(-49), d.path]);
+      return { ...d, path: next };
+    });
+
+  const onMapClick = (p: DraftPoint) => {
+    if (!draft || draft.path.length >= 400) return;
+    if (selected !== null) {
+      setPath([...draft.path.slice(0, selected + 1), p, ...draft.path.slice(selected + 1)]);
+      setSelected(selected + 1);
+    } else setPath([...draft.path, p]);
+  };
+
+  const onDrag = (i: number, p: DraftPoint, done: boolean) => {
+    if (!draft) return;
+    if (!dragStart.current) dragStart.current = draft.path;
+    setDraft((d) => d && { ...d, path: d.path.map((q, k) => (k === i ? p : q)) });
+    if (done) {
+      const before = dragStart.current;
+      dragStart.current = null;
+      setHistory((h) => [...h.slice(-49), before]);
+    }
+  };
+
+  const undo = () => {
+    const prev = history[history.length - 1];
+    if (!prev) return;
+    setHistory((h) => h.slice(0, -1));
+    setDraft((d) => d && { ...d, path: prev });
+    setSelected(null);
   };
 
   const save = async () => {
     if (!draft) return;
     if (!draft.city) return toast.error("Escolha a cidade da rota.");
     if (draft.name.trim().length < 3) return toast.error("O nome precisa ter pelo menos 3 letras.");
-    if (draft.points.length < 1) return toast.error("Marque pelo menos um ponto no mapa.");
+    if (placed.bukys.length < 1) return toast.error("Desenhe um caminho mais longo: ainda não há Bukys.");
     setSaving(true);
     try {
-      await saveOfficialRoute({ id: draft.id, name: draft.name.trim(), city_code: draft.city.code, active: draft.active, points: draft.points });
-      toast.success("Rota salva.");
+      await saveOfficialRoute({
+        id: draft.id,
+        name: draft.name.trim(),
+        city_code: draft.city.code,
+        active: draft.active,
+        path: draft.path,
+        everyM: draft.everyM,
+        radiusM: draft.radiusM,
+        bukys: placed.bukys,
+        lengthM: placed.lengthM,
+      });
+      toast.success(`Rota salva com ${placed.bukys.length} Bukys.`);
       setDraft(null);
       await qc.invalidateQueries({ queryKey: ["admin-buky"] });
     } catch (e) {
       const msg = (e as Error).message;
-      toast.error(msg.includes("foreign key") ? "Um ponto removido já tem passagens registradas: desative a rota em vez de remover o ponto." : `Erro ao salvar: ${msg}`);
+      toast.error(
+        msg.includes("foreign key")
+          ? "A rota ficou com menos Bukys e um deles já tem passagens registradas: crie uma rota nova e desative esta."
+          : `Erro ao salvar: ${msg}`,
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const setPoint = (i: number, patch: Partial<AdminPoint>) =>
-    setDraft((d) => d && { ...d, points: d.points.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
-  const movePoint = (i: number, dir: -1 | 1) =>
-    setDraft((d) => {
-      if (!d) return d;
-      const ps = [...d.points];
-      const j = i + dir;
-      if (j < 0 || j >= ps.length) return d;
-      [ps[i], ps[j]] = [ps[j], ps[i]];
-      return { ...d, points: ps.map((p, k) => ({ ...p, seq: k })) };
-    });
-
   if (draft) {
-    const center = draft.points[0] ?? draft.city ?? NITEROI;
-    const closePairs = draft.points.flatMap((p, i) =>
-      draft.points.slice(0, i).flatMap((q, j) => (haversineMeters(p.lat, p.lon, q.lat, q.lon) < p.radius_m + q.radius_m + 10 ? [`${j + 1}–${i + 1}`] : [])),
-    );
+    // Centro estable (la ciudad); una ruta existente se encuadra con fitTo
+    const center = draft.city ?? NITEROI;
+    const chip = "flex items-center gap-1.5 rounded-full bg-black/75 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40";
     return (
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="h-[520px] lg:h-[640px]">
-          <RouteEditorMap
-            points={draft.points}
-            selected={selected}
-            center={{ lat: center.lat, lon: center.lon }}
-            onAdd={(p) => setDraft((d) => d && { ...d, points: [...d.points, { seq: d.points.length, label: `BUKY_${String(d.points.length + 1).padStart(2, "0")}`, lat: p.lat, lon: p.lon, radius_m: 50 }] })}
-            onMove={(i, p) => setPoint(i, p)}
-            onSelect={setSelected}
-          />
-          <p className="mt-2 text-xs text-muted-foreground">Clique no mapa para adicionar um ponto no fim do percurso. Arraste os pontos para ajustar.</p>
+        <div>
+          <div className="buky relative h-[520px] overflow-hidden rounded-2xl lg:h-[640px]">
+            <BukyMap
+              center={{ lat: center.lat, lon: center.lon }}
+              zoom={15}
+              editable
+              showRadius
+              selected={selected}
+              vertices={draft.path}
+              fitTo={draft.id ? draft.path : undefined}
+              points={placed.bukys.map((b, i) => ({ id: `b${i}`, lat: b.lat, lon: b.lon, radiusM: draft.radiusM, state: "idle" as const }))}
+              onMapClick={onMapClick}
+              onPointTap={(i) => setSelected((x) => (x === i ? null : i))}
+              onPointDrag={onDrag}
+            />
+            <div className="absolute left-3 top-3 flex gap-2">
+              <button type="button" className={chip} onClick={undo} disabled={!history.length}>
+                <Undo2 size={14} /> DESFAZER
+              </button>
+              <button
+                type="button"
+                className={chip}
+                disabled={!draft.path.length}
+                onClick={() => {
+                  if (window.confirm("Apagar o caminho inteiro?")) {
+                    setPath([]);
+                    setSelected(null);
+                  }
+                }}
+              >
+                <Trash2 size={14} /> LIMPAR
+              </button>
+            </div>
+            {selected !== null && draft.path[selected] && (
+              <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center gap-3 rounded-xl bg-black/85 px-3 py-2 text-xs text-white">
+                <b>Ponto {selected + 1} do caminho</b>
+                <span className="text-white/70">Clique no mapa para inserir um ponto depois dele.</span>
+                <button
+                  type="button"
+                  className="ml-auto font-bold text-red-400"
+                  onClick={() => {
+                    setPath(draft.path.filter((_, k) => k !== selected));
+                    setSelected(null);
+                  }}
+                >
+                  REMOVER
+                </button>
+                <button type="button" onClick={() => setSelected(null)} aria-label="Fechar">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Clique no mapa para desenhar o caminho pelas ruas (nas curvas, marque pontos pertinho). Arraste um ponto para ajustá-lo; clique num
+            ponto para removê-lo ou inserir outro depois. Os Bukys (verde, com a zona de captura) se posicionam sozinhos.
+          </p>
         </div>
         <div className={`${card} space-y-4 p-4`}>
           <div className="flex items-center justify-between">
@@ -99,45 +201,58 @@ export default function AdminRotas() {
           <Field label="Cidade">
             <AdminCityPicker value={draft.city} onChange={(c) => setDraft({ ...draft, city: c })} />
           </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Distância entre Bukys (m)">
+              <input
+                type="number"
+                min={50}
+                max={5000}
+                step={10}
+                className={inputCls}
+                value={draft.everyM}
+                onChange={(e) => setDraft({ ...draft, everyM: Math.min(5000, Math.max(50, Number(e.target.value) || 200)) })}
+              />
+            </Field>
+            <Field label="Raio de cada Buky (m)">
+              <input
+                type="number"
+                min={20}
+                max={200}
+                step={5}
+                className={inputCls}
+                value={draft.radiusM}
+                onChange={(e) => setDraft({ ...draft, radiusM: Math.min(200, Math.max(20, Number(e.target.value) || 50)) })}
+              />
+            </Field>
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Ativa (visível para os atletas)
           </label>
-          <div>
-            <p className="mb-2 text-xs font-bold text-muted-foreground">
-              {draft.points.length} pontos · {(routeLength(draft.points) / 1000).toFixed(2)} km
+          <div className="grid grid-cols-3 gap-2 text-center">
+            {[
+              { v: placed.bukys.length, l: "Bukys" },
+              { v: (placed.lengthM / 1000).toFixed(2), l: "km" },
+              { v: draft.path.length, l: "pontos do caminho" },
+            ].map((x) => (
+              <div key={x.l} className="rounded-xl bg-muted/40 py-2">
+                <p className={`text-lg font-black italic ${x.l === "Bukys" ? "text-primary" : ""}`}>{x.v}</p>
+                <p className="text-[11px] text-muted-foreground">{x.l}</p>
+              </div>
+            ))}
+          </div>
+          {draft.legacy && (
+            <p className="rounded-lg bg-yellow-500/10 p-2 text-[11px] text-yellow-400">
+              Esta rota foi criada por pontos. O caminho foi montado com eles; ao salvar, os Bukys são recalculados ao longo do caminho a cada{" "}
+              {draft.everyM} m.
             </p>
-            {closePairs.length > 0 && (
-              <p className="mb-2 rounded-lg bg-yellow-500/10 p-2 text-[11px] text-yellow-400">
-                Raios encostados ({closePairs.join(", ")}): o atleta pode ganhar os dois pontos de uma vez.
-              </p>
-            )}
-            <ul className="max-h-[300px] space-y-1 overflow-auto pr-1">
-              {draft.points.map((p, i) => (
-                <li key={i} className={`flex items-center gap-2 rounded-lg p-2 text-xs ${selected === i ? "bg-primary/10" : "bg-muted/40"}`} onClick={() => setSelected(i)}>
-                  <span className="w-5 font-bold text-primary">{i + 1}</span>
-                  <input className="w-24 rounded bg-input px-2 py-1" value={p.label} onChange={(e) => setPoint(i, { label: e.target.value })} aria-label="Nome do ponto" />
-                  <input
-                    type="number"
-                    min={20}
-                    max={200}
-                    step={5}
-                    className="w-16 rounded bg-input px-2 py-1"
-                    value={p.radius_m}
-                    onChange={(e) => setPoint(i, { radius_m: Math.min(200, Math.max(20, Number(e.target.value) || 50)) })}
-                    aria-label="Raio em metros"
-                    title="Raio (m)"
-                  />
-                  <span className="text-muted-foreground">m</span>
-                  <span className="ml-auto flex gap-1">
-                    <button type="button" onClick={() => movePoint(i, -1)} aria-label="Subir"><ArrowUp size={14} /></button>
-                    <button type="button" onClick={() => movePoint(i, 1)} aria-label="Descer"><ArrowDown size={14} /></button>
-                    <button type="button" onClick={() => setDraft({ ...draft, points: draft.points.filter((_, k) => k !== i).map((q, k) => ({ ...q, seq: k })) })} aria-label="Remover" className="text-destructive">
-                      <Trash2 size={14} />
-                    </button>
-                  </span>
-                </li>
-              ))}
-            </ul>
+          )}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-full border-2 border-black bg-white" /> Ponto do caminho
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded-full bg-[#39ff14]" /> Buky para pegar
+            </span>
           </div>
           <button type="button" className={`${btnPrimary} w-full justify-center`} onClick={save} disabled={saving}>
             <Save size={14} /> {saving ? "SALVANDO…" : "SALVAR ROTA"}
@@ -177,7 +292,7 @@ export default function AdminRotas() {
               <tr>
                 <th className="px-4 py-3">Rota</th>
                 <th className="px-4 py-3">Cidade</th>
-                <th className="px-4 py-3">Pontos</th>
+                <th className="px-4 py-3">Bukys</th>
                 <th className="px-4 py-3">Extensão</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3" />
