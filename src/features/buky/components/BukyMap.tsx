@@ -25,6 +25,15 @@ interface Props {
   onMapClick?: (lngLat: { lat: number; lon: number }) => void;
   /** Línea que une los puntos en orden (crear ruta). */
   showPath?: boolean;
+  /** Cambiarlo vuelve a centrar el mapa en `center` (botón "mi posición"). */
+  recenterKey?: number;
+  /** Editor de ruta: los puntos se arrastran y se tocan para elegirlos. */
+  editable?: boolean;
+  /** Índice del punto elegido (se resalta). */
+  selected?: number | null;
+  onPointTap?: (index: number) => void;
+  /** Durante el arrastre (en vivo) y al soltar (`done`). */
+  onPointDrag?: (index: number, pos: { lat: number; lon: number }, done: boolean) => void;
   className?: string;
 }
 
@@ -35,7 +44,7 @@ const toFeatures = (points: MapPoint[]) => ({
   features: points.map((p, i) => ({
     type: "Feature" as const,
     id: i,
-    properties: { id: p.id, state: p.state ?? "idle", n: i + 1 },
+    properties: { id: p.id, state: p.state ?? "idle", n: i + 1, i },
     geometry: { type: "Point" as const, coordinates: [p.lon, p.lat] },
   })),
 });
@@ -64,6 +73,11 @@ export default function BukyMap({
   interactive = true,
   onMapClick,
   showPath,
+  recenterKey,
+  editable,
+  selected = null,
+  onPointTap,
+  onPointDrag,
   className,
 }: Props) {
   const el = useRef<HTMLDivElement>(null);
@@ -72,8 +86,10 @@ export default function BukyMap({
   const userMarker = useRef<maplibregl.Marker | null>(null);
   const clickRef = useRef(onMapClick);
   clickRef.current = onMapClick;
-  const latest = useRef({ points, user, nearRadiusM, showPath });
-  latest.current = { points, user, nearRadiusM, showPath };
+  const editRef = useRef({ editable, onPointTap, onPointDrag });
+  editRef.current = { editable, onPointTap, onPointDrag };
+  const latest = useRef({ points, user, nearRadiusM, showPath, selected });
+  latest.current = { points, user, nearRadiusM, showPath, selected };
 
   // Crear el mapa una sola vez
   useEffect(() => {
@@ -132,6 +148,15 @@ export default function BukyMap({
             "circle-stroke-width": ["match", ["get", "state"], "pending", 1.4, 0],
           },
         });
+        // Editor: anillo del punto elegido y zona de toque amplia (invisible) para tocar/arrastrar con el dedo
+        m.addLayer({
+          id: "points-selected",
+          type: "circle",
+          source: "points",
+          filter: ["==", ["get", "i"], -1],
+          paint: { "circle-radius": 15, "circle-color": "rgba(0,0,0,0)", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2.5 },
+        });
+        m.addLayer({ id: "points-hit", type: "circle", source: "points", paint: { "circle-radius": 22, "circle-opacity": 0 } });
         // Números de orden (crear ruta); solo si el estilo trae tipografías (sin teselas no hay)
         if (latest.current.showPath && m.getStyle().glyphs) {
           m.addLayer({
@@ -146,7 +171,44 @@ export default function BukyMap({
         if (el.current) el.current.dataset.ready = "1";
         sync();
       });
-      m.on("click", (e) => clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }));
+      m.on("click", (e) => {
+        const hit = editRef.current.editable && ready.current ? m.queryRenderedFeatures(e.point, { layers: ["points-hit"] })[0] : undefined;
+        if (hit) return editRef.current.onPointTap?.(Number(hit.properties?.i));
+        clickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng });
+      });
+
+      // Arrastrar un punto (mouse y dedo). Si no se movió, el "click" de arriba lo toma como toque.
+      let drag: number | null = null;
+      const move = (e: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+        if (drag === null) return;
+        editRef.current.onPointDrag?.(drag, { lat: e.lngLat.lat, lon: e.lngLat.lng }, false);
+      };
+      const end = (e: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+        if (drag === null) return;
+        const i = drag;
+        drag = null;
+        m.dragPan.enable();
+        m.getCanvas().style.cursor = "";
+        m.off("mousemove", move);
+        m.off("touchmove", move);
+        editRef.current.onPointDrag?.(i, { lat: e.lngLat.lat, lon: e.lngLat.lng }, true);
+      };
+      const startDrag = (e: maplibregl.MapLayerMouseEvent | maplibregl.MapLayerTouchEvent) => {
+        if (!editRef.current.editable || !e.features?.length) return;
+        if ("touches" in e.originalEvent && e.originalEvent.touches.length > 1) return;
+        e.preventDefault();
+        drag = Number(e.features[0].properties?.i);
+        m.dragPan.disable();
+        m.getCanvas().style.cursor = "grabbing";
+        m.on("mousemove", move);
+        m.on("touchmove", move);
+        m.once("mouseup", end);
+        m.once("touchend", end);
+      };
+      m.on("mousedown", "points-hit", startDrag);
+      m.on("touchstart", "points-hit", startDrag);
+      m.on("mouseenter", "points-hit", () => editRef.current.editable && (m.getCanvas().style.cursor = "grab"));
+      m.on("mouseleave", "points-hit", () => (m.getCanvas().style.cursor = ""));
     });
     return () => {
       cancelled = true;
@@ -162,7 +224,8 @@ export default function BukyMap({
   const sync = () => {
     const m = map.current;
     if (!m || !ready.current) return;
-    const { points: pts, user: u, nearRadiusM: near, showPath: path } = latest.current;
+    const { points: pts, user: u, nearRadiusM: near, showPath: path, selected: sel } = latest.current;
+    m.setFilter("points-selected", ["==", ["get", "i"], sel ?? -1]);
     (m.getSource("points") as GeoJSONSource).setData(toFeatures(pts));
     if (el.current) {
       el.current.dataset.points = String(pts.length);
@@ -192,14 +255,14 @@ export default function BukyMap({
     }
   };
 
-  useEffect(sync, [points, user, nearRadiusM, showPath]);
+  useEffect(sync, [points, user, nearRadiusM, showPath, selected]);
 
   // Centrar cuando cambia el centro pedido o al seguir al atleta
   useEffect(() => {
     const m = map.current;
     if (!m || !center) return;
     m.easeTo({ center: [center.lon, center.lat], duration: 600 });
-  }, [center?.lat, center?.lon]);
+  }, [center?.lat, center?.lon, recenterKey]);
 
   useEffect(() => {
     const m = map.current;

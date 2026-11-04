@@ -535,3 +535,38 @@ export async function getKpis(): Promise<Kpis> {
     athleteRoutes: rk.filter((x) => x.kind === "athlete").length,
   };
 }
+
+// ------------------------------------------------------------------ testadores de rutas (paso 19)
+
+export interface RouteTester {
+  user_id: string;
+  note: string | null;
+  added_at: string;
+  name: string | null;
+  email: string | null;
+}
+
+export async function listRouteTesters(): Promise<RouteTester[]> {
+  const { data, error } = await supabase
+    .from("buky_route_testers")
+    .select("user_id, note, added_at, users!buky_route_testers_user_id_fkey(name, email)")
+    .order("added_at", { ascending: false });
+  if (error) fail(error);
+  return ((data ?? []) as unknown as (Omit<RouteTester, "name" | "email"> & { users: One<{ name: string | null; email: string | null }> })[]).map((t) => ({
+    user_id: t.user_id,
+    note: t.note,
+    added_at: t.added_at,
+    name: one(t.users)?.name ?? null,
+    email: one(t.users)?.email ?? null,
+  }));
+}
+
+export async function addRouteTester(userId: string, note: string | null): Promise<void> {
+  const { error } = await supabase.from("buky_route_testers").upsert({ user_id: userId, note }, { onConflict: "user_id" });
+  if (error) fail(error);
+}
+
+export async function removeRouteTester(userId: string): Promise<void> {
+  const { error } = await supabase.from("buky_route_testers").delete().eq("user_id", userId);
+  if (error) fail(error);
+}
