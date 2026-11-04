@@ -11,6 +11,7 @@ Scripts para correr **a mano en el SQL Editor de Supabase**, en orden y uno por 
 | 19 | `19_testadores_rutas.sql` | Testadores de rutas: el admin marca atletas que pueden crear rutas fuera de su ciudad (pruebas fuera de Brasil). Va siempre **después** del 16, porque reemplaza `buky_create_athlete_route` |
 | 20 | `20_sorteios_atleta.sql` | `buky_my_raffles()`: pantalla Sorteios del atleta (atual, próximos, resultados anónimos por ciudad y mis premios) |
 | 21 | `21_rutas_por_trazo.sql` | Rutas del atleta como trazo libre (`buky_routes.path`); los Bukys se ubican solos cada N m. Va **después** del 19 |
+| 22 | `22_historico_recorridos.sql` | Cada atleta puede leer el recorrido GPS de sus propios entrenamientos (bucket `buky-tracks`) para el historial |
 
 Después de los SQL se despliega la Edge Function (verify_jwt activado; no necesita secrets nuevos):
 

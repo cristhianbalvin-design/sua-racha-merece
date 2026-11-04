@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       sql:
-        description: "Aplicar los pasos SQL 15, 16, 17, 19, 20 y 21"
+        description: "Aplicar los pasos SQL 15, 16, 17, 19, 20, 21 y 22"
         type: boolean
         default: true
       datos_prueba:
@@ -57,13 +57,13 @@ jobs:
       - name: Instalar psql
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null && psql --version
 
-      - name: Aplicar pasos SQL 15, 16, 17, 19, 20 y 21
+      - name: Aplicar pasos SQL 15, 16, 17, 19, 20, 21 y 22
         if: inputs.sql
         env:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -e
-          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql; do
+          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql; do
             psql "$DB" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
             echo "::notice title=SQL aplicado::$(basename "$f") · sha256 $(sha256sum "$f" | cut -c1-12)"
           done

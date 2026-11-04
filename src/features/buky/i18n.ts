@@ -320,6 +320,23 @@ export const pt = {
     invalido: "não validado",
   },
 
+  historico: {
+    distancia: "Distância",
+    duracao: "Duração",
+    ritmo: "Ritmo",
+    velMedia: "Média",
+    velMax: "Máxima",
+    passagens: "Passagens",
+    validas: "válidas",
+    bukysConfirmados: (n: number, total: number) => `${n} ${n === 1 ? "Buky confirmado" : "Bukys confirmados"} de ${total} na rota`,
+    rotaRemovida: "Rota removida",
+    legendaRecorrido: "Seu percurso",
+    legendaRota: "Rota",
+    legendaPego: "Buky pego",
+    semRecorrido: "O percurso deste treino não foi guardado; os números continuam valendo.",
+    erroRecorrido: "Não foi possível carregar o percurso agora.",
+  },
+
   rota: {
     titulo: "Nova rota",
     nome: "Nome da rota",
