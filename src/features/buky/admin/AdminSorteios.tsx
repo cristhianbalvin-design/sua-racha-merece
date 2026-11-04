@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Dice5, Download, KeyRound, Plus, Save, ShieldCheck, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, ChevronLeft, Dice5, Download, Gift, KeyRound, Plus, Save, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { getCity, type City } from "../lib/api";
 import { useStates } from "../lib/hooks";
@@ -82,10 +82,16 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          O atleta envia todo o saldo ao período aberto; cada Buky é uma participação em todos os cupons da sua zona. Os cupons são cadastrados
-          antes da abertura. O sorteio roda sozinho (a cada 5 min) após o horário de sorteio, com ganhadores diferentes no mesmo período.
-        </p>
+        <div className="max-w-2xl space-y-1 text-sm text-muted-foreground">
+          <p>
+            <b className="text-foreground">O que se sorteia são os cupons de cada período</b> (prêmios dos patrocinadores). O período só define
+            quando abre, encerra e sorteia: depois de criá-lo, cadastre os cupons antes da abertura.
+          </p>
+          <p>
+            O atleta envia todo o saldo ao período aberto; cada Buky é uma participação em todos os cupons da sua zona. O sorteio roda sozinho
+            após o horário de sorteio, com ganhadores diferentes no mesmo período.
+          </p>
+        </div>
         <button type="button" className={btnPrimary} onClick={() => setCreating((v) => !v)}>
           <Plus size={14} /> NOVO PERÍODO
         </button>
@@ -130,6 +136,7 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
             <thead className="text-left text-[11px] uppercase text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Período</th>
+                <th className="px-4 py-3">Prêmios (cupons)</th>
                 <th className="px-4 py-3">Abre → encerra</th>
                 <th className="px-4 py-3">Sorteio</th>
                 <th className="px-4 py-3">Participação</th>
@@ -142,6 +149,25 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
                   <td className="px-4 py-3 font-bold">
                     {p.name}
                     <span className="block text-[11px] font-normal text-muted-foreground">{{ weekly: "semanal", monthly: "mensal", none: "único" }[p.cadence]}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {p.prizes.length === 0 ? (
+                      p.status === "drawn" || p.status === "cancelled" ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 font-bold text-yellow-400">
+                          <AlertTriangle size={14} /> Sem prêmios · cadastrar cupons
+                        </span>
+                      )
+                    ) : (
+                      <span className="flex items-start gap-1.5">
+                        <Gift size={14} className="mt-0.5 shrink-0 text-primary" />
+                        <span>
+                          {p.prizes.slice(0, 2).map((z) => `${z.title}${z.winners > 1 ? ` (×${z.winners})` : ""}`).join(" · ")}
+                          {p.prizes.length > 2 && <span className="text-muted-foreground"> · +{p.prizes.length - 2}</span>}
+                        </span>
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">{dt(p.starts_at)} → {dt(p.ends_at)}</td>
                   <td className="px-4 py-3">{dt(p.draw_at)}</td>
@@ -220,7 +246,7 @@ function PeriodDetail({ period, onBack }: { period: Period; onBack: () => void }
       </div>
 
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="font-bold italic">CUPONS ({coupons.length})</h3>
+        <h3 className="font-bold italic">PRÊMIOS EM SORTEIO · CUPONS ({coupons.length})</h3>
         {editable && (
           <button type="button" className={btnPrimary} onClick={() => setEditing({ kind: "physical", scope: "city", winners_count: 1, draw_order: (coupons.length + 1) * 10, repeat_next: false })}>
             <Plus size={14} /> NOVO CUPOM
@@ -229,6 +255,19 @@ function PeriodDetail({ period, onBack }: { period: Period; onBack: () => void }
       </div>
       {!editable && period.status !== "drawn" && (
         <p className="mb-3 text-xs text-muted-foreground">Com o período aberto só é possível corrigir textos e imagem dos cupons.</p>
+      )}
+      {coupons.length === 0 && period.status !== "drawn" && period.status !== "cancelled" && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-300" role="alert">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span>
+            Este período ainda não tem prêmios. {editable ? "Clique em NOVO CUPOM e cadastre ao menos um antes da abertura." : "Com o período já aberto não dá para adicionar cupons: cancele e crie outro, ou cadastre-os no próximo."}
+          </span>
+        </div>
+      )}
+      {coupons.some((c) => (c.codes_total ?? 0) < c.winners_count) && period.status !== "drawn" && period.status !== "cancelled" && (
+        <p className="mb-3 flex items-center gap-2 text-xs text-yellow-300">
+          <AlertTriangle size={14} /> Há cupons com menos códigos de resgate que ganhadores. Quem ganhar sem código recebe o prêmio sem código e a entrega fica manual.
+        </p>
       )}
       {editing && <CouponForm periodId={period.id} initial={editing} editable={editable} onDone={() => { setEditing(null); void refresh(); }} />}
 
