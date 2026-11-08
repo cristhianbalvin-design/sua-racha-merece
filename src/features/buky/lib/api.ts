@@ -141,8 +141,33 @@ export interface CloseResult {
   passes_valid?: number;
   passes_rejected?: number;
   duplicate?: boolean;
-  passes?: { point_id: string; at: string; speed_kmh: number | null; valid: boolean; reject_reason: string | null }[];
-  stats?: { distanceM: number; durationS: number; maxSpeedKmh: number; avgSpeedKmh: number };
+  passes?: { point_id: string; at: string; speed_kmh: number | null; valid: boolean; awarded?: boolean; reject_reason: string | null }[];
+  stats?: { distanceM: number; durationS: number; maxSpeedKmh: number; avgSpeedKmh: number; bikeWarnings?: number };
+  /** Por qué terminó: el atleta, el límite de tiempo o la bicicleta (paso 24). */
+  stop_reason?: StopReason | null;
+}
+
+export type StopReason = "user" | "time_limit" | "bike";
+
+import { DEFAULT_TRAINING_RULES, type TrainingRules } from "../training/rules";
+export { DEFAULT_TRAINING_RULES, type TrainingRules };
+
+export interface MyStatus {
+  found_total: number;
+  gift_total: number;
+  sponsorship_min: number;
+  free_photo_min: number;
+  tester: boolean;
+  bike_stops_today: number;
+  blocked_today: boolean;
+  rules: TrainingRules;
+}
+
+export async function getMyStatus(): Promise<MyStatus> {
+  const { data, error } = await supabase.rpc("buky_my_status");
+  if (error) fail(error);
+  const s = data as MyStatus;
+  return { ...s, rules: { ...DEFAULT_TRAINING_RULES, ...(s?.rules ?? {}) } };
 }
 
 /** Error con el código que devuelve el SQL (p. ej. "no_open_period"). */
@@ -322,9 +347,13 @@ export async function heartbeat(sessionId: string, livePasses: number, lastPoint
 /** Lectura compacta: [seq, fixTime, receivedAt, lat, lon, accuracy, simulated]. */
 export type CompactReading = [number, number, number, number, number, number, number];
 
-export async function closeSession(sessionId: string, readings: CompactReading[]): Promise<CloseResult> {
+export async function closeSession(
+  sessionId: string,
+  readings: CompactReading[],
+  info: { stop_reason?: StopReason; bike_warnings?: number } = {},
+): Promise<CloseResult> {
   const { data, error } = await supabase.functions.invoke("buky-close-session", {
-    body: { session_id: sessionId, readings },
+    body: { session_id: sessionId, readings, ...info },
   });
   if (error) {
     // FunctionsHttpError trae la respuesta: se extrae el código de error del cuerpo
@@ -377,8 +406,23 @@ export async function getZoneCoupons(cityCode?: number | null): Promise<ZoneCoup
   return (data ?? []) as ZoneCoupon[];
 }
 
-export async function sendToRaffle(idempotencyKey: string): Promise<{ ticket: string; amount: number; period_name?: string; ends_at?: string; duplicate: boolean }> {
-  const { data, error } = await supabase.rpc("buky_send_to_raffle", { p_idempotency_key: idempotencyKey });
+/** Envía Bukys a un sorteo elegido (paso 25): desde donde está el atleta y con el reglamento aceptado. */
+export async function sendToRaffle(input: {
+  periodId: string;
+  amount: number;
+  lat: number | null;
+  lon: number | null;
+  rulesVersion: number;
+  idempotencyKey: string;
+}): Promise<{ ticket: string; amount: number; period_name?: string; ends_at?: string; balance?: number; duplicate: boolean }> {
+  const { data, error } = await supabase.rpc("buky_send_to_raffle_v2", {
+    p_period_id: input.periodId,
+    p_amount: input.amount,
+    p_lat: input.lat,
+    p_lon: input.lon,
+    p_rules_version: input.rulesVersion,
+    p_idempotency_key: input.idempotencyKey,
+  });
   if (error) fail(error);
   return data;
 }
@@ -399,7 +443,9 @@ export interface Prize {
   benefit: string | null;
   image_url: string | null;
   kind: "physical" | "digital";
-  scope: "city" | "state" | "national";
+  scope: "raffle" | "city" | "state" | "national";
+  /** % de descuento (paso 25): los premios se sortean de mayor a menor %. */
+  discount_pct?: number | null;
   city: string | null;
   uf: string | null;
   winners_count: number;
@@ -411,11 +457,21 @@ export interface Prize {
 export interface RafflePeriod {
   id: string;
   name: string;
-  status: "scheduled" | "open" | "closed" | "drawn" | "cancelled";
+  status: "scheduled" | "open" | "closed" | "drawn" | "cancelled" | "merged";
+  cadence?: "weekly" | "biweekly" | "monthly" | "none";
   starts_at: string;
   ends_at: string;
   draw_at: string;
   drawn_at: string | null;
+  /** Ciudades del sorteo; national = todo Brasil. */
+  national?: boolean;
+  cities?: string[];
+  /** Vale para la ciudad donde está el atleta ahora (puede enviar). */
+  available_here?: boolean;
+  participants?: number;
+  min_participants?: number;
+  redeem_days?: number;
+  rules?: { version: number; text: string; provisional: boolean; accepted: boolean };
   my_bukys: number;
   my_tickets: string[];
   prizes: Prize[];
@@ -427,6 +483,7 @@ export interface PrizeResult {
   title: string;
   benefit: string | null;
   image_url: string | null;
+  discount_pct?: number | null;
   sponsor: string;
   winners: number;
   cities: string[];
@@ -444,22 +501,31 @@ export interface MyPrize extends Prize {
   period: string;
   ticket: string | null;
   redeem_code: string | null;
-  delivery_status: "pending" | "notified" | "delivered" | "unclaimed";
+  delivery_status: "pending" | "notified" | "delivered" | "unclaimed" | "standby" | "expired";
+  /** winner = ganador; substitute = suplente (recibe el premio si el ganador no canjea a tiempo). */
+  role?: "winner" | "substitute";
+  redeem_deadline?: string | null;
   drawn_at: string;
 }
 
 export interface MyRaffles {
-  current: RafflePeriod | null;
+  /** Ciudad donde está el atleta ahora (null sin ubicación o fuera de Brasil). */
+  here: { code: number; name: string } | null;
+  /** Sorteos abiertos (y cerrados esperando el sorteo), primero los que valen donde está. */
+  open: RafflePeriod[];
   upcoming: RafflePeriod[];
   past: PastRaffle[];
   my_prizes: MyPrize[];
 }
 
-export async function getMyRaffles(): Promise<MyRaffles> {
-  const { data, error } = await supabase.rpc("buky_my_raffles");
+export async function getMyRaffles(pos?: { lat: number; lon: number } | null): Promise<MyRaffles> {
+  const { data, error } = await supabase.rpc("buky_my_raffles", { p_lat: pos?.lat ?? null, p_lon: pos?.lon ?? null });
   if (error) fail(error);
-  return (data ?? { current: null, upcoming: [], past: [], my_prizes: [] }) as MyRaffles;
+  return (data ?? { here: null, open: [], upcoming: [], past: [], my_prizes: [] }) as MyRaffles;
 }
+
+/** Premio por canjear: ganador (o suplente activado) con el plazo corriendo. */
+export const isToRedeem = (p: Pick<MyPrize, "delivery_status">) => p.delivery_status === "pending" || p.delivery_status === "notified";
 
 // ------------------------------------------------------------------ historial de un entrenamiento
 

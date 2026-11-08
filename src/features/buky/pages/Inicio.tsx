@@ -9,7 +9,8 @@ import BukyMap from "../components/BukyMap";
 import StartSheet from "../components/StartSheet";
 import CouponList from "../components/CouponList";
 import { ProfileAvatar, Sheet } from "../components/ui";
-import { useBukyProfile, useCity, useRoutes, useSummary, useCouponsHere } from "../lib/hooks";
+import { useBukyProfile, useCity, useMyStatus, useRoutes, useSummary, useCouponsHere } from "../lib/hooks";
+import type { BukyApiError } from "../lib/api";
 import { useGeolocation } from "../lib/useGeolocation";
 import { training } from "../training/useTraining";
 
@@ -22,6 +23,7 @@ export default function Inicio() {
   const { data: city } = useCity(profile?.city_code);
   const { data: routes = [], isLoading: loadingRoutes } = useRoutes(profile?.city_code);
   const { data: summary } = useSummary();
+  const { data: status, refetch: refetchStatus } = useMyStatus();
   const { pos, error: geoError } = useGeolocation();
   const { coupons, away } = useCouponsHere(pos);
   const [routeId, setRouteIdState] = useState<string | null>(() => {
@@ -69,13 +71,23 @@ export default function Inicio() {
 
   const start = async () => {
     if (!route || !user) return;
+    if (status?.blocked_today) {
+      setAskStart(false);
+      toast.error(pt.treino.bloqueado, { duration: 8000 });
+      return;
+    }
     setStarting(true);
     try {
-      await training.start(user.id, route, city?.name ?? "");
+      await training.start(user.id, route, city?.name ?? "", status?.rules);
       setAskStart(false);
       navigate("/app/treino");
     } catch (e) {
-      toast.error(training.getSnapshot().error === "offline" ? pt.treino.semConexao : pt.comum.erro);
+      const code = (e as BukyApiError).code;
+      if (code === "blocked_today") {
+        setAskStart(false);
+        void refetchStatus();
+        toast.error(pt.treino.bloqueado, { duration: 8000 });
+      } else toast.error(training.getSnapshot().error === "offline" ? pt.treino.semConexao : pt.comum.erro);
     } finally {
       setStarting(false);
     }

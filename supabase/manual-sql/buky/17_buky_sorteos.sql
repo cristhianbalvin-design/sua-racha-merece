@@ -51,7 +51,13 @@ CREATE TABLE IF NOT EXISTS public.buky_raffle_periods (
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT buky_periods_dates CHECK (starts_at < ends_at AND draw_at >= ends_at)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS buky_periods_one_open ON public.buky_raffle_periods ((true)) WHERE status = 'open';
+-- Uno abierto a la vez (hasta el paso 25, que permite varios: al re-ejecutar no se vuelve a crear)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_schema = 'public' AND table_name = 'buky_raffle_periods' AND column_name = 'city_codes') THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS buky_periods_one_open ON public.buky_raffle_periods ((true)) WHERE status = 'open';
+  END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS buky_periods_status_idx ON public.buky_raffle_periods (status, starts_at);
 
 -- ------------------------------------------------------------

@@ -66,6 +66,8 @@
 	<string>O 3BUK usa sua localização durante o treino para registrar a passagem pelos pontos Buky da rota.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>O 3BUK continua registrando sua passagem pelos pontos Buky com a tela bloqueada, apenas enquanto o treino estiver ativo.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>O 3BUK usa o contador de passos durante o treino para confirmar que você está correndo (e não de bicicleta).</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

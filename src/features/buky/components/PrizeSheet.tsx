@@ -6,7 +6,12 @@ import { fmtDate } from "./ui";
 const S = pt.sorteios;
 
 export function prizeZone(p: Pick<Prize, "scope" | "city" | "uf">) {
-  return p.scope === "city" ? S.soCidade(p.city ?? "") : p.scope === "state" ? S.soEstado(p.uf ?? "") : S.brasil;
+  return p.scope === "city" ? S.soCidade(p.city ?? "") : p.scope === "state" ? S.soEstado(p.uf ?? "") : p.scope === "raffle" ? S.todosDoSorteio : S.brasil;
+}
+
+/** Texto destacado del premio: el % de descuento (paso 25, define el orden) o el beneficio escrito. */
+export function prizeBenefit(p: Pick<Prize, "benefit" | "discount_pct">) {
+  return p.discount_pct ? `${p.discount_pct}% OFF` : p.benefit;
 }
 
 /** Foto del premio, o el logo del patrocinador, o un ícono. */
@@ -33,7 +38,7 @@ export function PrizeRow({ prize, onOpen }: { prize: Prize; onOpen: () => void }
             {prize.sponsor.name} · {prize.kind === "physical" ? "Físico" : "Digital"} · {S.ganhadores(prize.winners_count)}
           </span>
         </span>
-        {prize.benefit && <span className="font-buky shrink-0 text-right text-[19px] leading-none text-[var(--buky-neon)]">{prize.benefit}</span>}
+        {prizeBenefit(prize) && <span className="font-buky shrink-0 text-right text-[19px] leading-none text-[var(--buky-neon)]">{prizeBenefit(prize)}</span>}
       </button>
     </li>
   );
@@ -68,7 +73,7 @@ export default function PrizeSheet({ prize, onClose, footer }: { prize: Prize | 
             </p>
             <h2 className="mt-1 text-[22px] font-bold leading-tight">{prize.title}</h2>
           </div>
-          {prize.benefit && <p className="font-buky shrink-0 text-[32px] leading-none text-[var(--buky-neon)]">{prize.benefit}</p>}
+          {prizeBenefit(prize) && <p className="font-buky shrink-0 text-[32px] leading-none text-[var(--buky-neon)]">{prizeBenefit(prize)}</p>}
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">

@@ -1,19 +1,19 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Copy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { pt } from "../i18n";
 import { ErrorBox, fmtDate, Sheet, Spinner } from "../components/ui";
 import PrizeSheet, { PrizeRow, PrizeThumb } from "../components/PrizeSheet";
 import SendToRaffleSheet from "../components/SendToRaffleSheet";
-import type { MyPrize, PastRaffle, Prize, RafflePeriod } from "../lib/api";
+import { isToRedeem, type MyPrize, type MyRaffles, type PastRaffle, type Prize, type RafflePeriod } from "../lib/api";
 import { fmtCountdown } from "../lib/countdown";
 import { useMyRaffles, useSummary } from "../lib/hooks";
+import { useGeolocation } from "../lib/useGeolocation";
 
 const S = pt.sorteios;
 type Aba = "atual" | "proximos" | "resultados";
-type Filtro = "todos" | "cidade" | "digitais";
-const SHOW = 6;
+const SHOW = 3;
 
 const fmtDayTime = (iso: string) => fmtDate(iso, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const fmtDay = (iso: string) => fmtDate(iso, { day: "2-digit", month: "2-digit" });
@@ -27,12 +27,13 @@ const fmtDay = (iso: string) => fmtDate(iso, { day: "2-digit", month: "2-digit" 
 export default function Sorteios() {
   const [params, setParams] = useSearchParams();
   const aba = (["atual", "proximos", "resultados"].includes(params.get("aba") ?? "") ? params.get("aba") : "atual") as Aba;
-  const { data, isLoading, isError, refetch } = useMyRaffles();
+  const { pos } = useGeolocation();
+  const { data, isLoading, isError, refetch } = useMyRaffles(pos);
   const { data: summary } = useSummary();
   const balance = summary?.balance ?? 0;
-  const [prize, setPrize] = useState<{ p: Prize; ctx: "atual" | "proximo"; opensAt?: string } | null>(null);
+  const [prize, setPrize] = useState<{ p: Prize; period?: RafflePeriod; ctx: "atual" | "proximo"; opensAt?: string } | null>(null);
   const [past, setPast] = useState<PastRaffle | null>(null);
-  const [confirm, setConfirm] = useState(false);
+  const [sendTo, setSendTo] = useState<RafflePeriod | null>(null);
 
   const setAba = (a: Aba) => setParams(a === "atual" ? {} : { aba: a }, { replace: true });
 
@@ -69,11 +70,11 @@ export default function Sorteios() {
         <ErrorBox message={pt.comum.erro} onRetry={() => refetch()} />
       ) : aba === "atual" ? (
         <Atual
-          current={data.current}
-          next={data.upcoming[0] ?? null}
+          data={data}
+          hasPos={Boolean(pos)}
           balance={balance}
-          onSend={() => setConfirm(true)}
-          onPrize={(p) => setPrize({ p, ctx: "atual" })}
+          onSend={setSendTo}
+          onPrize={(p, period) => setPrize({ p, period, ctx: "atual" })}
           onProximos={() => setAba("proximos")}
         />
       ) : aba === "proximos" ? (
@@ -88,21 +89,22 @@ export default function Sorteios() {
         footer={
           prize?.ctx === "proximo" ? (
             <p className="mt-5 rounded-2xl bg-[#111] p-3.5 text-[14px] text-[var(--buky-muted)]">{S.proximoAviso(fmtDayTime(prize.opensAt ?? ""))}</p>
-          ) : data?.current ? (
+          ) : prize?.period ? (
             <>
               <p className="mt-5 rounded-2xl border border-[rgba(57,255,20,0.35)] bg-[rgba(57,255,20,0.08)] p-3.5 text-[14px] leading-snug">
-                {data.current.my_bukys > 0 ? S.jaConcorre(data.current.my_bukys) : S.concorreEnviando}
+                {prize.period.my_bukys > 0 ? S.jaConcorre(prize.period.my_bukys) : S.concorreEnviando}
               </p>
-              {balance > 0 && data.current.status === "open" && (
+              {balance > 0 && prize.period.status === "open" && prize.period.available_here && (
                 <button
                   type="button"
                   className="buky-btn mt-4"
                   onClick={() => {
+                    const period = prize.period!;
                     setPrize(null);
-                    setConfirm(true);
+                    setSendTo(period);
                   }}
                 >
-                  {data.current.my_bukys > 0 ? S.enviarMais(balance) : S.enviar(balance)}
+                  {S.enviarAqui}
                 </button>
               )}
             </>
@@ -111,131 +113,123 @@ export default function Sorteios() {
       />
 
       <PastSheet raffle={past} onClose={() => setPast(null)} />
-      <SendToRaffleSheet open={confirm} onClose={() => setConfirm(false)} balance={balance} prizes={data?.current?.prizes ?? []} />
+      <SendToRaffleSheet period={sendTo} balance={balance} pos={pos} onClose={() => setSendTo(null)} />
     </div>
   );
 }
 
 function Atual({
-  current,
-  next,
+  data,
+  hasPos,
   balance,
   onSend,
   onPrize,
   onProximos,
 }: {
-  current: RafflePeriod | null;
-  next: RafflePeriod | null;
+  data: MyRaffles;
+  hasPos: boolean;
   balance: number;
-  onSend: () => void;
-  onPrize: (p: Prize) => void;
+  onSend: (p: RafflePeriod) => void;
+  onPrize: (p: Prize, period: RafflePeriod) => void;
   onProximos: () => void;
 }) {
-  const [filtro, setFiltro] = useState<Filtro>("todos");
-  const [all, setAll] = useState(false);
-  const prizes = current?.prizes ?? [];
-  const counts = { todos: prizes.length, cidade: prizes.filter((p) => p.kind === "physical").length, digitais: prizes.filter((p) => p.kind === "digital").length };
-  const list = useMemo(
-    () => prizes.filter((p) => filtro === "todos" || (filtro === "cidade" ? p.kind === "physical" : p.kind === "digital")),
-    [prizes, filtro],
-  );
-
-  if (!current) {
-    return (
-      <div className="mx-6 mt-6 rounded-[20px] border border-[var(--buky-line)] bg-[#111] p-5 text-center">
-        <p className="text-[16px] font-semibold">{S.semAberto}</p>
-        {next && <p className="mt-1 text-sm text-[var(--buky-muted)]">{S.semAbertoProximo(fmtDayTime(next.starts_at))}</p>}
-        {next && (
-          <button type="button" className="buky-btn buky-btn-ghost mt-4" onClick={onProximos}>
-            {S.verProximos}
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  const open = current.status === "open";
+  const next = data.upcoming[0] ?? null;
   return (
     <>
-      <section aria-label={current.name} className="mx-6 mt-4 rounded-[20px] border border-[var(--buky-line)] bg-[#111] p-4">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-[16px] font-semibold">{current.name}</p>
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${open ? "bg-[var(--buky-neon)] text-[#050505]" : "border border-[#ffd27a]/50 text-[#ffd27a]"}`}>
-            {open ? S.aberto.toUpperCase() : S.encerrado.split(" ·")[0].toUpperCase()}
-          </span>
-        </div>
-        <p className="mt-1 text-[13px] text-[var(--buky-muted)]">
-          {open ? (
-            <>
-              {S.encerraEm("")}
-              <b className="text-white">{fmtCountdown(current.ends_at)}</b> · {S.sorteioEm(fmtDayTime(current.draw_at))}
-            </>
-          ) : (
-            <>
-              {S.encerrado} · {S.sorteioEm(fmtDayTime(current.draw_at))}
-            </>
+      <p className="mx-6 mt-4 flex items-center gap-1.5 text-[13px] text-[var(--buky-muted)]">
+        <MapPin size={14} className={data.here ? "text-[var(--buky-neon)]" : ""} />
+        {data.here ? S.vocePerto(data.here.name) : hasPos ? S.foraBrasil : S.semLocal}
+      </p>
+      {data.open.length === 0 ? (
+        <div className="mx-6 mt-4 rounded-[20px] border border-[var(--buky-line)] bg-[#111] p-5 text-center">
+          <p className="text-[16px] font-semibold">{S.semAberto}</p>
+          {next && <p className="mt-1 text-sm text-[var(--buky-muted)]">{S.semAbertoProximo(fmtDayTime(next.starts_at))}</p>}
+          {next && (
+            <button type="button" className="buky-btn buky-btn-ghost mt-4" onClick={onProximos}>
+              {S.verProximos}
+            </button>
           )}
-        </p>
-        <div className="mt-3.5 flex gap-3">
-          <div className="flex-1 rounded-2xl bg-[var(--buky-bg)] px-3 py-2.5">
-            <p className="font-buky text-[28px] leading-none text-[var(--buky-neon)]">{current.my_bukys}</p>
-            <p className="mt-1 text-[12px] text-[var(--buky-muted)]">{S.bukysEnviados}</p>
-          </div>
-          <div className="flex-1 rounded-2xl bg-[var(--buky-bg)] px-3 py-2.5">
-            <p className="font-buky text-[28px] leading-none">{current.my_tickets.length}</p>
-            <p className="mt-1 text-[12px] text-[var(--buky-muted)]">{S.tickets}</p>
-          </div>
         </div>
-        {open &&
-          (balance > 0 ? (
-            <button type="button" className="buky-btn mt-3.5" onClick={onSend}>
-              {S.enviar(balance)}
+      ) : (
+        data.open.map((p) => <RaffleCard key={p.id} period={p} balance={balance} onSend={() => onSend(p)} onPrize={(z) => onPrize(z, p)} />)
+      )}
+    </>
+  );
+}
+
+/** Un sorteo abierto: dónde vale, cuánto falta, participantes, mi envío y sus premios (de mayor a menor %). */
+function RaffleCard({ period, balance, onSend, onPrize }: { period: RafflePeriod; balance: number; onSend: () => void; onPrize: (p: Prize) => void }) {
+  const [all, setAll] = useState(false);
+  const open = period.status === "open";
+  const here = Boolean(period.available_here);
+  const cities = S.cidades(period.cities ?? [], Boolean(period.national));
+  const prizes = period.prizes;
+  return (
+    <section aria-label={period.name} className={`mx-6 mt-4 rounded-[20px] border p-4 ${here && open ? "border-[var(--buky-neon)]/60 bg-[#0f130e]" : "border-[var(--buky-line)] bg-[#111]"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[16px] font-semibold leading-tight">{period.name}</p>
+          <p className="mt-0.5 truncate text-[12px] text-[var(--buky-muted)]">
+            {S.cadencia[period.cadence ?? "none"]} · {cities}
+          </p>
+        </div>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${open ? "bg-[var(--buky-neon)] text-[#050505]" : "border border-[#ffd27a]/50 text-[#ffd27a]"}`}>
+          {open ? S.aberto.toUpperCase() : S.encerrado.split(" ·")[0].toUpperCase()}
+        </span>
+      </div>
+      <p className="mt-2 text-[13px] text-[var(--buky-muted)]">
+        {open ? (
+          <>
+            {S.encerraEm("")}
+            <b className="text-white">{fmtCountdown(period.ends_at)}</b> · {S.sorteioEm(fmtDayTime(period.draw_at))}
+          </>
+        ) : (
+          <>
+            {S.encerrado} · {S.sorteioEm(fmtDayTime(period.draw_at))}
+          </>
+        )}
+      </p>
+      {period.participants !== undefined && period.min_participants !== undefined && (
+        <p className="mt-0.5 text-[12px] text-[var(--buky-faint)]">{S.participantesMin(period.participants, period.min_participants)}</p>
+      )}
+      {period.my_bukys > 0 && <p className="mt-2 text-[13px] font-semibold text-[var(--buky-neon)]">{S.seusBukysAqui(period.my_bukys)}</p>}
+
+      {open &&
+        (here ? (
+          balance > 0 ? (
+            <button type="button" className="buky-btn mt-3" onClick={onSend}>
+              {S.enviarAqui}
             </button>
           ) : (
             <p className="mt-3 text-center text-[13px] text-[var(--buky-muted)]">{S.semSaldo}</p>
-          ))}
-      </section>
+          )
+        ) : (
+          <p className="mt-3 flex items-start gap-2 rounded-xl bg-[var(--buky-bg)] px-3 py-2.5 text-[13px] text-[var(--buky-muted)]">
+            <MapPin size={15} className="mt-0.5 shrink-0" /> {S.soEm(cities)}
+          </p>
+        ))}
 
-      <div className="mx-6 mt-5 flex items-baseline justify-between">
+      <div className="mt-4 flex items-baseline justify-between">
         <p className="buky-label text-[var(--buky-neon)]">{S.premiosEmJogo(prizes.length)}</p>
-        <p className="text-[12px] text-[var(--buky-muted)]">{S.valemTodos}</p>
+        {prizes.some((z) => z.discount_pct) && <p className="text-[11px] text-[var(--buky-muted)]">{S.ordemPct}</p>}
       </div>
       {prizes.length === 0 ? (
-        <p className="mx-6 mt-3 text-sm text-[var(--buky-faint)]">{S.semPremios}</p>
+        <p className="mt-2 text-sm text-[var(--buky-faint)]">{S.semPremios}</p>
       ) : (
         <>
-          <div className="mx-6 mt-2.5 flex gap-2 overflow-x-auto pb-1">
-            {(["todos", "cidade", "digitais"] as Filtro[]).map((f) => (
-              <button
-                key={f}
-                type="button"
-                aria-pressed={filtro === f}
-                onClick={() => {
-                  setFiltro(f);
-                  setAll(false);
-                }}
-                disabled={counts[f] === 0}
-                className={`h-9 shrink-0 rounded-full border px-3.5 text-[13px] font-semibold disabled:opacity-40 ${
-                  filtro === f ? "border-[var(--buky-neon)] bg-[rgba(57,255,20,0.12)] text-[var(--buky-neon)]" : "border-[var(--buky-line)] text-[var(--buky-muted)]"
-                }`}
-              >
-                {S.filtros[f]} {counts[f]}
-              </button>
-            ))}
-          </div>
-          <ul className="mx-6 mt-1">
-            {(all ? list : list.slice(0, SHOW)).map((p) => (
-              <PrizeRow key={p.id} prize={p} onOpen={() => onPrize(p)} />
+          <ul className="mt-1">
+            {(all ? prizes : prizes.slice(0, SHOW)).map((z) => (
+              <PrizeRow key={z.id} prize={z} onOpen={() => onPrize(z)} />
             ))}
           </ul>
-          {list.length > SHOW && (
-            <button type="button" onClick={() => setAll((v) => !v)} className="mx-6 mt-1 flex min-h-11 w-[calc(100%-48px)] items-center justify-center text-[14px] font-semibold text-[var(--buky-neon)]">
-              {all ? S.verMenos : S.verTodos(list.length)}
+          {prizes.length > SHOW && (
+            <button type="button" onClick={() => setAll((v) => !v)} className="flex min-h-11 w-full items-center justify-center text-[14px] font-semibold text-[var(--buky-neon)]">
+              {all ? S.verMenos : S.verTodos(prizes.length)}
             </button>
           )}
         </>
       )}
-    </>
+    </section>
   );
 }
 
@@ -247,6 +241,9 @@ function Proximos({ periods, onPrize }: { periods: RafflePeriod[]; onPrize: (p: 
         <section key={p.id} aria-label={p.name} className="mx-6 mt-4">
           <div className="rounded-[20px] border border-[var(--buky-line)] bg-[#111] p-4">
             <p className="text-[16px] font-semibold">{p.name}</p>
+            <p className="mt-0.5 text-[12px] text-[var(--buky-muted)]">
+              {S.cadencia[p.cadence ?? "none"]} · {S.cidades(p.cities ?? [], Boolean(p.national))}
+            </p>
             <p className="mt-1 text-[13px] text-[var(--buky-muted)]">
               {S.abreEm(fmtDayTime(p.starts_at))} · {S.sorteioEm(fmtDayTime(p.draw_at))}
             </p>
@@ -267,7 +264,8 @@ function Proximos({ periods, onPrize }: { periods: RafflePeriod[]; onPrize: (p: 
 }
 
 function MyPrizeCard({ p }: { p: MyPrize }) {
-  const toRedeem = p.delivery_status === "pending" || p.delivery_status === "notified";
+  const toRedeem = isToRedeem(p);
+  const standby = p.delivery_status === "standby";
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(p.redeem_code ?? "");
@@ -294,7 +292,12 @@ function MyPrizeCard({ p }: { p: MyPrize }) {
           {(S.entrega[p.delivery_status] ?? p.delivery_status).toUpperCase()}
         </span>
       </div>
-      {p.redeem_code ? (
+      {toRedeem && p.redeem_deadline && <p className="mt-2 text-[13px] font-semibold text-[#ffd27a]">{S.resgateAte(fmtDayTime(p.redeem_deadline))}</p>}
+      {standby ? (
+        <p className="mt-3 text-[13px] leading-snug text-[var(--buky-muted)]">{S.suplenteAguarde}</p>
+      ) : p.delivery_status === "expired" ? (
+        <p className="mt-3 text-[13px] text-[var(--buky-faint)]">{S.vencido}</p>
+      ) : p.redeem_code ? (
         <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-[var(--buky-bg)] px-3 py-2.5">
           <span className="font-mono text-[16px] tracking-wider">{p.redeem_code}</span>
           <button type="button" onClick={() => void copy()} className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--buky-line)] px-3 text-[13px] font-semibold">
@@ -304,7 +307,7 @@ function MyPrizeCard({ p }: { p: MyPrize }) {
       ) : (
         <p className="mt-3 text-[13px] text-[var(--buky-muted)]">{S.semCodigo}</p>
       )}
-      {p.redeem_instructions && <p className="mt-2 text-[13px] leading-snug text-[#d9d9d9]">{p.redeem_instructions}</p>}
+      {p.redeem_instructions && !standby && <p className="mt-2 text-[13px] leading-snug text-[#d9d9d9]">{p.redeem_instructions}</p>}
       <p className="mt-2 text-[12px] text-[var(--buky-faint)]">
         {[p.valid_until ? S.validoAte(fmtDay(`${p.valid_until}T12:00:00Z`)) : null, p.ticket ? `Ticket ${p.ticket}` : null].filter(Boolean).join(" · ")}
       </p>

@@ -65,3 +65,25 @@ Deno.test("comprime el recorrido", async () => {
   assertEquals(gz[0], 0x1f);
   assertEquals(gz[1], 0x8b);
 });
+
+Deno.test("paso 24: lo que pasa después del límite de tiempo no cuenta y se informa la bicicleta", () => {
+  const sid = "11111111-1111-4111-8111-111111111111";
+  const T = Date.UTC(2026, 10, 9, 9, 0, 0);
+  const M = 1 / 111_320;
+  // 70 min a 10 km/h hacia el sur; el punto está a ~11,5 km del inicio (minuto ~69)
+  const readings: number[][] = [];
+  for (let s = 0; s < 70 * 60; s += 2) readings.push([s / 2, T + s * 1000, T + s * 1000 + 200, -22.9 - s * (10 / 3.6) * M, -43.1, 5, 0]);
+  const late = { id: "p-late", label: "late", lat: -22.9 - 69 * 60 * (10 / 3.6) * M, lon: -43.1, radiusM: 50 };
+  const early = { id: "p-early", label: "early", lat: -22.9 - 10 * 60 * (10 / 3.6) * M, lon: -43.1, radiusM: 50 };
+  const parsed = parseCloseRequest({ session_id: sid, readings, stop_reason: "time_limit", bike_warnings: 1 });
+  const { params } = buildFinalize({
+    sessionId: sid, userId: "u", startedAt: T, now: T + 71 * 60_000, points: [early, late],
+    readings: parsed.readings, rules: rulesFromSettings([{ key: "buky_session_max_min", value: 60 }]), trackPath: null, info: parsed.info,
+  });
+  const passes = params.p_passes as { point_id: string }[];
+  assertEquals(passes.map((p) => p.point_id), ["p-early"]);
+  const stats = params.p_stats as Record<string, unknown>;
+  assertEquals(stats.stop_reason, "time_limit");
+  assertEquals(stats.bike_warnings, 1);
+  assertEquals(typeof stats.start_lat, "number");
+});

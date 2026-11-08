@@ -191,9 +191,19 @@ export interface Period {
   starts_at: string;
   ends_at: string;
   draw_at: string;
-  cadence: "weekly" | "monthly" | "none";
-  status: "scheduled" | "open" | "closed" | "drawn" | "cancelled";
+  cadence: "weekly" | "biweekly" | "monthly" | "none";
+  status: "scheduled" | "open" | "closed" | "drawn" | "cancelled" | "merged";
   drawn_at: string | null;
+  /** Paso 25: ciudades del sorteo (null = todo Brasil), mínimo, plazo de canje y reglamento. */
+  city_codes: number[] | null;
+  city_names: string[];
+  min_participants: number;
+  redeem_days: number;
+  rules_text: string | null;
+  rules_version: number;
+  needs_review: boolean;
+  review_note: string | null;
+  merged_into: string | null;
   entries: number;
   bukys: number;
   athletes: number;
@@ -204,16 +214,29 @@ export interface Period {
 export async function listPeriods(): Promise<Period[]> {
   const { data, error } = await supabase
     .from("buky_raffle_periods")
-    .select("id, name, starts_at, ends_at, draw_at, cadence, status, drawn_at")
+    .select("id, name, starts_at, ends_at, draw_at, cadence, status, drawn_at, city_codes, min_participants, redeem_days, rules_text, rules_version, needs_review, review_note, merged_into")
     .order("starts_at", { ascending: false })
-    .limit(60);
+    .limit(80);
   if (error) fail(error);
-  const periods = (data ?? []) as Omit<Period, "entries" | "bukys" | "athletes" | "prizes">[];
+  const raw = (data ?? []) as Omit<Period, "entries" | "bukys" | "athletes" | "prizes" | "city_names">[];
+  const codes = [...new Set(raw.flatMap((p) => p.city_codes ?? []))];
+  const names = new Map<number, string>();
+  if (codes.length) {
+    const { data: cs, error: csErr } = await supabase.from("br_cities").select("code, name").in("code", codes);
+    if (csErr) fail(csErr);
+    for (const c of (cs ?? []) as { code: number; name: string }[]) names.set(c.code, c.name);
+  }
+  const periods = raw.map((p) => ({ ...p, city_names: (p.city_codes ?? []).map((c) => names.get(c) ?? String(c)) }));
   const ids = periods.map((p) => p.id);
   const stats = new Map<string, { entries: number; bukys: number; athletes: Set<string> }>();
   const prizes = new Map<string, Period["prizes"]>();
   if (ids.length) {
-    const { data: c, error: cErr } = await supabase.from("buky_coupons").select("period_id, title, winners_count, draw_order").in("period_id", ids).order("draw_order");
+    const { data: c, error: cErr } = await supabase
+      .from("buky_coupons")
+      .select("period_id, title, winners_count, draw_order, discount_pct")
+      .in("period_id", ids)
+      .order("discount_pct", { ascending: false, nullsFirst: false })
+      .order("draw_order");
     if (cErr) fail(cErr);
     for (const row of (c ?? []) as { period_id: string; title: string; winners_count: number }[]) {
       prizes.set(row.period_id, [...(prizes.get(row.period_id) ?? []), { title: row.title, winners: row.winners_count }]);
@@ -234,13 +257,25 @@ export async function listPeriods(): Promise<Period[]> {
   });
 }
 
-export async function createPeriod(p: { name: string; starts_at: string; ends_at: string; draw_at: string; cadence: Period["cadence"] }): Promise<string> {
+export type PeriodInput = {
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  draw_at: string;
+  cadence: Period["cadence"];
+  city_codes: number[] | null;
+  min_participants: number;
+  redeem_days: number;
+  rules_text: string | null;
+};
+
+export async function createPeriod(p: PeriodInput): Promise<string> {
   const { data, error } = await supabase.from("buky_raffle_periods").insert(p).select("id").single();
   if (error) fail(error);
   return (data as { id: string }).id;
 }
 
-export async function updatePeriod(id: string, p: Partial<Pick<Period, "name" | "starts_at" | "ends_at" | "draw_at" | "cadence">>): Promise<void> {
+export async function updatePeriod(id: string, p: Partial<PeriodInput>): Promise<void> {
   const { error } = await supabase.from("buky_raffle_periods").update(p).eq("id", id);
   if (error) fail(error);
 }
@@ -255,7 +290,9 @@ export interface Coupon {
   benefit: string | null;
   image_url: string | null;
   kind: "physical" | "digital";
-  scope: "city" | "state" | "national";
+  scope: "raffle" | "city" | "state" | "national";
+  /** % de descuento: se sortea de mayor a menor (paso 25). */
+  discount_pct: number | null;
   city_code: number | null;
   city_name?: string | null;
   state_code: number | null;
@@ -273,6 +310,7 @@ export async function listCoupons(periodId: string): Promise<Coupon[]> {
     .from("buky_coupons")
     .select("*, buky_sponsors(name), br_cities(name), buky_coupon_codes(assigned)")
     .eq("period_id", periodId)
+    .order("discount_pct", { ascending: false, nullsFirst: false })
     .order("draw_order")
     .order("created_at");
   if (error) fail(error);
@@ -299,6 +337,7 @@ export async function saveCoupon(c: Omit<Coupon, "id" | "sponsor_name" | "city_n
     state_code: c.scope === "state" ? c.state_code : c.scope === "city" ? c.state_code : null,
     winners_count: c.winners_count,
     draw_order: c.draw_order,
+    discount_pct: c.discount_pct ?? null,
     redeem_instructions: c.redeem_instructions || null,
     valid_until: c.valid_until || null,
     repeat_next: c.repeat_next,
@@ -360,8 +399,13 @@ export interface RaffleResult {
   candidates: { user_id: string; weight: number }[];
   candidates_sha256: string;
   drawn_at: string;
-  delivery_status: "pending" | "notified" | "delivered" | "unclaimed";
+  delivery_status: "pending" | "notified" | "delivered" | "unclaimed" | "standby" | "expired";
   delivery_note: string | null;
+  /** Paso 25: ganador o suplente, plazo de canje y a qué sorteo se llevó si nadie canjeó. */
+  role: "winner" | "substitute";
+  redeem_deadline: string | null;
+  activated_at: string | null;
+  republished_to: string | null;
 }
 
 export async function listResults(periodId: string): Promise<RaffleResult[]> {
@@ -369,7 +413,8 @@ export async function listResults(periodId: string): Promise<RaffleResult[]> {
     .from("buky_raffle_results")
     .select("*, buky_coupons(title, draw_order, buky_sponsors(name)), users(name, email, instagram, phone)")
     .eq("period_id", periodId)
-    .order("drawn_at");
+    .order("drawn_at")
+    .order("role", { ascending: false });
   if (error) fail(error);
   type Row = RaffleResult & {
     buky_coupons: One<{ title: string; draw_order: number; buky_sponsors: One<{ name: string }> }>;
@@ -399,6 +444,20 @@ export async function setDelivery(id: string, status: RaffleResult["delivery_sta
 }
 
 // ------------------------------------------------------------------ entrenamientos y atletas
+
+/** Une un sorteo sin el mínimo de participantes a otro (se sortean juntos). */
+export async function mergePeriod(sourceId: string, targetId: string): Promise<{ merged: boolean; participants: number }> {
+  const { data, error } = await supabase.rpc("admin_buky_merge_period", { p_source: sourceId, p_target: targetId });
+  if (error) fail(error);
+  return data;
+}
+
+/** Lleva un premio que nadie canjeó (ganador y suplente vencidos) a otro sorteo programado. */
+export async function republishPrize(resultId: string, targetId: string): Promise<string> {
+  const { data, error } = await supabase.rpc("admin_buky_republish_prize", { p_result_id: resultId, p_target: targetId });
+  if (error) fail(error);
+  return data as string;
+}
 
 export interface AdminSession {
   id: string;

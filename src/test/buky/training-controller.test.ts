@@ -5,7 +5,7 @@ import type { CompactReading } from "@/features/buky/lib/api";
 const api = vi.hoisted(() => ({
   startSession: vi.fn(async () => {}),
   heartbeat: vi.fn(async () => {}),
-  closeSession: vi.fn(async (_id: string, readings: CompactReading[]) => ({ status: "valid", reason: null, bukys: 2, balance: 2, readings: readings.length })),
+  closeSession: vi.fn(async (_id: string, readings: CompactReading[], _info?: unknown) => ({ status: "valid", reason: null, bukys: 2, balance: 2, readings: readings.length })),
 }));
 vi.mock("@/features/buky/lib/api", () => ({ ...api, BukyApiError: class extends Error {} }));
 
@@ -142,5 +142,39 @@ describe("controlador del entrenamiento", () => {
     store.meta = { sessionId: "s", userId: "otro", routeId: "r1", routeName: "x", routeKind: "official", cityName: "", points: route.points, startedAt: 0, phase: "running" };
     await training.restore("u1");
     expect(training.getSnapshot().status).toBe("idle");
+  });
+
+  it("paso 24: 3 avisos de bicicleta (sin podómetro, solo velocidad) cortan el entrenamiento y lo informan", async () => {
+    const training = await freshController();
+    const warns: number[] = [];
+    training.setBikeListener((n) => warns.push(n));
+    await training.start("u1", route, "Niterói", { ...(await import("@/features/buky/training/rules")).DEFAULT_TRAINING_RULES, bike_window_nosteps_s: 20 });
+    run(-60, 60);
+    // 36 km/h (10 m/s) hacia el norte durante 80 s
+    for (let s = 1, m = 60; s <= 80 && training.getSnapshot().status === "running"; s++) {
+      m += 10;
+      t0 += 1000;
+      push({ lat: BASE.lat + m * M, lon: BASE.lon, accuracy: 6, speed: null, simulated: false, fixTime: t0, receivedAt: t0 + 100 });
+    }
+    await new Promise((r) => setTimeout(r, 0));
+    expect(warns).toEqual([1, 2, 3]);
+    await vi.waitFor(() => expect(api.closeSession).toHaveBeenCalled());
+    expect(api.closeSession.mock.calls.at(-1)![2]).toEqual({ stop_reason: "bike", bike_warnings: 3 });
+  });
+
+  it("paso 24: en vivo, el mismo punto no suma otra vez antes de 3 minutos", async () => {
+    const training = await freshController();
+    const seen: string[] = [];
+    training.setPassListener((p) => seen.push(p.label));
+    await training.start("u1", route, "Niterói");
+    run(-60, 60); // BUKY_01
+    // vuelve hacia el sur y entra de nuevo al radio de BUKY_01 (menos de 3 min)
+    for (let m = 60; m >= -80; m -= 3) {
+      t0 += 1000;
+      push({ lat: BASE.lat + m * M, lon: BASE.lon, accuracy: 6, speed: null, simulated: false, fixTime: t0, receivedAt: t0 + 100 });
+    }
+    expect(seen).toEqual(["BUKY_01"]);
+    await training.finish();
+    expect(api.closeSession.mock.calls.at(-1)![2]).toEqual({ stop_reason: "user", bike_warnings: 0 });
   });
 });

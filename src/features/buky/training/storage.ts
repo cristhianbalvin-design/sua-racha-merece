@@ -25,6 +25,10 @@ export interface TrainingMeta {
   /** running: registrando; pending: terminado, falta enviarlo al servidor. */
   phase: "running" | "pending";
   endedAt?: number;
+  /** Reglas del paso 24 vigentes al empezar (límite de tiempo y bicicleta). */
+  rules?: import("../lib/api").TrainingRules;
+  bikeWarnings?: number;
+  stopReason?: import("../lib/api").StopReason;
 }
 
 export function loadMeta(): TrainingMeta | null {

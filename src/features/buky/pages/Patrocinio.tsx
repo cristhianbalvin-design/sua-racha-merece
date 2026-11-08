@@ -7,6 +7,7 @@ import { apiGetAvailableCampaigns } from "@/lib/mockApi";
 import mascote from "../assets/buky-mascote.webp";
 import { pt } from "../i18n";
 import { ProfileAvatar, Sheet } from "../components/ui";
+import { useMyStatus } from "../lib/hooks";
 
 /**
  * Patrocínio (mockup 4): Kit 3buk activo (campañas existentes de 3BUK, ahora con su formulario
@@ -23,8 +24,12 @@ export default function Patrocinio() {
     staleTime: 60_000,
   });
   const open = campaigns.filter((c) => !c.isHidden);
+  const { data: st } = useMyStatus();
+  // Fase 1: el patrocinio se libera con N Bukys recogidos corriendo (los testadores pasan)
+  const falta = st && !st.tester ? Math.max(0, st.sponsorship_min - st.found_total) : 0;
 
   const participar = () => {
+    if (falta > 0) return;
     if (open.length === 0) {
       toast(pt.patrocinio.semCampanha);
       return;
@@ -72,9 +77,21 @@ export default function Patrocinio() {
         </div>
       </div>
 
-      <button type="button" className="buky-btn mt-6" onClick={participar}>
-        {pt.patrocinio.participar} <ArrowUpRight size={18} />
-      </button>
+      {falta > 0 && st ? (
+        <div className="mt-6 rounded-[20px] border border-[var(--buky-line)] bg-[#111] p-4">
+          <p className="flex items-center gap-2 text-[15px] font-semibold">
+            <Lock size={15} className="text-[var(--buky-muted)]" /> {pt.patrocinio.bloqueado(st.sponsorship_min)}
+          </p>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#1c1c1c]" role="progressbar" aria-valuemin={0} aria-valuemax={st.sponsorship_min} aria-valuenow={st.found_total}>
+            <div className="h-full rounded-full bg-[var(--buky-neon)]" style={{ width: `${Math.min(100, (st.found_total / st.sponsorship_min) * 100)}%` }} />
+          </div>
+          <p className="mt-2 text-[13px] leading-snug text-[var(--buky-muted)]">{pt.patrocinio.bloqueadoTexto(falta, st.sponsorship_min)}</p>
+        </div>
+      ) : (
+        <button type="button" className="buky-btn mt-6" onClick={participar}>
+          {pt.patrocinio.participar} <ArrowUpRight size={18} />
+        </button>
+      )}
 
       <Sheet open={choose} onClose={() => setChoose(false)} label={pt.patrocinio.escolha}>
         <p className="buky-label mb-3 text-[var(--buky-muted)]">{pt.patrocinio.escolha}</p>

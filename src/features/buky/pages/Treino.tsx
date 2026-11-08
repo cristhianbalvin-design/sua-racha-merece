@@ -37,6 +37,16 @@ export default function Treino() {
     return () => window.clearInterval(id);
   }, []);
 
+  // Aviso de bicicleta: vibración larga y cartel
+  const [bikeWarn, setBikeWarn] = useState(0);
+  useEffect(() => {
+    training.setBikeListener((n) => {
+      setBikeWarn(n);
+      navigator.vibrate?.([400, 150, 400]);
+    });
+    return () => training.setBikeListener(null);
+  }, []);
+
   // "+1 Buky" y vibración en cada pasada
   useEffect(() => {
     training.setPassListener(() => {
@@ -89,6 +99,8 @@ export default function Treino() {
   const min = speed?.min ?? 6;
   const max = speed?.max ?? 25;
   const zone = v == null ? "none" : v < min ? "slow" : v > max ? "fast" : "ok";
+  const maxS = t.rules.session_max_min * 60;
+  const leftMin = Math.max(0, Math.ceil((maxS - elapsed) / 60));
   const speedTone = { none: "border-[var(--buky-line)]", ok: "border-[var(--buky-neon)]", slow: "border-[#ffb020]", fast: "border-[var(--buky-danger)]" }[zone];
 
   return (
@@ -163,6 +175,18 @@ export default function Treino() {
           </div>
         </div>
         {zone === "slow" && <p className="mt-2 text-[13px] text-[#ffb020]">{pt.treino.acelere(min)}</p>}
+        {(bikeWarn > 0 || t.bikeWarnings > 0) && (
+          <div className="mt-3 rounded-2xl border border-[var(--buky-danger)]/60 bg-[var(--buky-danger)]/10 p-3.5" role="alert">
+            <p className="text-[15px] font-semibold text-[var(--buky-danger)]">
+              {pt.treino.bikeAviso(Math.max(bikeWarn, t.bikeWarnings), t.rules.bike_warnings_to_stop)}
+            </p>
+            <p className="mt-1 text-[13px] leading-snug text-[#f2c4c4]">{pt.treino.bikeAvisoTexto(t.rules.bike_warnings_to_stop)}</p>
+          </div>
+        )}
+        <p className={`mt-2 text-[12px] ${leftMin <= 5 ? "text-[#ffb020]" : "text-[var(--buky-faint)]"}`}>
+          {leftMin <= 5 ? pt.treino.restante(leftMin) : pt.treino.limite(t.rules.session_max_min)}
+          {t.steps === false ? ` · ${pt.treino.semPassos}` : ""}
+        </p>
 
         <p className="mt-4 text-[15px] text-[var(--buky-muted)]">
           {[pt.treino.coletados(live), pt.treino.perto(remaining), profile?.neighborhood].filter(Boolean).join(" · ")}

@@ -13,6 +13,8 @@ Scripts para correr **a mano en el SQL Editor de Supabase**, en orden y uno por 
 | 21 | `21_rutas_por_trazo.sql` | Rutas del atleta como trazo libre (`buky_routes.path`); los Bukys se ubican solos cada N m. Va **después** del 19 |
 | 22 | `22_historico_recorridos.sql` | Cada atleta puede leer el recorrido GPS de sus propios entrenamientos (bucket `buky-tracks`) para el historial |
 | 23 | `23_rutas_oficiales_trazo.sql` | `buky_routes.buky_every_m`: distancia entre Bukys de cada ruta oficial dibujada por el admin |
+| 24 | `24_recoleccion_bicicleta.sql` | 2 Bukys por punto y día con 3 min entre ellos (todas las rutas), ciudad de inicio del entrenamiento, límite de 1 h, avisos de bicicleta y bloqueo diario, `buky_my_status()` (progreso 200/300 de la Fase 1) |
+| 25 | `25_sorteos_v2.sql` | Varios sorteos a la vez por ciudad o grupo, envío según la ubicación y con reglamento aceptado, % de descuento (de mayor a menor), ganador + suplente, mínimo de participantes con decisión del admin (sortear o unir), plazo de canje con paso al suplente y republicación |
 
 Después de los SQL se despliega la Edge Function (verify_jwt activado; no necesita secrets nuevos):
 
@@ -33,7 +35,13 @@ Quien quede sin ciudad la elige en la app (es obligatoria para enviar Bukys al s
 | Clave | Valor inicial | Uso |
 |---|---|---|
 | `buky_speed_min_kmh` / `buky_speed_max_kmh` | 6 / 25 | Rango de velocidad para que una pasada cuente (**por confirmar con el cliente**) |
-| `buky_vehicle_window_s` | 60 | Segundos seguidos sobre la máxima que anulan el entrenamiento |
+| `buky_vehicle_window_s` | 60 | Obsoleto desde el paso 24 (ya no anula el entrenamiento) |
+| `buky_point_max_per_day` / `buky_point_min_gap_min` | 2 / 3 | Bukys por punto y día, y minutos entre ellos (paso 24) |
+| `buky_session_max_min` | 60 | Duración máxima del entrenamiento (paso 24) |
+| `buky_bike_speed_kmh` / `buky_bike_window_s` / `buky_bike_window_nosteps_s` | 25 / 30 / 60 | Aviso de bicicleta: velocidad y segundos seguidos sin pasos (o sin podómetro) |
+| `buky_bike_warnings_to_stop` / `buky_bike_stops_to_block` | 3 / 2 | Avisos que cortan el entrenamiento; cortes en el día que bloquean hasta mañana |
+| `buky_sponsorship_min_found` / `buky_free_photo_min_found` | 200 / 300 | Bukys recogidos corriendo para patrocinio y foto gratis (Fase 1) |
+| `buky_raffle_min_participants` / `buky_redeem_days` | 30 / 15 | Valores iniciales de cada sorteo nuevo (paso 25) |
 | `buky_speed_window_s` | 30 | Ventana para medir la velocidad al cruzar un punto |
 | `buky_max_accuracy_m` | 25 | Precisión GPS mínima aceptada |
 | `buky_mock_max_ratio` | 0.05 | Proporción de lecturas con ubicación falsa que anula el entrenamiento |
