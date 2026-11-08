@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Footprints, LogOut, Pencil, Route, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, Footprints, LogOut, Pencil, Route, SlidersHorizontal, Wallet } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { apiGetMyWallet, brl } from "@/lib/walletApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { pt } from "../i18n";
 import { fmtDate, fmtDuration, isToday, ProfileAvatar, Sheet, Spinner } from "../components/ui";
@@ -17,6 +19,7 @@ export default function Perfil() {
   const { data: s } = useSummary();
   const { data: sessions = [], isLoading } = useMySessions();
   const [menu, setMenu] = useState(false);
+  const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: apiGetMyWallet, staleTime: 30_000 });
 
   const nameParts = (p?.name ?? "").trim().split(/\s+/);
   const stats = [
@@ -63,6 +66,18 @@ export default function Perfil() {
         ))}
       </dl>
       <p className="mt-4 text-[13px] leading-snug text-[var(--buky-muted)]">{pt.perfil.nota}</p>
+
+      <Link to="/app/perfil/saldo" className="mt-5 flex items-center gap-3 rounded-[18px] border border-[var(--buky-line)] bg-[#111] p-4">
+        <Wallet size={20} className="shrink-0 text-[var(--buky-neon)]" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold">{pt.saldo.perfilCard(brl(wallet?.balance_cents ?? 0))}</span>
+          <span className="block truncate text-[12px] text-[var(--buky-muted)]">
+            {wallet?.premium?.active && wallet.premium.until ? `Premium até ${fmtDate(wallet.premium.until, { day: "2-digit", month: "2-digit", year: "2-digit" })} · ` : ""}
+            {pt.saldo.perfilCardSub}
+          </span>
+        </span>
+        <ChevronRight size={18} className="shrink-0 text-[var(--buky-faint)]" />
+      </Link>
 
       <section className="mt-7">
         <h2 className="buky-label text-[var(--buky-muted)]">{pt.perfil.historico}</h2>

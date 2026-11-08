@@ -4,23 +4,20 @@ import { toast } from 'sonner';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SHOW_FACE_SEARCH } from '@/config/features';
-import { apiCreatePremiumCheckout, apiSyncPremiumPayments, apiGetLedger, apiGetMyCreditBalance, apiGetMyPlan, apiGetPhotoCreditCost, apiIsPremium, PREMIUM_PRICE_LABEL, type LedgerRow } from '@/lib/creditsApi';
-import { formatDelta, ledgerReasonLabel, photosEquivalent } from '@/lib/credits';
+import { apiGetDownloadStatus, type DownloadStatus } from '@/lib/libraryApi';
+import { apiCreateCheckout, apiGetMyWallet, apiSyncPayments, brl, formatCents, walletReasonLabel, type MyWallet } from '@/lib/walletApi';
 
-const PAGE = 20;
-
-const UserCreditsPage = () => {
+/**
+ * Meu saldo (paso 27; antes "Meus créditos"). Saldo en reales, fotos gratis del año, Premium y
+ * recargas por Mercado Pago. El Premium se paga siempre con dinero nuevo, nunca con el saldo.
+ */
+const UserWalletPage = () => {
   const { user } = useAuth();
-  const [balance, setBalance] = useState<number | null>(null);
-  const [cost, setCost] = useState<number | null>(null);
-  const [premium, setPremium] = useState(false);
-  const [premiumUntil, setPremiumUntil] = useState<string | null>(null);
-  const [ledger, setLedger] = useState<LedgerRow[]>([]);
-  const [total, setTotal] = useState(0);
+  const [wallet, setWallet] = useState<MyWallet | null>(null);
+  const [photos, setPhotos] = useState<DownloadStatus | undefined>();
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
-  const [checkingOut, setCheckingOut] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [reloadKey, setReloadKey] = useState(0);
@@ -29,21 +26,11 @@ const UserCreditsPage = () => {
     if (!user) return;
     let active = true;
     setLoading(true);
-    Promise.all([
-      apiGetMyCreditBalance(),
-      apiGetPhotoCreditCost().catch(() => null),
-      apiIsPremium().catch(() => false),
-      apiGetMyPlan(user.id).catch(() => null),
-      apiGetLedger(user.id, 0, PAGE - 1),
-    ])
-      .then(([b, c, p, plan, l]) => {
+    Promise.all([apiGetMyWallet(), apiGetDownloadStatus().catch(() => undefined)])
+      .then(([w, s]) => {
         if (!active) return;
-        setBalance(b);
-        setCost(c);
-        setPremium(p);
-        setPremiumUntil(plan?.premium_until ?? null);
-        setLedger(l.rows);
-        setTotal(l.total);
+        setWallet(w);
+        setPhotos(s);
         setError(false);
       })
       .catch((err) => {
@@ -56,13 +43,13 @@ const UserCreditsPage = () => {
     };
   }, [user, reloadKey]);
 
-  // Respaldo del webhook: si hay un pago Premium pendiente, se verifica al abrir la página.
+  // Respaldo del webhook: verifica pagos pendientes (Premium y recargas) al abrir la página.
   useEffect(() => {
     if (!user) return;
-    apiSyncPremiumPayments()
+    apiSyncPayments()
       .then((r) => {
         if (r.applied) {
-          toast.success('Premium ativado! Seus créditos já estão disponíveis.');
+          toast.success('Pagamento confirmado! Seu saldo já foi atualizado.');
           setReloadKey((k) => k + 1);
         }
       })
@@ -73,106 +60,116 @@ const UserCreditsPage = () => {
   useEffect(() => {
     const result = searchParams.get('premium');
     if (!result) return;
-    if (result === 'success') toast.success('Pagamento recebido! Seu Premium é ativado em instantes.');
-    else if (result === 'pending') toast.info('Pagamento pendente. Ativaremos o Premium assim que for confirmado.');
+    if (result === 'success') toast.success('Pagamento recebido! Atualizamos seu saldo em instantes.');
+    else if (result === 'pending') toast.info('Pagamento pendente. Atualizamos assim que for confirmado.');
     else if (result === 'failure') toast.error('O pagamento não foi concluído. Tente novamente.');
     setSearchParams({}, { replace: true });
     if (result !== 'failure') {
-      // O webhook pode demorar alguns segundos: recarrega o plano duas vezes.
       const recheck = () =>
-        apiSyncPremiumPayments()
+        apiSyncPayments()
           .catch(() => ({ applied: false }))
           .then(() => setReloadKey((k) => k + 1));
       const t1 = setTimeout(recheck, 3000);
       const t2 = setTimeout(recheck, 10000);
-      return () => { clearTimeout(t1); clearTimeout(t2); };
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     }
   }, [searchParams, setSearchParams]);
 
-  const startPremiumCheckout = async () => {
-    if (checkingOut || !acceptedTerms) return;
-    setCheckingOut(true);
+  const checkout = async (key: string, input: Parameters<typeof apiCreateCheckout>[0]) => {
+    if (busy) return;
+    setBusy(key);
     try {
-      window.location.assign(await apiCreatePremiumCheckout());
+      window.location.assign(await apiCreateCheckout(input));
     } catch (err) {
       console.error(err);
       toast.error('Não foi possível iniciar o pagamento. Tente novamente.');
-      setCheckingOut(false);
-    }
-  };
-
-  const loadMore = async () => {
-    if (!user) return;
-    setLoadingMore(true);
-    try {
-      const l = await apiGetLedger(user.id, ledger.length, ledger.length + PAGE - 1);
-      setLedger((prev) => [...prev, ...l.rows.filter((r) => !prev.some((x) => x.id === r.id))]);
-      setTotal(l.total);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingMore(false);
+      setBusy(null);
     }
   };
 
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
+  const premium = wallet?.premium;
 
   return (
     <div className="px-4 md:px-8 py-6 max-w-2xl mx-auto space-y-6">
       <Link to="/perfil" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft size={16} /> Perfil
       </Link>
-      <h1 className="font-bold italic text-2xl text-foreground">MEUS CRÉDITOS</h1>
+      <h1 className="font-bold italic text-2xl text-foreground">MEU SALDO</h1>
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" /></div>
-      ) : error ? (
-        <div className="bg-card rounded-2xl card-shadow p-6 text-center text-muted-foreground text-sm">Não foi possível carregar seus créditos. Tente novamente mais tarde.</div>
+        <div className="flex justify-center py-12">
+          <Loader2 className="animate-spin text-primary" />
+        </div>
+      ) : error || !wallet ? (
+        <div className="bg-card rounded-2xl card-shadow p-6 text-center text-muted-foreground text-sm">Não foi possível carregar seu saldo. Tente novamente mais tarde.</div>
       ) : (
         <>
           <div className="bg-card rounded-2xl card-shadow p-5 space-y-2">
             <p className="text-ui text-xs text-muted-foreground">SALDO</p>
-            <p className="text-4xl font-bold text-primary">
-              {balance ?? 0} <span className="text-base font-normal text-muted-foreground">créditos</span>
-            </p>
-            {cost && (
-              <p className="text-sm text-muted-foreground">
-                Equivale a {photosEquivalent(balance ?? 0, cost)} {photosEquivalent(balance ?? 0, cost) === 1 ? 'foto' : 'fotos'} ({cost} créditos = 1 foto)
-              </p>
-            )}
+            <p className="text-4xl font-bold text-primary">{brl(wallet.balance_cents)}</p>
+            <p className="text-sm text-muted-foreground">Cada foto custa {brl(wallet.photo_price_cents)} quando acabam suas fotos grátis. O saldo não vence.</p>
           </div>
 
-          <div className="bg-card rounded-2xl card-shadow p-5 flex items-center justify-between gap-3">
+          {photos && (
+            <div className="bg-card rounded-2xl card-shadow p-5 space-y-1">
+              <p className="text-ui text-xs text-muted-foreground">FOTOS GRÁTIS NESTE ANO</p>
+              <p className="text-2xl font-bold text-foreground">
+                {photos.freeRemaining} <span className="text-base font-normal text-muted-foreground">de {photos.freeTotal}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {!photos.freeEligible
+                  ? `No plano Freemium, a foto grátis libera com ${photos.foundMin} Bukys coletados correndo (você tem ${photos.foundTotal}).`
+                  : photos.nextFreeAt
+                    ? `Renovam em ${fmtDate(photos.nextFreeAt)}.`
+                    : ''}
+              </p>
+            </div>
+          )}
+
+          <div className="bg-card rounded-2xl card-shadow p-5 space-y-3">
             <div>
-              <p className="text-ui text-xs text-muted-foreground">PLANO</p>
-              {premium ? (
-                <p className="font-bold text-accent mt-1">
-                  PREMIUM{premiumUntil ? <span className="font-normal text-muted-foreground"> · vence em {fmtDate(premiumUntil)}</span> : null}
-                </p>
-              ) : (
-                <p className="font-bold text-foreground mt-1">
-                  FREEMIUM
-                  {premiumUntil ? <span className="font-normal text-muted-foreground text-sm"> · Premium venceu em {fmtDate(premiumUntil)}</span> : null}
-                </p>
-              )}
+              <p className="text-ui text-xs text-muted-foreground">RECARREGAR SALDO</p>
+              <p className="text-sm text-muted-foreground mt-1">Pagamento por cartão ou Pix. Para pedir devolução, fale com a 3buk.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {wallet.topup_options.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => checkout(`topup-${c}`, { product: 'wallet_topup', amountCents: c, returnTo: 'web' })}
+                  disabled={busy !== null}
+                  className="rounded-full border border-primary px-5 py-2.5 text-sm font-bold text-primary disabled:opacity-50"
+                >
+                  {busy === `topup-${c}` ? 'Abrindo…' : brl(c)}
+                </button>
+              ))}
             </div>
           </div>
 
           <div className="bg-card rounded-2xl card-shadow p-5 space-y-3">
             <div>
-              <p className="font-bold text-foreground">{premium ? 'Renovar o Premium' : 'Seja Premium'}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {PREMIUM_PRICE_LABEL} por 12 meses, pagamento único (cartão ou Pix). Inclui 100 créditos (10 fotos).
-                {premium ? ' A renovação soma 12 meses ao final do período atual.' : ''} Reembolso integral em até 7 dias.
+              <p className="text-ui text-xs text-muted-foreground">PLANO</p>
+              {premium?.active ? (
+                <p className="font-bold text-accent mt-1">
+                  PREMIUM{premium.until ? <span className="font-normal text-muted-foreground"> · vence em {fmtDate(premium.until)}</span> : null}
+                </p>
+              ) : (
+                <p className="font-bold text-foreground mt-1">
+                  FREEMIUM
+                  {premium?.until ? <span className="font-normal text-muted-foreground text-sm"> · Premium venceu em {fmtDate(premium.until)}</span> : null}
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground mt-2">
+                {brl(wallet.premium_price_cents)} por 12 meses, pagamento único (cartão ou Pix). Inclui {brl(5000)} de saldo e 3 fotos grátis por ano.
+                {premium?.active ? ' A renovação soma 12 meses ao final do período atual.' : ''} O Premium não pode ser pago com saldo.
               </p>
             </div>
             <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={acceptedTerms}
-                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]"
-              />
+              <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]" />
               <span className="text-sm text-foreground">
                 Li e aceito os{' '}
                 <a href="/termos-premium" target="_blank" rel="noopener noreferrer" className="text-primary underline">
@@ -183,37 +180,33 @@ const UserCreditsPage = () => {
             </label>
             <button
               type="button"
-              onClick={startPremiumCheckout}
-              disabled={checkingOut || !acceptedTerms}
+              onClick={() => checkout('premium', { product: 'premium_annual', returnTo: 'web' })}
+              disabled={busy !== null || !acceptedTerms}
               className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
             >
-              {checkingOut ? 'Abrindo…' : premium ? `Renovar · ${PREMIUM_PRICE_LABEL}/ano` : `Ser Premium · ${PREMIUM_PRICE_LABEL}/ano`}
+              {busy === 'premium' ? 'Abrindo…' : premium?.active ? `Renovar · ${brl(wallet.premium_price_cents)}/ano` : `Ser Premium · ${brl(wallet.premium_price_cents)}/ano`}
             </button>
           </div>
 
           <div className="bg-card rounded-2xl card-shadow overflow-hidden">
             <h2 className="font-bold text-foreground p-5 pb-3">Histórico</h2>
-            {ledger.length === 0 ? (
-              <p className="px-5 pb-6 text-sm text-muted-foreground">Você ainda não tem movimentos de créditos.</p>
+            {wallet.movements.length === 0 ? (
+              <p className="px-5 pb-6 text-sm text-muted-foreground">Você ainda não tem movimentos de saldo.</p>
             ) : (
               <ul className="divide-y divide-border border-t border-border">
-                {ledger.map((r) => (
+                {wallet.movements.map((r) => (
                   <li key={r.id} className="px-5 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm text-foreground">{ledgerReasonLabel(r.reason)}</p>
-                      <p className="text-xs text-muted-foreground">{fmtDate(r.created_at)} · Saldo {r.balance_after}</p>
+                      <p className="text-sm text-foreground">{walletReasonLabel(r.reason)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {fmtDate(r.created_at)}
+                        {r.note ? ` · ${r.note}` : ''}
+                      </p>
                     </div>
-                    <span className={`font-bold shrink-0 ${r.delta > 0 ? 'text-primary' : 'text-destructive'}`}>{formatDelta(r.delta)}</span>
+                    <span className={`font-bold shrink-0 ${r.delta_cents > 0 ? 'text-primary' : 'text-destructive'}`}>{formatCents(r.delta_cents)}</span>
                   </li>
                 ))}
               </ul>
-            )}
-            {ledger.length < total && (
-              <div className="p-4 border-t border-border text-center">
-                <button type="button" onClick={loadMore} disabled={loadingMore} className="text-sm font-bold text-primary hover:underline disabled:opacity-50">
-                  {loadingMore ? 'Carregando…' : 'Carregar mais'}
-                </button>
-              </div>
             )}
           </div>
         </>
@@ -222,6 +215,6 @@ const UserCreditsPage = () => {
   );
 };
 
-const UserCredits = () => (SHOW_FACE_SEARCH ? <UserCreditsPage /> : <Navigate to="/perfil" replace />);
+const UserCredits = () => (SHOW_FACE_SEARCH ? <UserWalletPage /> : <Navigate to="/perfil" replace />);
 
 export default UserCredits;

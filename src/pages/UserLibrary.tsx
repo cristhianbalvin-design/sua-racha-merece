@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SHOW_FACE_SEARCH } from '@/config/features';
-import { apiGetMyDownloads, apiRegisterDownload, downloadBlockedMessage, type LibraryItem } from '@/lib/libraryApi';
+import { apiGetMyDownloads, downloadBlockedMessage, registerDownloadConfirming, type LibraryItem } from '@/lib/libraryApi';
 import { downloadPhotoFile } from '@/lib/downloadPhoto';
 import { formatDateTime, formatIsoDate } from '@/lib/photoStatus';
 
@@ -55,7 +55,7 @@ const UserLibraryPage = () => {
     setBusyId(item.eventPhotoId);
     const toastId = toast.loading('Baixando foto...');
     try {
-      const permission = await apiRegisterDownload(item.eventPhotoId);
+      const permission = await registerDownloadConfirming(item.eventPhotoId);
       if (!permission.allowed) {
         toast.error(downloadBlockedMessage(permission) ?? 'Esta foto não está mais disponível para download.', { id: toastId });
         return;
@@ -82,7 +82,7 @@ const UserLibraryPage = () => {
       </Link>
       <div>
         <h1 className="font-bold italic text-2xl text-foreground">MINHA BIBLIOTECA</h1>
-        <p className="text-sm text-muted-foreground mt-1">Fotos que você já baixou. Baixar de novo não gasta créditos.</p>
+        <p className="text-sm text-muted-foreground mt-1">Fotos que você já baixou. Baixar de novo é grátis.</p>
       </div>
 
       {loading ? (

@@ -54,46 +54,42 @@ describe('libraryApi', () => {
     await expect(apiGetMyDownloads()).rejects.toBe(err);
   });
 
-  it('apiRegisterDownload interpreta allowed y reason', async () => {
+  it('apiRegisterDownload interpreta allowed y reason (paso 27: confirmación de compra)', async () => {
     rpc.mockResolvedValueOnce({ data: { allowed: true }, error: null });
     expect(await apiRegisterDownload('p1')).toMatchObject({ allowed: true, reason: undefined });
-    expect(rpc).toHaveBeenCalledWith('check_and_register_download', { p_event_photo_id: 'p1' });
+    expect(rpc).toHaveBeenCalledWith('check_and_register_download', { p_event_photo_id: 'p1', p_confirm_purchase: false });
 
-    rpc.mockResolvedValueOnce({ data: { allowed: false, reason: 'photo_not_available' }, error: null });
-    expect(await apiRegisterDownload('p1')).toMatchObject({ allowed: false, reason: 'photo_not_available' });
+    rpc.mockResolvedValueOnce({ data: { allowed: true, charged: 'wallet', price_cents: 1000 }, error: null });
+    expect(await apiRegisterDownload('p1', true)).toMatchObject({ allowed: true, charged: 'wallet', priceCents: 1000 });
+    expect(rpc).toHaveBeenLastCalledWith('check_and_register_download', { p_event_photo_id: 'p1', p_confirm_purchase: true });
 
     rpc.mockResolvedValueOnce({ data: null, error: null });
     expect((await apiRegisterDownload('p1')).allowed).toBe(false);
   });
 
-  it('apiRegisterDownload mapea charged y status', async () => {
+  it('apiRegisterDownload mapea el estado de fotos gratis y saldo', async () => {
     rpc.mockResolvedValueOnce({
       data: {
         allowed: false,
-        reason: 'free_quota_exhausted',
-        status: { plan: 'Freemium', free_quota: 3, free_window_months: 3, free_used: 3, free_remaining: 0, next_free_at: '2026-12-01T00:00:00Z', balance: 0, cost: 10 },
+        reason: 'purchase_required',
+        price_cents: 1000,
+        status: { plan: 'Freemium', free_total: 1, free_used: 1, free_remaining: 0, free_eligible: true, found_total: 320, found_min: 300, next_free_at: '2026-12-01T00:00:00Z', price_cents: 1000, balance_cents: 2500 },
       },
       error: null,
     });
     const r = await apiRegisterDownload('p1');
-    expect(r.status).toMatchObject({ plan: 'Freemium', freeRemaining: 0, freeQuota: 3, cost: 10 });
+    expect(r.status).toMatchObject({ plan: 'Freemium', freeRemaining: 0, freeTotal: 1, priceCents: 1000, balanceCents: 2500 });
     expect(r.status?.nextFreeAt).toBe('2026-12-01T00:00:00Z');
-
-    rpc.mockResolvedValueOnce({ data: { allowed: true, charged: 'credits' }, error: null });
-    expect((await apiRegisterDownload('p1')).charged).toBe('credits');
   });
 
-  it('downloadBlockedMessage da mensagem por motivo y null si es participación', () => {
+  it('downloadBlockedMessage: saldo insuficiente en reales; compra pendiente y participación devuelven null', () => {
     expect(downloadBlockedMessage({ allowed: false, reason: 'participation_required' })).toBeNull();
+    expect(downloadBlockedMessage({ allowed: false, reason: 'purchase_required' })).toBeNull();
     expect(downloadBlockedMessage({ allowed: false })).toBeNull();
-    expect(downloadBlockedMessage({ allowed: false, reason: 'free_quota_exhausted' })).toContain('fotos grátis');
-    expect(
-      downloadBlockedMessage({
-        allowed: false,
-        reason: 'insufficient_credits',
-        status: { plan: 'Premium', freeQuota: 3, freeWindowMonths: 3, freeUsed: 0, freeRemaining: 3, nextFreeAt: null, balance: 5, cost: 10 },
-      }),
-    ).toContain('saldo é 5');
+    const m = downloadBlockedMessage({ allowed: false, reason: 'insufficient_balance', priceCents: 1000, status: { balanceCents: 500 } as never });
+    expect(m).toContain('R$');
+    expect(m).toContain('10,00');
+    expect(m).toContain('5,00');
     expect(downloadBlockedMessage({ allowed: false, reason: 'photo_not_available' })).toContain('não está mais disponível');
   });
 });

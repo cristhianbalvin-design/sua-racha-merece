@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import PhotoCampaignModal from '@/components/PhotoCampaignModal';
-import { apiRegisterDownload, downloadBlockedMessage } from '@/lib/libraryApi';
+import { downloadBlockedMessage, registerDownloadConfirming } from '@/lib/libraryApi';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -145,10 +145,14 @@ export const FaceSearchSection = () => {
   const handleDownload = async (matchId: string, imageUrl: string) => {
     try {
       toast.loading('Verificando permissão...', { id: 'download' });
-      const permission = await apiRegisterDownload(matchId);
+      const permission = await registerDownloadConfirming(matchId);
 
       if (permission.allowed) {
         executeDownload(matchId, imageUrl);
+        return;
+      }
+      if (permission.reason === 'purchase_cancelled') {
+        toast.dismiss('download');
         return;
       }
       const blocked = downloadBlockedMessage(permission);
@@ -596,13 +600,13 @@ export const FaceSearchSection = () => {
         isForDownload={isDownloadIntent}
         onSuccess={() => {
           if (campaignPhoto && isDownloadIntent) {
-            // Acabou de participar: registra a descarga aplicando cupo/créditos.
+            // Acabou de participar: registra a descarga (foto grátis do ano ou compra com saldo).
             const { id, imageUrl } = campaignPhoto;
-            void apiRegisterDownload(id)
+            void registerDownloadConfirming(id)
               .then((permission) => {
                 if (permission.allowed) {
                   executeDownload(id, imageUrl);
-                } else {
+                } else if (permission.reason !== 'purchase_cancelled') {
                   toast.error(downloadBlockedMessage(permission) ?? 'Não foi possível liberar o download.', { duration: 8000 });
                 }
               })

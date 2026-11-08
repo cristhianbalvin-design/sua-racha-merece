@@ -1,9 +1,13 @@
 // ============================================================
-// 3BUK · Premium anual (R$ 50, pago único) · Mercado Pago Checkout Pro
+// 3BUK · Premium anual (R$ 50, pago único) y recargas de saldo · Mercado Pago Checkout Pro
 // Edge Function create-premium-checkout  (verify_jwt ACTIVADO)
 //
+// Cuerpo (opcional): { product?: "premium_annual" | "wallet_topup", amount_cents?: number, return_to?: "app" | "web" }
+//   · premium_annual (por defecto): R$ 50. Siempre dinero nuevo: el saldo no paga el Premium.
+//   · wallet_topup: solo los montos de app_settings.wallet_topup_options (hoy R$20, R$30 y R$50).
+//
 // Qué hace (usuario autenticado):
-//   1. Crea una fila en public.payments (status 'pending', product 'premium_annual').
+//   1. Crea una fila en public.payments (status 'pending', con el producto y el monto validados aquí).
 //   2. Crea una preferencia de Checkout Pro con external_reference = payments.id.
 //   3. Devuelve la URL de pago (tarjeta y Pix; se excluye boleto).
 // El Premium NO se activa aquí: lo activa mercadopago-webhook cuando el pago se aprueba.
@@ -54,14 +58,26 @@ serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
+    // Producto y monto: se validan en el servidor, nunca se confía en el cliente
+    const body = await req.json().catch(() => ({})) as { product?: string; amount_cents?: number; return_to?: string };
+    const product = body.product === "wallet_topup" ? "wallet_topup" : "premium_annual";
+    let amountCents = PREMIUM_PRICE_CENTS;
+    if (product === "wallet_topup") {
+      const { data: opt } = await admin.from("app_settings").select("value").eq("key", "wallet_topup_options").maybeSingle();
+      const options = Array.isArray(opt?.value) ? (opt!.value as unknown[]).map(Number) : [2000, 3000, 5000];
+      if (!options.includes(Number(body.amount_cents))) return json({ error: "invalid_amount" }, 400);
+      amountCents = Number(body.amount_cents);
+    }
+    const back = body.return_to === "app" ? `${siteUrl}/app/perfil/saldo?pagamento=` : `${siteUrl}/creditos?premium=`;
+
     // 1. Registro del pago pendiente
     const { data: payment, error: insertError } = await admin
       .from("payments")
       .insert({
         user_id: user.id,
         provider: "mercadopago",
-        product: "premium_annual",
-        amount_cents: PREMIUM_PRICE_CENTS,
+        product,
+        amount_cents: amountCents,
         currency: CURRENCY,
         status: "pending",
       })
@@ -75,18 +91,18 @@ serve(async (req) => {
     // 2. Preferencia de Checkout Pro
     const preference = {
       items: [{
-        id: "premium_annual",
-        title: "3BUK Premium — 1 ano",
+        id: product,
+        title: product === "wallet_topup" ? `3BUK — Recarga de saldo R$ ${amountCents / 100}` : "3BUK Premium — 1 ano",
         quantity: 1,
         currency_id: CURRENCY,
-        unit_price: PREMIUM_PRICE_CENTS / 100,
+        unit_price: amountCents / 100,
       }],
       external_reference: payment.id,
       payer: user.email ? { email: user.email } : undefined,
       back_urls: {
-        success: `${siteUrl}/creditos?premium=success`,
-        pending: `${siteUrl}/creditos?premium=pending`,
-        failure: `${siteUrl}/creditos?premium=failure`,
+        success: `${back}success`,
+        pending: `${back}pending`,
+        failure: `${back}failure`,
       },
       auto_return: "approved",
       notification_url: `${supabaseUrl}/functions/v1/mercadopago-webhook`,

@@ -23,10 +23,9 @@ describe("Fotos · eventos", () => {
 });
 
 describe("Fotos · mensajes de descarga", () => {
-  it("no menciona Premium (todo gratis por ahora)", () => {
-    const m = blockedMessage({ allowed: false, reason: "free_quota_exhausted" });
-    expect(m).toContain("3 fotos grátis");
-    expect(m).not.toMatch(/premium/i);
+  it("foto no disponible da mensaje; la compra se maneja aparte", () => {
+    expect(blockedMessage({ allowed: false, reason: "photo_not_available" })).toContain("não está mais disponível");
+    expect(blockedMessage({ allowed: false, reason: "purchase_required" })).toBeNull();
   });
   it("sin participación devuelve null (se ofrece el Kit 3buk)", () => {
     expect(blockedMessage({ allowed: false, reason: "participation_required" })).toBeNull();

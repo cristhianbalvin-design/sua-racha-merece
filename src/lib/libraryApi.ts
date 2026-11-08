@@ -53,69 +53,97 @@ export const apiGetMyDownloads = async (offset = 0, limit = 24): Promise<Library
   };
 };
 
+/** Estado de fotos del usuario (paso 27): fotos gratis del año y saldo en reales. */
 export interface DownloadStatus {
   plan: 'Premium' | 'Freemium';
-  freeQuota: number;
-  freeWindowMonths: number;
+  premiumUntil: string | null;
+  freeTotal: number;
   freeUsed: number;
   freeRemaining: number;
+  /** Freemium: la foto gratis exige foundMin Bukys recogidos corriendo. */
+  freeEligible: boolean;
+  foundTotal: number;
+  foundMin: number;
+  yearStart: string | null;
   nextFreeAt: string | null;
-  balance: number;
-  cost: number;
+  priceCents: number;
+  balanceCents: number;
 }
 
 export interface DownloadPermission {
   allowed: boolean;
   reason?: string;
-  /** 'none' = re-descarga o admin; 'free' = cupo gratis; 'credits' = descontó créditos. */
-  charged?: 'none' | 'free' | 'credits';
+  /** 'none' = re-descarga o admin; 'free' = foto gratis del año; 'wallet' = R$ del saldo. */
+  charged?: 'none' | 'free' | 'wallet';
+  priceCents?: number;
   status?: DownloadStatus;
 }
 
+import { brl } from '@/lib/walletApi';
+export { brl };
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mapStatus = (s: any): DownloadStatus | undefined =>
+export const mapDownloadStatus = (s: any): DownloadStatus | undefined =>
   s && typeof s === 'object'
     ? {
         plan: s.plan === 'Premium' ? 'Premium' : 'Freemium',
-        freeQuota: Number(s.free_quota) || 0,
-        freeWindowMonths: Number(s.free_window_months) || 0,
+        premiumUntil: typeof s.premium_until === 'string' ? s.premium_until : null,
+        freeTotal: Number(s.free_total) || 0,
         freeUsed: Number(s.free_used) || 0,
         freeRemaining: Number(s.free_remaining) || 0,
+        freeEligible: s.free_eligible === true,
+        foundTotal: Number(s.found_total) || 0,
+        foundMin: Number(s.found_min) || 0,
+        yearStart: typeof s.year_start === 'string' ? s.year_start : null,
         nextFreeAt: typeof s.next_free_at === 'string' ? s.next_free_at : null,
-        balance: Number(s.balance) || 0,
-        cost: Number(s.cost) || 0,
+        priceCents: Number(s.price_cents) || 0,
+        balanceCents: Number(s.balance_cents) || 0,
       }
     : undefined;
 
-/** Valida o acesso, aplica cupo/créditos e registra a descarga (re-descarga é grátis). */
-export const apiRegisterDownload = async (eventPhotoId: string): Promise<DownloadPermission> => {
-  const { data, error } = await supabase.rpc('check_and_register_download', { p_event_photo_id: eventPhotoId });
+export const apiGetDownloadStatus = async (): Promise<DownloadStatus | undefined> => {
+  const { data, error } = await supabase.rpc('get_my_download_status');
+  if (error) throw error;
+  return mapDownloadStatus(data);
+};
+
+/**
+ * Valida el acceso y registra la descarga. Sin fotos gratis devuelve reason 'purchase_required':
+ * hay que volver a llamar con confirmPurchase = true para pagar R$10 del saldo (re-descarga es gratis).
+ */
+export const apiRegisterDownload = async (eventPhotoId: string, confirmPurchase = false): Promise<DownloadPermission> => {
+  const { data, error } = await supabase.rpc('check_and_register_download', {
+    p_event_photo_id: eventPhotoId,
+    p_confirm_purchase: confirmPurchase,
+  });
   if (error) throw error;
   const charged = data?.charged;
   return {
     allowed: data?.allowed === true,
     reason: typeof data?.reason === 'string' ? data.reason : undefined,
-    charged: charged === 'none' || charged === 'free' || charged === 'credits' ? charged : undefined,
-    status: mapStatus(data?.status),
+    charged: charged === 'none' || charged === 'free' || charged === 'wallet' ? charged : undefined,
+    priceCents: Number(data?.price_cents) || 0,
+    status: mapDownloadStatus(data?.status),
   };
 };
 
-/** Mensagem para o usuário quando a descarga é negada por cupo/saldo/foto. null = não é bloqueio de cobrança. */
+/** Texto de confirmación de compra (sin fotos gratis en el año). */
+export const purchaseConfirmText = (p: DownloadPermission): string => {
+  const price = brl(p.priceCents || p.status?.priceCents || 1000);
+  const bal = brl(p.status?.balanceCents ?? 0);
+  return `Você não tem fotos grátis disponíveis. Comprar esta foto por ${price} do seu saldo (saldo atual: ${bal})?`;
+};
+
+/** Mensagem para o usuário quando a descarga é negada por saldo/foto. null = não é bloqueio de cobrança. */
 export const downloadBlockedMessage = (p: DownloadPermission): string | null => {
   switch (p.reason) {
-    case 'free_quota_exhausted': {
-      const q = p.status?.freeQuota ?? 3;
-      const m = p.status?.freeWindowMonths ?? 3;
-      const when = p.status?.nextFreeAt
-        ? ` Nova foto grátis liberada em ${new Date(p.status.nextFreeAt).toLocaleDateString('pt-BR')}.`
-        : '';
-      return `Você usou suas ${q} fotos grátis dos últimos ${m} meses.${when} Seja Premium para baixar mais.`;
+    case 'insufficient_balance': {
+      const price = brl(p.priceCents || p.status?.priceCents || 1000);
+      const bal = brl(p.status?.balanceCents ?? 0);
+      return `Saldo insuficiente: esta foto custa ${price} e seu saldo é ${bal}. Recarregue em Meu saldo.`;
     }
-    case 'insufficient_credits': {
-      const cost = p.status?.cost ?? 0;
-      const bal = p.status?.balance ?? 0;
-      return `Créditos insuficientes: esta foto custa ${cost} e seu saldo é ${bal}.`;
-    }
+    case 'purchase_required':
+      return null;
     case 'photo_not_available':
       return 'Esta foto não está mais disponível para download.';
     case 'not_authenticated':
@@ -123,4 +151,12 @@ export const downloadBlockedMessage = (p: DownloadPermission): string | null => 
     default:
       return null;
   }
+};
+
+/** Flujo completo de la web: pide confirmar la compra con window.confirm cuando hace falta. */
+export const registerDownloadConfirming = async (eventPhotoId: string): Promise<DownloadPermission> => {
+  const first = await apiRegisterDownload(eventPhotoId);
+  if (first.allowed || first.reason !== 'purchase_required') return first;
+  if (!window.confirm(purchaseConfirmText(first))) return { allowed: false, reason: 'purchase_cancelled', status: first.status };
+  return apiRegisterDownload(eventPhotoId, true);
 };
