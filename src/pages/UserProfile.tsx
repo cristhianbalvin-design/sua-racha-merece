@@ -286,9 +286,9 @@ const UserProfile = () => {
           >
             <span className="flex items-center gap-2 text-xs text-foreground text-ui font-bold">
               <Coins size={16} className="text-primary" />
-              MEUS CRÉDITOS
+              MEU SALDO
             </span>
-            <span className="text-[10px] text-primary font-bold">Ver saldo e histórico →</span>
+            <span className="text-[10px] text-primary font-bold">Saldo, fotos grátis e Premium →</span>
           </Link>
           <Link
             to="/biblioteca"

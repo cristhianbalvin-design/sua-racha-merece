@@ -14,6 +14,7 @@ const Patrocinio = lazy(() => import("./pages/Patrocinio"));
 const Campanha = lazy(() => import("./pages/Campanha"));
 const Perfil = lazy(() => import("./pages/Perfil"));
 const TreinoDetalhe = lazy(() => import("./pages/TreinoDetalhe"));
+const Saldo = lazy(() => import("./pages/Saldo"));
 const CompletarPerfil = lazy(() => import("./pages/CompletarPerfil"));
 const CriarRota = lazy(() => import("./pages/CriarRota"));
 const Entrar = lazy(() => import("./pages/Entrar"));
@@ -53,6 +54,7 @@ export const bukyRoutes = (
       <Route path="patrocinio/:id" element={<S><Campanha /></S>} />
       <Route path="perfil" element={<S><Perfil /></S>} />
       <Route path="perfil/treino/:id" element={<S><TreinoDetalhe /></S>} />
+      <Route path="perfil/saldo" element={<S><Saldo /></S>} />
       <Route path="completar" element={<S><CompletarPerfil /></S>} />
       <Route path="rotas/nova" element={<S><CriarRota /></S>} />
     </Route>

@@ -91,7 +91,7 @@ const AdminLayout = () => {
     ...(SHOW_FACE_SEARCH ? [{ to: '/admin/fotos', label: 'Fotos Eventos' }] : []),
     ...(SHOW_FACE_SEARCH ? [{ to: '/admin/fotos/moderacao', label: 'Moderação' }] : []),
     ...(SHOW_FACE_SEARCH ? [{ to: '/admin/fotografos', label: 'Fotógrafos' }] : []),
-    ...(SHOW_FACE_SEARCH ? [{ to: '/admin/creditos', label: 'Créditos' }] : []),
+    ...(SHOW_FACE_SEARCH ? [{ to: '/admin/creditos', label: 'Saldo' }] : []),
     { to: '/admin/participacoes', label: 'Participações' },
     { to: '/admin/qualificacao', label: 'Qualificação' },
     { to: '/admin/ganhadores', label: 'Ganhadores' },

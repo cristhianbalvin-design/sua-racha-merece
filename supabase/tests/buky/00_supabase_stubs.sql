@@ -63,6 +63,17 @@ CREATE TABLE public.participations (id uuid PRIMARY KEY DEFAULT gen_random_uuid(
 ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.participations ENABLE ROW LEVEL SECURITY;
 
+-- Pagos, fotos y descargas de 3BUK (solo lo que usa el paso 27)
+CREATE TABLE public.payments (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid, provider text, provider_payment_id text,
+  preference_id text, product text, amount_cents integer CHECK (amount_cents > 0), currency text DEFAULT 'BRL', status text,
+  created_at timestamptz DEFAULT now(), approved_at timestamptz, premium_applied_at timestamptz, premium_revoked_at timestamptz);
+CREATE TABLE public.event_photos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), status text DEFAULT 'published', image_url text);
+CREATE TABLE public.photo_downloads (id bigserial PRIMARY KEY, user_id uuid, event_photo_id uuid,
+  first_downloaded_at timestamptz DEFAULT now(), last_downloaded_at timestamptz DEFAULT now(),
+  download_count integer DEFAULT 1 CHECK (download_count >= 1), UNIQUE (user_id, event_photo_id));
+CREATE FUNCTION public.user_is_premium(p_user_id uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'public' AS
+$$ SELECT EXISTS (SELECT 1 FROM public.users u WHERE u.id = p_user_id AND u.plan = 'Premium' AND u.premium_until > now()) $$;
+
 CREATE TABLE public.app_settings (key text PRIMARY KEY, value jsonb, description text, updated_at timestamptz DEFAULT now());
 ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY app_settings_select_authenticated ON public.app_settings FOR SELECT TO authenticated USING (true);

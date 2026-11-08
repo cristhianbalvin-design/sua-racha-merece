@@ -85,24 +85,19 @@ export async function searchMyPhotos(selfie: File, ev: FotoEvent): Promise<FotoM
   return (json.matches ?? []) as FotoMatch[];
 }
 
-/** ok: descargada · needsParticipation: hay que participar del Kit 3buk · message: bloqueo por cupo */
+/**
+ * ok: descargada · needsParticipation: hay que participar del Kit 3buk · purchase: no quedan fotos
+ * gratis y la foto cuesta R$10 del saldo (hay que confirmar) · message: otro bloqueo.
+ */
 export interface DownloadResult {
   ok: boolean;
   needsParticipation?: boolean;
+  purchase?: { priceCents: number; balanceCents: number; insufficient: boolean };
   message?: string;
 }
 
-/** Mensaje de bloqueo sin mencionar Premium (decisión del cliente: todo gratis por ahora). */
 export function blockedMessage(p: DownloadPermission): string | null {
   switch (p.reason) {
-    case "free_quota_exhausted": {
-      const q = p.status?.freeQuota ?? 3;
-      const m = p.status?.freeWindowMonths ?? 3;
-      const when = p.status?.nextFreeAt ? ` A próxima fica livre em ${new Date(p.status.nextFreeAt).toLocaleDateString("pt-BR")}.` : "";
-      return `Você já baixou suas ${q} fotos grátis dos últimos ${m} meses.${when}`;
-    }
-    case "insufficient_credits":
-      return "Esta foto não está disponível para download grátis.";
     case "photo_not_available":
       return "Esta foto não está mais disponível.";
     case "not_authenticated":
@@ -112,9 +107,20 @@ export function blockedMessage(p: DownloadPermission): string | null {
   }
 }
 
-export async function downloadPhoto(m: FotoMatch): Promise<DownloadResult> {
-  const perm = await apiRegisterDownload(m.id);
+/** Registra y baja la foto. Sin fotos gratis devuelve `purchase`; con confirm = true paga del saldo. */
+export async function downloadPhoto(m: FotoMatch, confirm = false): Promise<DownloadResult> {
+  const perm = await apiRegisterDownload(m.id, confirm);
   if (!perm.allowed) {
+    if (perm.reason === "purchase_required" || perm.reason === "insufficient_balance") {
+      return {
+        ok: false,
+        purchase: {
+          priceCents: perm.priceCents || perm.status?.priceCents || 1000,
+          balanceCents: perm.status?.balanceCents ?? 0,
+          insufficient: perm.reason === "insufficient_balance" || (perm.status?.balanceCents ?? 0) < (perm.priceCents || 1000),
+        },
+      };
+    }
     const msg = blockedMessage(perm);
     return msg ? { ok: false, message: msg } : { ok: false, needsParticipation: true };
   }

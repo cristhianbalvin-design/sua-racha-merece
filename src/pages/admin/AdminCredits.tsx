@@ -3,58 +3,61 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2, Search, User as UserIcon } from 'lucide-react';
 import { SHOW_FACE_SEARCH } from '@/config/features';
+import { apiSearchAthletes, type AthleteSummary } from '@/lib/creditsApi';
 import {
-  apiAdminAdjustCredits,
-  apiGetLedger,
-  apiGetPhotoCreditCostSetting,
-  apiGetUserBalance,
-  apiSearchAthletes,
-  apiSetPhotoCreditCost,
-  type AthleteSummary,
-  type LedgerRow,
-} from '@/lib/creditsApi';
-import {
-  adminLedgerReasonLabel,
-  creditErrorMessage,
-  formatDelta,
-  ledgerActorLabel,
-  parseAdjustAmount,
-  parseCostInput,
-} from '@/lib/credits';
+  apiAdminGetWallet,
+  apiAdminWalletAdjust,
+  apiGetPhotoPriceCents,
+  apiSetPhotoPriceCents,
+  brl,
+  formatCents,
+  walletReasonLabel,
+  type WalletMovement,
+} from '@/lib/walletApi';
 import { formatDateTime } from '@/lib/photoStatus';
 import { useConfirm } from '@/hooks/useConfirm';
 
-const LEDGER_PAGE = 20;
 const fieldClass = 'w-full bg-input text-foreground rounded-lg px-3 py-2.5 input-shadow focus:ring-2 focus:ring-ring outline-none text-sm';
-
 const isPremiumActive = (u: AthleteSummary) => !!u.premium_until && new Date(u.premium_until).getTime() > Date.now();
 
-const AdminCreditsPage = () => {
+/** "1.234,56" / "-10" / "10,5" → centavos. null si no es un monto válido. */
+export const parseReais = (raw: string): number | null => {
+  const s = raw.trim().replace(/\s|R\$/g, '').replace(/\./g, '').replace(',', '.');
+  if (!/^-?\d+(\.\d{1,2})?$/.test(s)) return null;
+  const cents = Math.round(Number(s) * 100);
+  return Number.isFinite(cents) && cents !== 0 ? cents : null;
+};
+
+/**
+ * Admin · Saldo (paso 27; antes "Créditos"). Busca un atleta, ve su saldo en R$ y sus movimientos,
+ * registra devoluciones pedidas por el atleta o ajustes (siempre con motivo) y fija el precio de la foto.
+ * Si la devolución se hace en Mercado Pago, el webhook ya descuenta del saldo lo no usado.
+ */
+const AdminWalletPage = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<AthleteSummary[]>([]);
   const [searching, setSearching] = useState(false);
   const [athlete, setAthlete] = useState<AthleteSummary | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
-  const [ledger, setLedger] = useState<LedgerRow[]>([]);
-  const [ledgerTotal, setLedgerTotal] = useState(0);
-  const [ledgerLoading, setLedgerLoading] = useState(false);
-
+  const [movements, setMovements] = useState<WalletMovement[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [kind, setKind] = useState<'refund' | 'adjust'>('refund');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [adjusting, setAdjusting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [price, setPrice] = useState<number | null>(null);
+  const [priceInput, setPriceInput] = useState('');
   const [confirm, confirmDialog] = useConfirm();
-  const [adjustError, setAdjustError] = useState('');
-
-  const [cost, setCost] = useState<number | null>(null);
-  const [editingCost, setEditingCost] = useState(false);
-  const [costInput, setCostInput] = useState('');
-  const [costError, setCostError] = useState('');
-  const [savingCost, setSavingCost] = useState(false);
-
   const searchSeq = useRef(0);
 
   useEffect(() => {
-    apiGetPhotoCreditCostSetting().then(setCost).catch(console.error);
+    apiGetPhotoPriceCents()
+      .then((c) => {
+        setPrice(c);
+        setPriceInput((c / 100).toFixed(2).replace('.', ','));
+      })
+      .catch(() => setPrice(null));
   }, []);
 
   useEffect(() => {
@@ -70,10 +73,7 @@ const AdminCreditsPage = () => {
     const t = setTimeout(() => {
       apiSearchAthletes(q)
         .then((r) => id === searchSeq.current && setResults(r))
-        .catch((err) => {
-          console.error(err);
-          if (id === searchSeq.current) toast.error('Erro ao buscar atletas.');
-        })
+        .catch(() => id === searchSeq.current && toast.error('Erro ao buscar atletas.'))
         .finally(() => id === searchSeq.current && setSearching(false));
     }, 300);
     return () => clearTimeout(t);
@@ -83,251 +83,172 @@ const AdminCreditsPage = () => {
     setAthlete(u);
     setResults([]);
     setQuery('');
-    setBalance(null);
-    setLedger([]);
-    setLedgerLoading(true);
+    setLoading(true);
     try {
-      const [b, l] = await Promise.all([apiGetUserBalance(u.id), apiGetLedger(u.id, 0, LEDGER_PAGE - 1)]);
-      setBalance(b);
-      setLedger(l.rows);
-      setLedgerTotal(l.total);
-    } catch (err) {
-      console.error(err);
-      toast.error('Erro ao carregar os créditos do atleta.');
+      const w = await apiAdminGetWallet(u.id);
+      setBalance(w.balance_cents);
+      setMovements(w.movements);
+    } catch {
+      toast.error('Erro ao carregar o saldo do atleta.');
     } finally {
-      setLedgerLoading(false);
+      setLoading(false);
     }
   }, []);
 
-  const loadMoreLedger = async () => {
-    if (!athlete) return;
-    setLedgerLoading(true);
-    try {
-      const l = await apiGetLedger(athlete.id, ledger.length, ledger.length + LEDGER_PAGE - 1);
-      setLedger((prev) => [...prev, ...l.rows.filter((r) => !prev.some((x) => x.id === r.id))]);
-      setLedgerTotal(l.total);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLedgerLoading(false);
-    }
-  };
-
-  const handleAdjust = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!athlete || adjusting) return;
-    const parsed = parseAdjustAmount(amount);
-    if (parsed.ok === false) {
-      setAdjustError(parsed.error);
+    if (!athlete || busy) return;
+    const cents = parseReais(amount);
+    if (cents === null || (kind === 'refund' && cents < 0)) {
+      setFormError(kind === 'refund' ? 'Informe o valor devolvido, por exemplo 20,00.' : 'Informe um valor, por exemplo 10,00 ou -10,00.');
       return;
     }
     if (!note.trim()) {
-      setAdjustError('A nota é obrigatória.');
+      setFormError('O motivo é obrigatório.');
       return;
     }
-    const verb = parsed.value > 0 ? `conceder ${parsed.value}` : `descontar ${Math.abs(parsed.value)}`;
-    if (!(await confirm({ description: `Confirmar: ${verb} crédito(s) para ${athlete.name || athlete.email}?`, confirmLabel: 'Aplicar' }))) return;
-    setAdjusting(true);
-    setAdjustError('');
+    const delta = kind === 'refund' ? -Math.abs(cents) : cents;
+    const who = athlete.name || athlete.email;
+    const label = kind === 'refund' ? `registrar devolução de ${brl(Math.abs(delta))} (sai do saldo)` : `${delta > 0 ? 'somar' : 'descontar'} ${brl(Math.abs(delta))}`;
+    if (!(await confirm({ description: `Confirmar: ${label} para ${who}?`, confirmLabel: 'Aplicar' }))) return;
+    setBusy(true);
+    setFormError('');
     try {
-      const res = await apiAdminAdjustCredits(athlete.id, parsed.value, note.trim());
-      toast.success(`Ajuste aplicado. Novo saldo: ${res.balance} créditos.`);
+      const b = await apiAdminWalletAdjust(athlete.id, delta, note.trim(), kind === 'refund');
+      toast.success(`Pronto. Novo saldo: ${brl(b)}.`);
       setAmount('');
       setNote('');
       await loadAthlete(athlete);
     } catch (err) {
-      const msg = (err as { message?: string })?.message;
-      setAdjustError(creditErrorMessage(msg));
+      const m = (err as { message?: string })?.message ?? '';
+      setFormError(m.includes('insufficient_balance') ? 'O saldo do atleta não é suficiente para esse valor.' : 'Não foi possível aplicar. Tente novamente.');
     } finally {
-      setAdjusting(false);
+      setBusy(false);
     }
   };
 
-  const handleSaveCost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsed = parseCostInput(costInput);
-    if (parsed.ok === false) {
-      setCostError(parsed.error);
-      return;
-    }
-    setSavingCost(true);
-    setCostError('');
+  const savePrice = async () => {
+    const cents = parseReais(priceInput);
+    if (cents === null || cents < 0) return toast.error('Preço inválido.');
     try {
-      await apiSetPhotoCreditCost(parsed.value);
-      setCost(parsed.value);
-      setEditingCost(false);
-      toast.success('Custo por foto atualizado.');
-    } catch (err) {
-      console.error(err);
-      setCostError((err as { message?: string })?.message || 'Não foi possível salvar.');
-    } finally {
-      setSavingCost(false);
+      await apiSetPhotoPriceCents(cents);
+      setPrice(cents);
+      toast.success(`Preço da foto: ${brl(cents)}.`);
+    } catch {
+      toast.error('Não foi possível salvar o preço.');
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="space-y-6">
+      {confirmDialog}
       <div>
-        <h1 className="font-bold italic text-2xl text-foreground">CRÉDITOS DO ATLETA</h1>
-        <p className="text-muted-foreground text-sm">Consulte saldos, conceda ou desconte créditos e defina o custo por foto.</p>
+        <h1 className="font-bold italic text-2xl text-foreground">SALDO</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Saldo em reais dos atletas (Premium inclui R$ 50; recargas de R$ 20, 30 e 50). Devoluções pedidas pelo atleta se registram aqui; se a
+          devolução for feita no Mercado Pago, o saldo não usado sai automaticamente.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
-        <div className="space-y-6 min-w-0">
-          {/* Busca */}
-          <div className="bg-card rounded-2xl card-shadow p-5 space-y-3">
-            <label htmlFor="cred-search" className="text-ui text-xs text-muted-foreground block">BUSCAR ATLETA</label>
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                id="cred-search"
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Nome ou e-mail (mín. 2 letras)"
-                className={`${fieldClass} pl-9`}
-              />
-              {searching && <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />}
+      <div className="bg-card rounded-2xl card-shadow p-5 space-y-2">
+        <p className="text-ui text-xs text-muted-foreground">PREÇO DA FOTO (quando acabam as fotos grátis)</p>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">R$</span>
+          <input className={`${fieldClass} max-w-[140px]`} value={priceInput} onChange={(e) => setPriceInput(e.target.value)} inputMode="decimal" aria-label="Preço da foto" />
+          <button type="button" onClick={savePrice} className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">
+            Salvar
+          </button>
+          {price !== null && <span className="text-xs text-muted-foreground">Atual: {brl(price)}</span>}
+        </div>
+      </div>
+
+      <div className="bg-card rounded-2xl card-shadow p-5 space-y-3">
+        <label className="relative block">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input className={`${fieldClass} pl-9`} placeholder="Buscar atleta por nome ou e-mail" value={query} onChange={(e) => setQuery(e.target.value)} />
+        </label>
+        {searching && <Loader2 className="animate-spin text-primary" size={16} />}
+        {results.length > 0 && (
+          <ul className="divide-y divide-border rounded-xl border border-border">
+            {results.map((u) => (
+              <li key={u.id}>
+                <button type="button" onClick={() => void loadAthlete(u)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-muted">
+                  <UserIcon size={16} className="text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate text-sm">
+                    <b>{u.name || '—'}</b> <span className="text-muted-foreground">{u.email}</span>
+                  </span>
+                  {isPremiumActive(u) && <span className="text-[10px] font-bold text-accent">PREMIUM</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {athlete && (
+        <div className="bg-card rounded-2xl card-shadow p-5 space-y-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <div>
+              <p className="font-bold text-foreground">{athlete.name || athlete.email}</p>
+              <p className="text-xs text-muted-foreground">
+                {athlete.email} · {isPremiumActive(athlete) ? `Premium até ${new Date(athlete.premium_until!).toLocaleDateString('pt-BR')}` : 'Freemium'}
+              </p>
             </div>
-            {results.length > 0 && (
-              <ul className="border border-border rounded-lg divide-y divide-border max-h-72 overflow-y-auto">
-                {results.map((u) => (
-                  <li key={u.id}>
-                    <button type="button" onClick={() => loadAthlete(u)} className="w-full text-left px-3 py-2.5 hover:bg-muted/60 transition-colors">
-                      <p className="text-sm font-bold text-foreground">{u.name || '—'}</p>
-                      <p className="text-xs text-muted-foreground">{u.email}</p>
-                    </button>
+            <p className="text-2xl font-bold text-primary">{balance === null ? '…' : brl(balance)}</p>
+          </div>
+
+          <form onSubmit={submit} className="grid gap-3 md:grid-cols-[160px_160px_1fr_auto] md:items-end">
+            <label className="text-xs text-muted-foreground">
+              Tipo
+              <select className={fieldClass} value={kind} onChange={(e) => setKind(e.target.value as 'refund' | 'adjust')}>
+                <option value="refund">Devolução (sai do saldo)</option>
+                <option value="adjust">Ajuste (+ ou −)</option>
+              </select>
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Valor (R$)
+              <input className={fieldClass} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={kind === 'refund' ? '20,00' : '10,00 ou -10,00'} inputMode="decimal" />
+            </label>
+            <label className="text-xs text-muted-foreground">
+              Motivo
+              <input className={fieldClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: devolução pedida por e-mail em 10/11" />
+            </label>
+            <button type="submit" disabled={busy} className="rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50">
+              {busy ? 'Aplicando…' : 'Aplicar'}
+            </button>
+          </form>
+          {formError && <p className="text-sm text-destructive">{formError}</p>}
+
+          <div>
+            <h2 className="font-bold text-foreground mb-2">Movimentos</h2>
+            {loading ? (
+              <Loader2 className="animate-spin text-primary" />
+            ) : movements.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem movimentos de saldo.</p>
+            ) : (
+              <ul className="divide-y divide-border border-y border-border">
+                {movements.map((m) => (
+                  <li key={m.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="text-sm">{walletReasonLabel(m.reason)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDateTime(m.created_at)}
+                        {m.note ? ` · ${m.note}` : ''}
+                        {m.balance_after_cents !== undefined ? ` · saldo ${brl(m.balance_after_cents)}` : ''}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 font-bold ${m.delta_cents > 0 ? 'text-primary' : 'text-destructive'}`}>{formatCents(m.delta_cents)}</span>
                   </li>
                 ))}
               </ul>
             )}
-            {!searching && query.trim().length >= 2 && results.length === 0 && (
-              <p className="text-xs text-muted-foreground">Nenhum atleta encontrado.</p>
-            )}
           </div>
-
-          {athlete && (
-            <>
-              <div className="bg-card rounded-2xl card-shadow p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-center shrink-0">
-                    <UserIcon size={18} className="text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-foreground truncate">{athlete.name || '—'}</p>
-                    <p className="text-xs text-muted-foreground truncate">{athlete.email}</p>
-                    <p className="text-xs mt-1">
-                      {isPremiumActive(athlete) ? (
-                        <span className="font-bold text-accent">Premium até {new Date(athlete.premium_until!).toLocaleDateString('pt-BR')}</span>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          Plano {athlete.plan || 'Freemium'}
-                          {athlete.premium_until ? ` · Premium vencido em ${new Date(athlete.premium_until).toLocaleDateString('pt-BR')}` : ''}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-ui text-[11px] text-muted-foreground">SALDO</p>
-                  <p className="text-3xl font-bold text-primary">{balance ?? '—'}</p>
-                  <p className="text-xs text-muted-foreground">créditos</p>
-                </div>
-              </div>
-
-              <form onSubmit={handleAdjust} className="bg-card rounded-2xl card-shadow p-5 space-y-4">
-                <h2 className="font-bold text-foreground">Ajustar créditos</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-3">
-                  <div>
-                    <label htmlFor="cred-amount" className="text-ui text-xs text-muted-foreground block mb-1.5">QUANTIDADE</label>
-                    <input id="cred-amount" inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Ex.: 30 ou -10" className={fieldClass} disabled={adjusting} />
-                  </div>
-                  <div>
-                    <label htmlFor="cred-note" className="text-ui text-xs text-muted-foreground block mb-1.5">NOTA (OBRIGATÓRIA)</label>
-                    <input id="cred-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="Ex.: Bônus de lançamento" className={fieldClass} disabled={adjusting} />
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">Positivo concede, negativo desconta. O saldo nunca fica negativo.</p>
-                {adjustError && <p className="text-destructive text-sm" role="alert">{adjustError}</p>}
-                <button type="submit" disabled={adjusting || !amount.trim() || !note.trim()} className="bg-primary text-primary-foreground text-ui text-xs px-5 py-2.5 rounded-xl btn-shadow font-bold disabled:opacity-50 flex items-center gap-2">
-                  {adjusting && <Loader2 size={14} className="animate-spin" />}
-                  APLICAR AJUSTE
-                </button>
-              </form>
-
-              <div className="bg-card rounded-2xl card-shadow overflow-hidden">
-                <div className="p-5 pb-3">
-                  <h2 className="font-bold text-foreground">Histórico de movimentos</h2>
-                  <p className="text-xs text-muted-foreground mt-1">Registro apenas de inclusão: movimentos não podem ser editados nem apagados.</p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-y border-border">
-                        <th className="text-left px-4 py-2.5 text-ui text-xs text-muted-foreground">DATA</th>
-                        <th className="text-right px-4 py-2.5 text-ui text-xs text-muted-foreground">MOVIMENTO</th>
-                        <th className="text-right px-4 py-2.5 text-ui text-xs text-muted-foreground">SALDO</th>
-                        <th className="text-left px-4 py-2.5 text-ui text-xs text-muted-foreground">MOTIVO</th>
-                        <th className="text-left px-4 py-2.5 text-ui text-xs text-muted-foreground">POR</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {ledger.length === 0 && !ledgerLoading && (
-                        <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Nenhum movimento.</td></tr>
-                      )}
-                      {ledger.map((r) => (
-                        <tr key={r.id}>
-                          <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{formatDateTime(r.created_at)}</td>
-                          <td className={`px-4 py-2.5 text-right font-bold ${r.delta > 0 ? 'text-primary' : 'text-destructive'}`}>{formatDelta(r.delta)}</td>
-                          <td className="px-4 py-2.5 text-right text-foreground">{r.balance_after}</td>
-                          <td className="px-4 py-2.5 text-foreground">{adminLedgerReasonLabel(r.reason, r.note)}</td>
-                          <td className="px-4 py-2.5 text-muted-foreground">{ledgerActorLabel(r.reason, r.created_by)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="px-4 py-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Mostrando {ledger.length} de {ledgerTotal}</span>
-                  {ledger.length < ledgerTotal && (
-                    <button type="button" onClick={loadMoreLedger} disabled={ledgerLoading} className="font-bold text-primary hover:underline disabled:opacity-50">
-                      {ledgerLoading ? 'Carregando…' : 'Carregar mais'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
         </div>
-
-        {/* Custo por foto */}
-        <div className="bg-card rounded-2xl card-shadow p-5 space-y-3">
-          <h2 className="font-bold text-foreground">Custo por foto</h2>
-          {!editingCost ? (
-            <>
-              <p className="text-2xl font-bold text-foreground">{cost ?? '—'} <span className="text-sm font-normal text-muted-foreground">créditos = 1 foto</span></p>
-              <button type="button" onClick={() => { setCostInput(cost ? String(cost) : ''); setCostError(''); setEditingCost(true); }} className="text-xs font-bold text-primary hover:underline">
-                Editar custo
-              </button>
-            </>
-          ) : (
-            <form onSubmit={handleSaveCost} className="space-y-2">
-              <input inputMode="numeric" value={costInput} onChange={(e) => setCostInput(e.target.value)} className={fieldClass} aria-label="Créditos por foto" autoFocus disabled={savingCost} />
-              {costError && <p className="text-destructive text-xs">{costError}</p>}
-              <p className="text-xs text-muted-foreground">Vale para os próximos downloads.</p>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setEditingCost(false)} disabled={savingCost} className="flex-1 bg-muted text-foreground text-xs font-bold py-2 rounded-lg">Cancelar</button>
-                <button type="submit" disabled={savingCost} className="flex-1 bg-primary text-primary-foreground text-xs font-bold py-2 rounded-lg disabled:opacity-50">Salvar</button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
-      {confirmDialog}
+      )}
     </div>
   );
 };
 
-const AdminCredits = () => (SHOW_FACE_SEARCH ? <AdminCreditsPage /> : <Navigate to="/admin/dashboard" replace />);
+const AdminCredits = () => (SHOW_FACE_SEARCH ? <AdminWalletPage /> : <Navigate to="/admin" replace />);
 
 export default AdminCredits;

@@ -16,6 +16,7 @@ Scripts para correr **a mano en el SQL Editor de Supabase**, en orden y uno por 
 | 24 | `24_recoleccion_bicicleta.sql` | 2 Bukys por punto y día con 3 min entre ellos (todas las rutas), ciudad de inicio del entrenamiento, límite de 1 h, avisos de bicicleta y bloqueo diario, `buky_my_status()` (progreso 200/300 de la Fase 1) |
 | 25 | `25_sorteos_v2.sql` | Varios sorteos a la vez por ciudad o grupo, envío según la ubicación y con reglamento aceptado, % de descuento (de mayor a menor), ganador + suplente, mínimo de participantes con decisión del admin (sortear o unir), plazo de canje con paso al suplente y republicación |
 | 26 | `26_ronda3_inicio.sql` | Ronda 3: tope de 12 Bukys por día (todas las rutas), bloqueo por bicicleta desde el 1.er corte (una sola vez), solo la app instalada inicia entrenamientos; ranking de la ciudad y ganadores de patrocinio para Início |
+| 27 | `27_saldo_fotos_premium.sql` | Saldo en R$ (sin créditos): Premium acredita R$50, recargas de R$20/30/50, foto a R$10 del saldo con confirmación, fotos gratis por año (Premium 3, Freemium 1 con 300 Bukys), devoluciones (webhook y admin), aviso de vencimiento del Premium |
 
 Después de los SQL se despliega la Edge Function (verify_jwt activado; no necesita secrets nuevos):
 

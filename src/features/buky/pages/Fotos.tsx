@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Camera, Check, ChevronRight, Download, ExternalLink, X } from "lucide-react";
+import { Camera, Check, ChevronRight, Download, ExternalLink, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
 import { SHOW_FACE_SEARCH } from "@/config/features";
 import { pt } from "../i18n";
 import { ScreenHeader, Sheet } from "../components/ui";
 import EventCalendar from "../components/EventCalendar";
+import { apiGetDownloadStatus } from "@/lib/libraryApi";
+import { brl } from "@/lib/walletApi";
 import { downloadPhoto, listFotoEvents, searchMyPhotos, type FotoEvent, type FotoMatch } from "../lib/fotos";
 
 const DRIVE_URL = "https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI";
@@ -31,6 +33,8 @@ export default function Fotos() {
   const [matches, setMatches] = useState<FotoMatch[]>([]);
   const [open, setOpen] = useState<FotoMatch | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [buy, setBuy] = useState<{ m: FotoMatch; priceCents: number; balanceCents: number; insufficient: boolean } | null>(null);
+  const { data: photoStatus, refetch: refetchStatus } = useQuery({ queryKey: ["photo-status"], queryFn: apiGetDownloadStatus, enabled: SHOW_FACE_SEARCH });
   const camRef = useRef<HTMLInputElement>(null);
   const galRef = useRef<HTMLInputElement>(null);
 
@@ -69,12 +73,17 @@ export default function Fotos() {
 
   const usarNoKit = (m: FotoMatch) => navigate("/app/patrocinio", { state: { photo: { id: m.id, imageUrl: m.image_url } } });
 
-  const baixar = async (m: FotoMatch) => {
+  const baixar = async (m: FotoMatch, confirm = false) => {
     setDownloading(true);
     try {
-      const r = await downloadPhoto(m);
-      if (r.ok) toast.success(pt.fotos.baixada);
-      else if (r.needsParticipation) {
+      const r = await downloadPhoto(m, confirm);
+      if (r.ok) {
+        toast.success(confirm ? pt.fotos.comprada : pt.fotos.baixada);
+        setBuy(null);
+        void refetchStatus();
+      } else if (r.purchase) {
+        setBuy({ m, ...r.purchase });
+      } else if (r.needsParticipation) {
         toast(pt.fotos.liberar);
         usarNoKit(m);
       } else toast.error(r.message, { duration: 8000 });
@@ -138,6 +147,15 @@ export default function Fotos() {
         </div>
       )}
 
+      {photoStatus && (
+        <p className="px-6 pt-4 text-[13px] text-[var(--buky-muted)]">
+          {pt.fotos.gratis(photoStatus.freeRemaining, photoStatus.freeTotal)} ·{" "}
+          <button type="button" onClick={() => navigate("/app/perfil/saldo")} className="font-semibold text-[var(--buky-neon)]">
+            {pt.saldo.perfilCard(brl(photoStatus.balanceCents))}
+          </button>
+        </p>
+      )}
+
       {status === "done" && matches.length === 0 && (
         <div className="px-6 py-10 text-center">
           <p className="text-[16px] font-semibold">{pt.fotos.nenhuma}</p>
@@ -161,6 +179,32 @@ export default function Fotos() {
           </div>
         </>
       )}
+
+      <Sheet open={Boolean(buy)} onClose={() => setBuy(null)} label={pt.fotos.comprarTitulo}>
+        {buy && (
+          <>
+            <Wallet size={30} className="text-[var(--buky-neon)]" />
+            <h2 className="font-buky mt-3 text-[28px] leading-none">{pt.fotos.comprarTitulo}</h2>
+            <p className="mt-3 text-[15px] leading-snug text-[var(--buky-muted)]">
+              {buy.insufficient
+                ? pt.fotos.semSaldoTexto(brl(buy.priceCents), brl(buy.balanceCents))
+                : pt.fotos.comprarTexto(brl(buy.priceCents), brl(buy.balanceCents))}
+            </p>
+            {buy.insufficient ? (
+              <button type="button" className="buky-btn mt-5" onClick={() => navigate("/app/perfil/saldo")}>
+                {pt.fotos.recarregar}
+              </button>
+            ) : (
+              <button type="button" className="buky-btn mt-5" disabled={downloading} onClick={() => void baixar(buy.m, true)}>
+                {downloading ? pt.fotos.baixando : pt.fotos.comprar(brl(buy.priceCents))}
+              </button>
+            )}
+            <button type="button" className="mt-2 w-full py-3 text-sm text-[var(--buky-muted)]" onClick={() => setBuy(null)}>
+              {pt.comum.cancelar}
+            </button>
+          </>
+        )}
+      </Sheet>
 
       <Sheet open={pickEvent} onClose={() => setPickEvent(false)} label={pt.fotos.escolherEvento}>
         <p className="buky-label mb-3 text-[var(--buky-muted)]">{pt.fotos.escolherEvento}</p>
