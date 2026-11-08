@@ -55,6 +55,14 @@ CREATE POLICY "Admins can view all profiles" ON public.users FOR SELECT TO authe
 CREATE POLICY "Users can update own profile" ON public.users FOR UPDATE TO authenticated
   USING ((SELECT auth.uid()) = id) WITH CHECK ((SELECT auth.uid()) = id);
 
+-- Campañas de patrocinio de 3BUK (solo lo que usa el paso 26)
+CREATE TABLE public.campaigns (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text, prize text, city text,
+  status text, is_hidden boolean DEFAULT false, created_at timestamptz DEFAULT now());
+CREATE TABLE public.participations (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid, campaign_id uuid,
+  status text, photo_url text, created_at timestamptz DEFAULT now());
+ALTER TABLE public.campaigns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.participations ENABLE ROW LEVEL SECURITY;
+
 CREATE TABLE public.app_settings (key text PRIMARY KEY, value jsonb, description text, updated_at timestamptz DEFAULT now());
 ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY app_settings_select_authenticated ON public.app_settings FOR SELECT TO authenticated USING (true);

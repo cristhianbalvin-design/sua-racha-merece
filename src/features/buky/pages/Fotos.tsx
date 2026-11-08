@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { SHOW_FACE_SEARCH } from "@/config/features";
 import { pt } from "../i18n";
 import { ScreenHeader, Sheet } from "../components/ui";
+import EventCalendar from "../components/EventCalendar";
 import { downloadPhoto, listFotoEvents, searchMyPhotos, type FotoEvent, type FotoMatch } from "../lib/fotos";
 
 const DRIVE_URL = "https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI";
@@ -168,26 +169,16 @@ export default function Fotos() {
         ) : events.length === 0 ? (
           <p className="py-6 text-sm text-[var(--buky-faint)]">{pt.fotos.semEventos}</p>
         ) : (
-          <ul className="-mx-2 max-h-[55svh] overflow-auto">
-            {events.map((ev) => (
-              <li key={ev.key}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEvent(ev);
-                    setPickEvent(false);
-                  }}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-3 text-left hover:bg-[#161616]"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-[16px] font-semibold">{ev.title}</span>
-                    <span className="block text-[13px] text-[var(--buky-muted)]">{ev.subtitle}</span>
-                  </span>
-                  {event?.key === ev.key && <Check size={18} className="shrink-0 text-[var(--buky-neon)]" />}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div className="max-h-[70svh] overflow-auto">
+            <EventCalendar
+              events={events}
+              selectedKey={event?.key}
+              onPick={(ev) => {
+                setEvent(ev);
+                setPickEvent(false);
+              }}
+            />
+          </div>
         )}
       </Sheet>
 

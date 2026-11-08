@@ -34,11 +34,11 @@ export default function Bolsa() {
     <div className="pb-4">
       <ScreenHeader title={pt.bolsa.titulo} />
 
-      <div className="relative h-[244px]">
-        <img src={mascote} alt="Buky" className="absolute -right-1 top-0 h-[236px] w-auto" />
+      <div className="relative h-[clamp(170px,48vw,200px)]">
+        <img src={mascote} alt="Buky" className="absolute -right-1 top-0 h-[clamp(160px,46vw,192px)] w-auto" />
         <p className="buky-label absolute left-6 top-3 text-[var(--buky-neon)]">{pt.bolsa.saldo}</p>
-        <p className="font-buky-xcond absolute left-[18px] top-7 text-[176px]">{s.balance}</p>
-        <p className="absolute left-[26px] top-[178px] text-[13px] font-bold tracking-[0.2em] text-[var(--buky-muted)]">
+        <p className="font-buky-xcond absolute left-[18px] top-7 text-[clamp(96px,32vw,128px)] leading-none">{s.balance}</p>
+        <p className="absolute bottom-3 left-[26px] text-[12px] font-bold tracking-[0.2em] text-[var(--buky-muted)]">
           {pt.bolsa.bukys.toUpperCase()}
         </p>
       </div>

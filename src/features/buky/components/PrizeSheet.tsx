@@ -15,10 +15,22 @@ export function prizeBenefit(p: Pick<Prize, "benefit" | "discount_pct">) {
 }
 
 /** Foto del premio, o el logo del patrocinador, o un ícono. */
-export function PrizeThumb({ prize, size = 44 }: { prize: Pick<Prize, "image_url" | "sponsor">; size?: number }) {
+/**
+ * Imagen o logo del premio. Con `mono` se ve en gris y toma color al tocar/seleccionar la fila
+ * (observación 6 del 7/11: los logos compiten con el texto si todos están a color).
+ */
+export function PrizeThumb({ prize, size = 44, mono = false }: { prize: Pick<Prize, "image_url" | "sponsor">; size?: number; mono?: boolean }) {
   const src = prize.image_url || prize.sponsor.logo_url;
   return src ? (
-    <img src={src} alt="" loading="lazy" className="shrink-0 rounded-xl bg-[#1a1a1a] object-cover" style={{ width: size, height: size }} />
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      className={`shrink-0 rounded-xl bg-[#1a1a1a] object-cover transition duration-300 ${
+        mono ? "opacity-80 grayscale group-hover:opacity-100 group-hover:grayscale-0 group-focus-visible:opacity-100 group-focus-visible:grayscale-0 group-active:grayscale-0" : ""
+      }`}
+      style={{ width: size, height: size }}
+    />
   ) : (
     <span className="flex shrink-0 items-center justify-center rounded-xl bg-[var(--buky-neon-soft)] text-[var(--buky-neon)]" style={{ width: size, height: size }}>
       <Gift size={size * 0.45} />
@@ -27,11 +39,11 @@ export function PrizeThumb({ prize, size = 44 }: { prize: Pick<Prize, "image_url
 }
 
 /** Fila compacta de un premio en las listas. */
-export function PrizeRow({ prize, onOpen }: { prize: Prize; onOpen: () => void }) {
+export function PrizeRow({ prize, onOpen, selected = false }: { prize: Prize; onOpen: () => void; selected?: boolean }) {
   return (
     <li className="buky-row">
-      <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 py-3 text-left">
-        <PrizeThumb prize={prize} />
+      <button type="button" onClick={onOpen} aria-pressed={selected} className="group flex w-full items-center gap-3 py-3 text-left">
+        <PrizeThumb prize={prize} mono={!selected} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-semibold">{prize.title}</span>
           <span className="block truncate text-[12px] text-[var(--buky-muted)]">

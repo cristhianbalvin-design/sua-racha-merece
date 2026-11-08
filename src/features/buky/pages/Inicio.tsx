@@ -1,6 +1,14 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Check, ChevronDown, Play, Plus, Route as RouteIcon, Ticket } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Play,
+  Plus,
+  Route as RouteIcon,
+  Smartphone,
+  Ticket,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { haversineMeters } from "@/features/buky/engine";
@@ -8,11 +16,20 @@ import { pt } from "../i18n";
 import BukyMap from "../components/BukyMap";
 import StartSheet from "../components/StartSheet";
 import CouponList from "../components/CouponList";
+import HomeExtras from "../components/HomeExtras";
 import { ProfileAvatar, Sheet } from "../components/ui";
-import { useBukyProfile, useCity, useMyStatus, useRoutes, useSummary, useCouponsHere } from "../lib/hooks";
+import {
+  useBukyProfile,
+  useCity,
+  useMyStatus,
+  useRoutes,
+  useSummary,
+  useCouponsHere,
+} from "../lib/hooks";
 import type { BukyApiError } from "../lib/api";
 import { useGeolocation } from "../lib/useGeolocation";
 import { training } from "../training/useTraining";
+import { getGpsSource } from "../training/gpsSource";
 
 const NEAR_M = 1000;
 
@@ -21,10 +38,15 @@ export default function Inicio() {
   const { user } = useAuth();
   const { data: profile } = useBukyProfile();
   const { data: city } = useCity(profile?.city_code);
-  const { data: routes = [], isLoading: loadingRoutes } = useRoutes(profile?.city_code);
+  const { data: routes = [], isLoading: loadingRoutes } = useRoutes(
+    profile?.city_code,
+  );
   const { data: summary } = useSummary();
   const { data: status, refetch: refetchStatus } = useMyStatus();
   const { pos, error: geoError } = useGeolocation();
+  // Ronda 3: solo la app instalada recolecta; en la web se ve todo menos el botón de iniciar (los testadores sí)
+  const canTrain = getGpsSource().kind === "native" || Boolean(status?.tester);
+  const [appOnly, setAppOnly] = useState(false);
   const { coupons, away } = useCouponsHere(pos);
   const [routeId, setRouteIdState] = useState<string | null>(() => {
     try {
@@ -58,15 +80,24 @@ export default function Inicio() {
   const nearCount = useMemo(() => {
     const pts = route?.points ?? [];
     if (!pos) return pts.length;
-    return pts.filter((p) => haversineMeters(pos.lat, pos.lon, p.lat, p.lon) <= NEAR_M).length;
+    return pts.filter(
+      (p) => haversineMeters(pos.lat, pos.lon, p.lat, p.lon) <= NEAR_M,
+    ).length;
   }, [pos, route]);
 
   const routeCenter = useMemo(() => {
     const pts = route?.points ?? [];
     if (!pts.length) return null;
-    return { lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length, lon: pts.reduce((a, p) => a + p.lon, 0) / pts.length };
+    return {
+      lat: pts.reduce((a, p) => a + p.lat, 0) / pts.length,
+      lon: pts.reduce((a, p) => a + p.lon, 0) / pts.length,
+    };
   }, [route]);
-  const center = (focusRoute && routeCenter) || pos || routeCenter || (city ? { lat: city.lat, lon: city.lon } : null);
+  const center =
+    (focusRoute && routeCenter) ||
+    pos ||
+    routeCenter ||
+    (city ? { lat: city.lat, lon: city.lon } : null);
   const zone = [profile?.neighborhood, city?.name].filter(Boolean).join(" · ");
 
   const start = async () => {
@@ -83,93 +114,183 @@ export default function Inicio() {
       navigate("/app/treino");
     } catch (e) {
       const code = (e as BukyApiError).code;
-      if (code === "blocked_today") {
+      if (code === "app_required") {
+        setAskStart(false);
+        setAppOnly(true);
+      } else if (code === "blocked_today") {
         setAskStart(false);
         void refetchStatus();
         toast.error(pt.treino.bloqueado, { duration: 8000 });
-      } else toast.error(training.getSnapshot().error === "offline" ? pt.treino.semConexao : pt.comum.erro);
+      } else
+        toast.error(
+          training.getSnapshot().error === "offline"
+            ? pt.treino.semConexao
+            : pt.comum.erro,
+        );
     } finally {
       setStarting(false);
     }
   };
 
   return (
-    <div className="relative h-[calc(100svh-0px)] min-h-[640px] overflow-hidden">
-      <BukyMap
-        center={center}
-        zoom={13.4}
-        points={route ? route.points.map((p) => ({ ...p, state: "idle" as const })) : []}
-        path={route?.path}
-        showPath
-        user={pos}
-        nearRadiusM={pos ? NEAR_M : undefined}
-        className="absolute inset-x-0 top-0 h-[68%]"
-      />
-      {/* degradé del mapa al negro */}
-      <div className="pointer-events-none absolute inset-x-0 top-[48%] h-[22%] bg-gradient-to-b from-transparent to-[var(--buky-bg)]" />
+    <div>
+      <div className="relative h-[calc(100svh-24px)] min-h-[600px] overflow-hidden">
+        <BukyMap
+          center={center}
+          zoom={13.4}
+          points={
+            route
+              ? route.points.map((p) => ({ ...p, state: "idle" as const }))
+              : []
+          }
+          path={route?.path}
+          showPath
+          user={pos}
+          nearRadiusM={pos ? NEAR_M : undefined}
+          className="absolute inset-x-0 top-0 h-[68%]"
+        />
+        {/* degradé del mapa al negro */}
+        <div className="pointer-events-none absolute inset-x-0 top-[48%] h-[22%] bg-gradient-to-b from-transparent to-[var(--buky-bg)]" />
 
-      {/* saldo + avatar */}
-      <div className="absolute inset-x-0 top-0 flex items-start justify-between px-6 pt-[calc(env(safe-area-inset-top,0px)+28px)]">
-        <Link to="/app/bolsa" className="flex items-baseline gap-2" aria-label="Ver bolsa">
-          <span className="font-buky-xcond text-[44px] drop-shadow">{summary?.balance ?? 0}</span>
-          <span className="buky-label text-[var(--buky-neon)]">{pt.inicio.bukys}</span>
-        </Link>
-        <ProfileAvatar />
-      </div>
-
-      <div className="absolute inset-x-0 bottom-[110px] px-6">
-        {/* Botón Iniciar debajo del mapa, a la derecha del contador (no tapa el mapa) */}
-        <div className="absolute right-6 top-0 z-10 flex flex-col items-center">
-          <button
-            type="button"
-            onClick={() => setAskStart(true)}
-            disabled={!route}
-            aria-label={pt.inicio.iniciar}
-            className="flex h-[84px] w-[84px] items-center justify-center rounded-full bg-[var(--buky-neon)] text-[#050505] shadow-[0_0_0_7px_rgba(57,255,20,0.14),0_10px_30px_rgba(0,0,0,0.6)] transition active:scale-95 disabled:opacity-40"
+        {/* saldo + avatar */}
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between px-6 pt-[calc(env(safe-area-inset-top,0px)+28px)]">
+          <Link
+            to="/app/bolsa"
+            className="flex items-baseline gap-2"
+            aria-label="Ver bolsa"
           >
-            <Play size={26} fill="currentColor" />
-          </button>
-          <span className="font-buky mt-2 text-[13px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">{pt.inicio.iniciar}</span>
+            <span className="font-buky-xcond text-[44px] drop-shadow">
+              {summary?.balance ?? 0}
+            </span>
+            <span className="buky-label text-[var(--buky-neon)]">
+              {pt.inicio.bukys}
+            </span>
+          </Link>
+          <ProfileAvatar />
         </div>
 
-        <div>
-          <div className="min-w-0">
-            {zone && <p className="buky-label truncate pr-28 text-[var(--buky-neon)]">{zone}</p>}
-            {loadingRoutes ? null : routes.length === 0 ? (
-              <div className="mt-2 max-w-[220px]">
-                <p className="text-[15px] text-[var(--buky-muted)]">{pt.inicio.semRotas}</p>
-                <Link to="/app/rotas/nova" className="mt-3 inline-flex items-center gap-1 font-semibold text-[var(--buky-neon)]">
-                  <Plus size={16} /> {pt.inicio.criarRota}
-                </Link>
-              </div>
-            ) : (
-              <>
-                <p className="font-buky-xcond mt-1 text-[96px]">{nearCount}</p>
-                <p className="mt-2 text-[15px] text-[var(--buky-muted)]">{pt.inicio.pertoDeVoce(nearCount)}</p>
+        <div className="absolute inset-x-0 bottom-[118px] px-6">
+          {/* Botón Iniciar debajo del mapa, a la derecha del contador (no tapa el mapa) */}
+          <div className="absolute right-6 top-0 z-10 flex flex-col items-center">
+            <button
+              type="button"
+              onClick={() => (canTrain ? setAskStart(true) : setAppOnly(true))}
+              disabled={!route}
+              aria-label={pt.inicio.iniciar}
+              className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[var(--buky-neon)] text-[#050505] shadow-[0_0_0_7px_rgba(57,255,20,0.14),0_10px_30px_rgba(0,0,0,0.6)] transition active:scale-95 disabled:opacity-40"
+            >
+              {canTrain ? (
+                <Play size={26} fill="currentColor" />
+              ) : (
+                <Smartphone size={26} />
+              )}
+            </button>
+            <span className="font-buky mt-2 text-[13px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
+              {pt.inicio.iniciar}
+            </span>
+          </div>
+
+          <div>
+            <div className="min-w-0">
+              {zone && (
+                <p className="buky-label truncate pr-28 text-[var(--buky-neon)]">
+                  {zone}
+                </p>
+              )}
+              {loadingRoutes ? null : routes.length === 0 ? (
+                <div className="mt-2 max-w-[220px]">
+                  <p className="text-[15px] text-[var(--buky-muted)]">
+                    {pt.inicio.semRotas}
+                  </p>
+                  <Link
+                    to="/app/rotas/nova"
+                    className="mt-3 inline-flex items-center gap-1 font-semibold text-[var(--buky-neon)]"
+                  >
+                    <Plus size={16} /> {pt.inicio.criarRota}
+                  </Link>
+                </div>
+              ) : (
+                <>
+                  <p className="font-buky-xcond mt-1 text-[clamp(64px,20vw,80px)] leading-none">
+                    {nearCount}
+                  </p>
+                  <p className="mt-2 text-[15px] text-[var(--buky-muted)]">
+                    {pt.inicio.pertoDeVoce(nearCount)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPickRoute(true)}
+                    className="mt-3 flex max-w-full items-center gap-2 rounded-full border border-[var(--buky-line)] bg-[#0d0d0d] py-2 pl-3 pr-3 text-sm"
+                    aria-label={`${pt.inicio.escolherRota}: ${route?.name ?? ""}`}
+                  >
+                    <RouteIcon
+                      size={16}
+                      className="shrink-0 text-[var(--buky-neon)]"
+                    />
+                    <span className="truncate font-semibold">
+                      {route?.name}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className="shrink-0 text-[var(--buky-muted)]"
+                    />
+                  </button>
+                </>
+              )}
+              {geoError && (
+                <p className="mt-2 max-w-[220px] text-xs text-[var(--buky-faint)]">
+                  {pt.inicio.localizacao}
+                </p>
+              )}
+              {coupons.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setPickRoute(true)}
-                  className="mt-3 flex max-w-full items-center gap-2 rounded-full border border-[var(--buky-line)] bg-[#0d0d0d] py-2 pl-3 pr-3 text-sm"
-                  aria-label={`${pt.inicio.escolherRota}: ${route?.name ?? ""}`}
+                  onClick={() => setShowCoupons(true)}
+                  className="mt-3 flex items-center gap-2 text-sm font-semibold text-white"
                 >
-                  <RouteIcon size={16} className="shrink-0 text-[var(--buky-neon)]" />
-                  <span className="truncate font-semibold">{route?.name}</span>
-                  <ChevronDown size={16} className="shrink-0 text-[var(--buky-muted)]" />
+                  <Ticket size={16} className="text-[var(--buky-neon)]" />{" "}
+                  {away ? pt.treino.cuponsDigitais : pt.treino.cupons} ·{" "}
+                  {coupons.length}
                 </button>
-              </>
-            )}
-            {geoError && <p className="mt-2 max-w-[220px] text-xs text-[var(--buky-faint)]">{pt.inicio.localizacao}</p>}
-            {coupons.length > 0 && (
-              <button type="button" onClick={() => setShowCoupons(true)} className="mt-3 flex items-center gap-2 text-sm font-semibold text-white">
-                <Ticket size={16} className="text-[var(--buky-neon)]" /> {away ? pt.treino.cuponsDigitais : pt.treino.cupons} · {coupons.length}
-              </button>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
+      <HomeExtras cityCode={profile?.city_code} />
 
-      <StartSheet open={askStart} onClose={() => setAskStart(false)} onStart={start} busy={starting} routeName={route?.name ?? ""} />
-      <Sheet open={pickRoute} onClose={() => setPickRoute(false)} label={pt.inicio.escolherRota}>
+      <Sheet
+        open={appOnly}
+        onClose={() => setAppOnly(false)}
+        label={pt.inicio.soApp}
+      >
+        <Smartphone size={34} className="text-[var(--buky-neon)]" />
+        <h2 className="font-buky mt-3 text-[28px] leading-none">
+          {pt.inicio.soApp}
+        </h2>
+        <p className="mt-3 text-[15px] leading-snug text-[var(--buky-muted)]">
+          {pt.inicio.soAppTexto}
+        </p>
+        <button
+          type="button"
+          className="buky-btn mt-5"
+          onClick={() => setAppOnly(false)}
+        >
+          {pt.comum.entendi}
+        </button>
+      </Sheet>
+      <StartSheet
+        open={askStart}
+        onClose={() => setAskStart(false)}
+        onStart={start}
+        busy={starting}
+        routeName={route?.name ?? ""}
+      />
+      <Sheet
+        open={pickRoute}
+        onClose={() => setPickRoute(false)}
+        label={pt.inicio.escolherRota}
+      >
         <div className="max-h-[60svh] overflow-auto">
           {[
             { title: pt.inicio.rotasOficiais, list: official },
@@ -178,7 +299,9 @@ export default function Inicio() {
             (g) =>
               g.list.length > 0 && (
                 <div key={g.title} className="mb-4">
-                  <p className="buky-label mb-1 text-[var(--buky-muted)]">{g.title}</p>
+                  <p className="buky-label mb-1 text-[var(--buky-muted)]">
+                    {g.title}
+                  </p>
                   <ul className="-mx-2">
                     {g.list.map((r) => (
                       <li key={r.id}>
@@ -188,13 +311,22 @@ export default function Inicio() {
                           className="flex w-full items-center justify-between gap-3 rounded-xl px-2 py-3 text-left hover:bg-[#161616]"
                         >
                           <span className="min-w-0">
-                            <span className="block truncate text-[16px] font-semibold">{r.name}</span>
+                            <span className="block truncate text-[16px] font-semibold">
+                              {r.name}
+                            </span>
                             <span className="block text-[13px] text-[var(--buky-muted)]">
                               {pt.rota.bukys(r.points.length)}
-                              {r.length_m ? ` · ${(r.length_m / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km` : ""}
+                              {r.length_m
+                                ? ` · ${(r.length_m / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`
+                                : ""}
                             </span>
                           </span>
-                          {r.id === route?.id && <Check size={18} className="shrink-0 text-[var(--buky-neon)]" />}
+                          {r.id === route?.id && (
+                            <Check
+                              size={18}
+                              className="shrink-0 text-[var(--buky-neon)]"
+                            />
+                          )}
                         </button>
                       </li>
                     ))}
@@ -207,7 +339,11 @@ export default function Inicio() {
           <Plus size={18} /> {pt.inicio.criarRota}
         </Link>
       </Sheet>
-      <Sheet open={showCoupons} onClose={() => setShowCoupons(false)} label={away ? pt.treino.cuponsDigitais : pt.treino.cupons}>
+      <Sheet
+        open={showCoupons}
+        onClose={() => setShowCoupons(false)}
+        label={away ? pt.treino.cuponsDigitais : pt.treino.cupons}
+      >
         <CouponList coupons={coupons} away={away} />
         <Link to="/app/bolsa/sorteios" className="buky-btn buky-btn-ghost mt-4">
           {pt.treino.verSorteios}

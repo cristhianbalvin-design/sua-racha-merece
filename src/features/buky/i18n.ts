@@ -63,6 +63,17 @@ export const pt = {
   },
 
   inicio: {
+    ganhadores: "Já ganharam patrocínio",
+    ganhadoresSub: "deslize →",
+    patrocinado: "PATROCINADO",
+    ranking: (c: string) => (c ? `Top 3 de ${c}` : "Top 3 da sua cidade"),
+    rankingVazio: "Ninguém coletou Bukys na sua cidade ainda. Seja o primeiro!",
+    rankingNota: "Bukys coletados correndo, desde o início. Os presentes da 3buk não contam.",
+    voce: "você",
+    suaPosicao: (pos: number, n: number) => `Você está em ${pos}º lugar com ${n} ${n === 1 ? "Buky" : "Bukys"}.`,
+    soApp: "Colete Bukys pelo app",
+    soAppTexto:
+      "Os Bukys só são coletados no app 3buk instalado no celular (Android ou iPhone), com a permissão de atividade física. Aqui na web você acompanha sua bolsa, sorteios, histórico e perfil.",
     bukys: "Bukys",
     pertoDeVoce: (n: number) => (n === 1 ? "waypoint perto de você" : "waypoints perto de você"),
     iniciar: "Iniciar",
@@ -140,6 +151,7 @@ export const pt = {
       mock_location: "localização simulada",
       point_once_per_day: "ponto já contado hoje",
       point_daily_limit: "já ganhou 2 neste ponto hoje",
+      daily_total_cap: "limite de 12 Bukys por dia",
       point_too_soon: "menos de 3 min desde o anterior",
       daily_cap: "limite diário de rotas próprias",
     } as Record<string, string>,
@@ -309,6 +321,11 @@ export const pt = {
     sub: "Encontre-se no evento com uma selfie.",
     evento: "Evento",
     escolherEvento: "Escolha o evento",
+    mesAnterior: "Mês anterior",
+    mesSeguinte: "Mês seguinte",
+    diasComFotos: (n: number) => (n === 0 ? "Sem eventos neste mês" : `${n} ${n === 1 ? "dia com fotos" : "dias com fotos"}`),
+    eventosNoDia: (n: number) => `${n} ${n === 1 ? "evento" : "eventos"}`,
+    escolhaDia: "Toque num dia marcado para ver os eventos.",
     semEventos: "Ainda não há eventos com fotos.",
     selfie: "Tirar selfie",
     trocarSelfie: "Trocar selfie",
@@ -373,6 +390,14 @@ export const pt = {
   },
 
   perfil: {
+    as: "às",
+    voce: "Você",
+    corrida: "Corrida",
+    distancia: "Distância",
+    ritmo: "Ritmo",
+    tempo: "Tempo",
+    fotoAtualizada: "Foto atualizada.",
+    fotoErro: "Não conseguimos enviar a foto. Tente outra imagem.",
     rotulo: "Perfil",
     saldo: "Saldo",
     passagens: "Passagens reais",
@@ -447,6 +472,7 @@ export const pt = {
   },
 
   comum: {
+    entendi: "Entendi",
     carregando: "Carregando…",
     erro: "Algo deu errado. Tente de novo.",
     tentarDeNovo: "Tentar de novo",

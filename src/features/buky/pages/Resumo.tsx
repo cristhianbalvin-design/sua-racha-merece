@@ -31,7 +31,7 @@ export default function Resumo() {
       <div className="relative mt-4 min-h-[220px]">
         <img src={mascote} alt="" className="absolute -right-4 top-0 h-[210px] w-auto opacity-95" />
         <p className="buky-label text-[var(--buky-muted)]">{valid ? pt.resumo.valido : pt.resumo.invalido}</p>
-        <p className={`font-buky-xcond mt-2 text-[150px] ${valid ? "text-[var(--buky-neon)]" : "text-[var(--buky-faint)]"}`}>
+        <p className={`font-buky-xcond mt-2 text-[clamp(96px,30vw,120px)] leading-none ${valid ? "text-[var(--buky-neon)]" : "text-[var(--buky-faint)]"}`}>
           +{r.bukys}
         </p>
       </div>

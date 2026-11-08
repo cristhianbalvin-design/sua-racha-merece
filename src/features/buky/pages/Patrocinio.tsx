@@ -45,19 +45,19 @@ export default function Patrocinio() {
         <ProfileAvatar />
       </div>
 
-      <div className="relative mx-auto mt-1 flex h-[214px] w-[214px] items-end justify-center">
-        <div className="absolute bottom-0 h-[164px] w-[164px] rounded-full bg-[var(--buky-neon)]" />
-        <img src={mascote} alt="Buky" className="relative h-[210px] w-auto" />
+      <div className="relative mx-auto mt-1 flex h-[clamp(140px,40vw,170px)] w-[clamp(140px,40vw,170px)] items-end justify-center">
+        <div className="absolute bottom-0 h-[76%] w-[76%] rounded-full bg-[var(--buky-neon)]" />
+        <img src={mascote} alt="Buky" className="relative h-full w-auto" />
       </div>
 
-      <h1 className="font-buky mt-5 whitespace-nowrap text-center text-[36px]">
+      <h1 className="font-buky mt-4 text-center text-[clamp(24px,7.6vw,30px)] leading-[1.05]">
         {pt.patrocinio.t1}
         <br />
         <span className="text-[var(--buky-neon)]">{pt.patrocinio.t2}</span>
       </h1>
 
       <div className="mt-6 grid grid-cols-2 gap-3">
-        <div className="flex min-h-[200px] flex-col rounded-[22px] border border-[var(--buky-neon)] p-4">
+        <div className="flex min-h-[170px] flex-col rounded-[22px] border border-[var(--buky-neon)] p-4">
           <p className="buky-label text-[11px] text-[var(--buky-neon)]">{pt.patrocinio.gratis}</p>
           <p className="mt-3 text-[15px] leading-snug">{pt.patrocinio.gratisTexto}</p>
           <div className="mt-auto">
@@ -65,7 +65,7 @@ export default function Patrocinio() {
             <p className="font-buky mt-1 text-[28px] text-[var(--buky-neon)]">{pt.patrocinio.kit}</p>
           </div>
         </div>
-        <div className="flex min-h-[200px] flex-col rounded-[22px] border border-dashed border-[#3a3a3a] p-4" aria-disabled="true">
+        <div className="flex min-h-[170px] flex-col rounded-[22px] border border-dashed border-[#3a3a3a] p-4" aria-disabled="true">
           <p className="buky-label flex items-center justify-between text-[11px] text-[var(--buky-muted)]">
             {pt.patrocinio.premium} <Lock size={13} />
           </p>

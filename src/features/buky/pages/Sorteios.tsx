@@ -76,6 +76,7 @@ export default function Sorteios() {
           onSend={setSendTo}
           onPrize={(p, period) => setPrize({ p, period, ctx: "atual" })}
           onProximos={() => setAba("proximos")}
+          selectedId={prize?.p.id}
         />
       ) : aba === "proximos" ? (
         <Proximos periods={data.upcoming} onPrize={(p, opensAt) => setPrize({ p, ctx: "proximo", opensAt })} />
@@ -125,6 +126,7 @@ function Atual({
   onSend,
   onPrize,
   onProximos,
+  selectedId,
 }: {
   data: MyRaffles;
   hasPos: boolean;
@@ -132,6 +134,7 @@ function Atual({
   onSend: (p: RafflePeriod) => void;
   onPrize: (p: Prize, period: RafflePeriod) => void;
   onProximos: () => void;
+  selectedId?: string;
 }) {
   const next = data.upcoming[0] ?? null;
   return (
@@ -151,14 +154,28 @@ function Atual({
           )}
         </div>
       ) : (
-        data.open.map((p) => <RaffleCard key={p.id} period={p} balance={balance} onSend={() => onSend(p)} onPrize={(z) => onPrize(z, p)} />)
+        data.open.map((p) => (
+          <RaffleCard key={p.id} period={p} balance={balance} onSend={() => onSend(p)} onPrize={(z) => onPrize(z, p)} selectedId={selectedId} />
+        ))
       )}
     </>
   );
 }
 
 /** Un sorteo abierto: dónde vale, cuánto falta, participantes, mi envío y sus premios (de mayor a menor %). */
-function RaffleCard({ period, balance, onSend, onPrize }: { period: RafflePeriod; balance: number; onSend: () => void; onPrize: (p: Prize) => void }) {
+function RaffleCard({
+  period,
+  balance,
+  onSend,
+  onPrize,
+  selectedId,
+}: {
+  period: RafflePeriod;
+  balance: number;
+  onSend: () => void;
+  onPrize: (p: Prize) => void;
+  selectedId?: string;
+}) {
   const [all, setAll] = useState(false);
   const open = period.status === "open";
   const here = Boolean(period.available_here);
@@ -219,7 +236,7 @@ function RaffleCard({ period, balance, onSend, onPrize }: { period: RafflePeriod
         <>
           <ul className="mt-1">
             {(all ? prizes : prizes.slice(0, SHOW)).map((z) => (
-              <PrizeRow key={z.id} prize={z} onOpen={() => onPrize(z)} />
+              <PrizeRow key={z.id} prize={z} onOpen={() => onPrize(z)} selected={selectedId === z.id} />
             ))}
           </ul>
           {prizes.length > SHOW && (
