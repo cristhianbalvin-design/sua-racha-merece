@@ -138,7 +138,7 @@ export default function Treino() {
         <div className="flex items-start justify-between">
           <div>
             <p className="buky-label text-[var(--buky-muted)]">{pt.treino.bukysHoje}</p>
-            <p className="font-buky-xcond mt-1 text-[112px] text-[var(--buky-neon)]" aria-live="polite">
+            <p className="font-buky-xcond mt-1 text-[clamp(72px,22vw,92px)] leading-none text-[var(--buky-neon)]" aria-live="polite">
               {confirmedToday + live}
             </p>
           </div>

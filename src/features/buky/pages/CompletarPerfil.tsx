@@ -4,6 +4,7 @@ import { Camera, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiUploadAvatar } from "@/lib/mockApi";
+import { squareAvatar } from "../lib/avatarImage";
 import { pt } from "../i18n";
 import CityPicker from "../components/CityPicker";
 import { ProfileAvatar, Spinner } from "../components/ui";
@@ -82,11 +83,16 @@ export default function CompletarPerfil() {
     if (!file || !user) return;
     setUploading(true);
     try {
-      const url = await apiUploadAvatar(file, user.id);
+      // Recorta y reduce en el teléfono: las fotos grandes de la cámara ya no fallan
+      const small = await squareAvatar(file).catch(() => file);
+      const url = await apiUploadAvatar(small, user.id);
       if (url) {
         await save.mutateAsync({ avatar_url: url });
         updateUserContext({ avatar: url });
-      }
+        toast.success(pt.perfil.fotoAtualizada);
+      } else toast.error(pt.perfil.fotoErro);
+    } catch {
+      toast.error(pt.perfil.fotoErro);
     } finally {
       setUploading(false);
     }

@@ -190,3 +190,14 @@ export function useCouponsHere(pos?: { lat: number; lon: number } | null) {
   const away = Boolean(pos && city && haversineMeters(pos.lat, pos.lon, city.lat, city.lon) > (rules?.maxCityKm ?? 60) * 1000);
   return { coupons: away ? all.filter((c) => c.kind === "digital") : all, away };
 }
+
+/** Ranking de la ciudad y ganadores de patrocinio para Início (paso 26). */
+export function useCityRanking(cityCode?: number | null) {
+  const { user } = useAuth();
+  return useQuery({ queryKey: ["buky", "ranking", cityCode ?? null], queryFn: () => api.getCityRanking(cityCode), enabled: Boolean(user), staleTime: 60_000 });
+}
+
+export function useSponsorshipWinners() {
+  const { user } = useAuth();
+  return useQuery({ queryKey: ["buky", "sponsor-winners"], queryFn: api.getSponsorshipWinners, enabled: Boolean(user), staleTime: 5 * 60_000 });
+}

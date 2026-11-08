@@ -131,6 +131,12 @@ export interface SessionHistoryItem {
   invalid_reason: string | null;
   route_name: string;
   city_name: string | null;
+  /** Paso 24/26: datos para la tarjeta del historial (estilo Strava). */
+  duration_s: number | null;
+  avg_speed_kmh: number | null;
+  start_city: string | null;
+  /** Trazo de la ruta (o sus Bukys en orden) para el croquis de la tarjeta. */
+  shape: { lat: number; lon: number }[];
 }
 
 export interface CloseResult {
@@ -185,8 +191,9 @@ interface PointRow { id: string; seq: number; label: string | null; lat: number;
 interface RouteRow { id: string; name: string; city_code: number; kind: "official" | "athlete"; owner_id: string | null; active: boolean; length_m: number | null; path: { lat: number; lon: number }[] | null; buky_points: PointRow[] | null }
 interface SessionRow {
   id: string; status: string; started_at: string; ended_at: string | null; bukys_awarded: number; passes_valid: number;
-  distance_m: number | null; invalid_reason: string | null;
-  buky_routes: One<{ name: string; br_cities: One<{ name: string }> }>;
+  distance_m: number | null; invalid_reason: string | null; duration_s: number | null; avg_speed_kmh: number | null;
+  start_city: One<{ name: string }>;
+  buky_routes: One<{ name: string; path: { lat: number; lon: number }[] | null; buky_points: { lat: number; lon: number; seq: number }[]; br_cities: One<{ name: string }> }>;
 }
 const toCity = (c: CityRow): City => ({ code: c.code, name: c.name, state_code: c.state_code, lat: c.lat, lon: c.lon, uf: one(c.br_states)?.uf ?? "" });
 
@@ -372,7 +379,9 @@ export async function closeSession(
 export async function listMySessions(userId: string, limit = 20): Promise<SessionHistoryItem[]> {
   const { data, error } = await supabase
     .from("buky_sessions")
-    .select("id, status, started_at, ended_at, bukys_awarded, passes_valid, distance_m, invalid_reason, buky_routes(name, br_cities(name))")
+    .select(
+      "id, status, started_at, ended_at, bukys_awarded, passes_valid, distance_m, invalid_reason, duration_s, avg_speed_kmh, start_city:br_cities!buky_sessions_start_city_code_fkey(name), buky_routes(name, path, buky_points(lat, lon, seq), br_cities(name))",
+    )
     .eq("user_id", userId)
     .in("status", ["valid", "invalid"])
     .order("started_at", { ascending: false })
@@ -389,6 +398,12 @@ export async function listMySessions(userId: string, limit = 20): Promise<Sessio
     invalid_reason: s.invalid_reason,
     route_name: one(s.buky_routes)?.name ?? "",
     city_name: one(one(s.buky_routes)?.br_cities ?? null)?.name ?? null,
+    duration_s: s.duration_s,
+    avg_speed_kmh: s.avg_speed_kmh,
+    start_city: one(s.start_city)?.name ?? null,
+    shape:
+      one(s.buky_routes)?.path ??
+      [...(one(s.buky_routes)?.buky_points ?? [])].sort((a, b) => a.seq - b.seq).map((p) => ({ lat: p.lat, lon: p.lon })),
   }));
 }
 
@@ -600,4 +615,37 @@ export async function getSessionTrack(trackPath: string): Promise<{ lat: number;
   if (error || !data) throw new BukyApiError("track_unavailable", error?.message ?? "track_unavailable");
   const { parseTrackFile } = await import("./trackFile");
   return parseTrackFile(data);
+}
+
+// ---------------------------------------------------------------- Início (paso 26)
+
+export interface CityRanking {
+  city: string | null;
+  top: { pos: number; name: string; avatar_url: string | null; bukys: number; me: boolean }[];
+  me: { pos: number; bukys: number } | null;
+  total: number;
+}
+
+/** Top 3 de la ciudad por Bukys recogidos corriendo (histórico) y mi posición. */
+export async function getCityRanking(cityCode?: number | null): Promise<CityRanking | null> {
+  const { data, error } = await supabase.rpc("buky_city_ranking", { p_city_code: cityCode ?? null });
+  if (error) fail(error);
+  return (data as CityRanking) ?? null;
+}
+
+export interface SponsorWinner {
+  name: string;
+  avatar_url: string | null;
+  media: string[];
+  campaign: string;
+  prize: string | null;
+  city: string | null;
+  created_at: string;
+}
+
+/** Ganadores de patrocinio (carrusel de Início). */
+export async function getSponsorshipWinners(): Promise<SponsorWinner[]> {
+  const { data, error } = await supabase.rpc("buky_sponsorship_winners", { p_limit: 12 });
+  if (error) fail(error);
+  return (data ?? []) as SponsorWinner[];
 }

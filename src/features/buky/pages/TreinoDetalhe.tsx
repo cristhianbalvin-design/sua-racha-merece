@@ -87,13 +87,11 @@ export default function TreinoDetalhe() {
           </p>
         )}
 
-        <dl className="mt-4 grid grid-cols-3 gap-2.5">
+        <dl className="mt-4 grid grid-cols-2 gap-2.5">
           {[
             { k: H.distancia, v: km(s.distance_m), u: "km" },
             { k: H.duracao, v: s.duration_s == null ? "–" : fmtDuration(s.duration_s), u: s.duration_s != null && s.duration_s >= 3600 ? "h" : "min:s" },
             { k: H.ritmo, v: pace(s.avg_speed_kmh), u: "min/km" },
-            { k: H.velMedia, v: kmh(s.avg_speed_kmh), u: "km/h" },
-            { k: H.velMax, v: kmh(s.max_speed_kmh), u: "km/h" },
             { k: H.passagens, v: String(s.passes_valid), u: H.validas },
           ].map((m) => (
             <div key={m.k} className="rounded-2xl border border-[var(--buky-line)] bg-[#0d0d0d] px-3 py-2.5">
