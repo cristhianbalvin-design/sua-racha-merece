@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ChevronLeft, Dice5, Download, Gift, KeyRound, Plus, Save, ShieldCheck, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, ChevronLeft, Dice5, Download, Gift, KeyRound, Merge, Plus, Repeat, Save, ShieldCheck, Trash2, X, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { getCity, type City } from "../lib/api";
 import { useStates } from "../lib/hooks";
@@ -16,11 +16,14 @@ import {
   listPeriods,
   listResults,
   listSponsors,
+  mergePeriod,
+  republishPrize,
   saveCoupon,
   setDelivery,
   updatePeriod,
   type Coupon,
   type Period,
+  type PeriodInput,
   type RaffleResult,
 } from "./adminApi";
 import { AdminCityPicker, Badge, btnDanger, btnGhost, btnPrimary, card, downloadCsv, dt, Field, fromLocalInput, inputCls, toLocalInput } from "./ui";
@@ -31,9 +34,42 @@ const STATUS: Record<Period["status"], { label: string; tone: "muted" | "green" 
   closed: { label: "encerrado · aguardando sorteio", tone: "yellow" },
   drawn: { label: "sorteado", tone: "muted" },
   cancelled: { label: "cancelado", tone: "red" },
+  merged: { label: "unido a outro sorteio", tone: "muted" },
 };
 
-const SCOPE = { city: "Cidade", state: "Estado", national: "Nacional" };
+const SCOPE = { raffle: "Todos do sorteio", city: "Cidade", state: "Estado", national: "Nacional" };
+const CADENCE: Record<Period["cadence"], string> = { weekly: "semanal", biweekly: "quinzenal", monthly: "mensal", none: "único" };
+
+/** Ciudades del sorteo (vacío = todo Brasil). Se agregan con el buscador y se quitan con la ×. */
+function CitiesField({ value, onChange, disabled }: { value: { code: number; name: string }[]; onChange: (v: { code: number; name: string }[]) => void; disabled?: boolean }) {
+  const [pick, setPick] = useState<City | null>(null);
+  useEffect(() => {
+    if (!pick) return;
+    if (!value.some((c) => c.code === pick.code)) onChange([...value, { code: pick.code, name: pick.name }]);
+    setPick(null);
+  }, [pick]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div>
+      <div className="mb-1.5 flex flex-wrap gap-1.5">
+        {value.length === 0 ? (
+          <span className="text-xs text-muted-foreground">Todo o Brasil</span>
+        ) : (
+          value.map((c) => (
+            <span key={c.code} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-bold">
+              {c.name}
+              {!disabled && (
+                <button type="button" aria-label={`Remover ${c.name}`} onClick={() => onChange(value.filter((x) => x.code !== c.code))}>
+                  <X size={12} />
+                </button>
+              )}
+            </span>
+          ))
+        )}
+      </div>
+      {!disabled && <AdminCityPicker value={pick} onChange={setPick} placeholder="Adicionar cidade…" />}
+    </div>
+  );
+}
 
 function nextMonday(): Date {
   const d = new Date();
@@ -46,7 +82,7 @@ export default function AdminSorteios() {
   const [periodId, setPeriodId] = useState<string | null>(null);
   const { data: periods = [], isLoading } = useQuery({ queryKey: ["admin-buky", "periods"], queryFn: listPeriods });
   const period = periods.find((p) => p.id === periodId);
-  if (period) return <PeriodDetail period={period} onBack={() => setPeriodId(null)} />;
+  if (period) return <PeriodDetail period={period} periods={periods} onBack={() => setPeriodId(null)} />;
   return <PeriodList periods={periods} loading={isLoading} onOpen={setPeriodId} />;
 }
 
@@ -60,6 +96,10 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
     ends: toLocalInput(new Date(start.getTime() + 7 * 864e5).toISOString()),
     drawDelayMin: 60,
     cadence: "weekly" as Period["cadence"],
+    cities: [] as { code: number; name: string }[],
+    min: 30,
+    days: 15,
+    rules: "",
   });
 
   const create = async () => {
@@ -71,8 +111,12 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
         ends_at: ends,
         draw_at: new Date(new Date(ends).getTime() + f.drawDelayMin * 60_000).toISOString(),
         cadence: f.cadence,
+        city_codes: f.cities.length ? f.cities.map((c) => c.code) : null,
+        min_participants: f.min,
+        redeem_days: f.days,
+        rules_text: f.rules.trim() || null,
       });
-      toast.success("Período criado. Agora cadastre os cupons antes da abertura.");
+      toast.success("Sorteio criado. Agora cadastre os cupons antes da abertura.");
       setCreating(false);
       await qc.invalidateQueries({ queryKey: ["admin-buky", "periods"] });
       onOpen(id);
@@ -86,16 +130,16 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
       <div className="mb-4 flex items-center justify-between">
         <div className="max-w-2xl space-y-1 text-sm text-muted-foreground">
           <p>
-            <b className="text-foreground">O que se sorteia são os cupons de cada período</b> (prêmios dos patrocinadores). O período só define
-            quando abre, encerra e sorteia: depois de criá-lo, cadastre os cupons antes da abertura.
+            <b className="text-foreground">Cada sorteio vale para uma cidade ou um grupo de cidades</b> e pode haver vários abertos ao mesmo tempo.
+            Depois de criá-lo, cadastre os cupons (com o % de desconto) antes da abertura.
           </p>
           <p>
-            O atleta envia todo o saldo ao período aberto; cada Buky é uma participação em todos os cupons da sua zona. O sorteio roda sozinho
-            após o horário de sorteio, com ganhadores diferentes no mesmo período.
+            O atleta escolhe o sorteio e quantos Bukys enviar, só se estiver numa das cidades, e aceita o regulamento. Os cupons saem do maior para
+            o menor %, cada um com 1 ganhador e 1 suplente. Se não chegar ao mínimo de participantes, o sorteio espera a sua decisão.
           </p>
         </div>
         <button type="button" className={btnPrimary} onClick={() => setCreating((v) => !v)}>
-          <Plus size={14} /> NOVO PERÍODO
+          <Plus size={14} /> NOVO SORTEIO
         </button>
       </div>
 
@@ -113,16 +157,33 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
           <Field label="Sorteio (min após encerrar)">
             <input type="number" min={0} className={inputCls} value={f.drawDelayMin} onChange={(e) => setF({ ...f, drawDelayMin: Math.max(0, Number(e.target.value)) })} />
           </Field>
-          <Field label="Repetição" hint="Ao encerrar, cria o próximo período sozinho">
+          <Field label="Repetição" hint="Ao encerrar, cria o próximo sozinho (mesmas cidades)">
             <select className={inputCls} value={f.cadence} onChange={(e) => setF({ ...f, cadence: e.target.value as Period["cadence"] })}>
               <option value="weekly">Semanal</option>
+              <option value="biweekly">Quinzenal</option>
               <option value="monthly">Mensal</option>
               <option value="none">Não repetir</option>
             </select>
           </Field>
+          <div className="md:col-span-2">
+            <Field label="Cidades" hint="Vazio = todo o Brasil. Junte cidades pequenas num grupo.">
+              <CitiesField value={f.cities} onChange={(cities) => setF({ ...f, cities })} />
+            </Field>
+          </div>
+          <Field label="Mínimo de participantes">
+            <input type="number" min={1} className={inputCls} value={f.min} onChange={(e) => setF({ ...f, min: Math.max(1, Number(e.target.value) || 1) })} />
+          </Field>
+          <Field label="Prazo para resgatar (dias)">
+            <input type="number" min={1} max={365} className={inputCls} value={f.days} onChange={(e) => setF({ ...f, days: Math.min(365, Math.max(1, Number(e.target.value) || 1)) })} />
+          </Field>
+          <div className="md:col-span-5">
+            <Field label="Regulamento" hint="Texto do advogado. Vazio = texto provisório de teste. Mudar o texto pede nova aceitação.">
+              <textarea className={`${inputCls} min-h-[90px]`} value={f.rules} onChange={(e) => setF({ ...f, rules: e.target.value })} />
+            </Field>
+          </div>
           <div className="md:col-span-5">
             <button type="button" className={btnPrimary} onClick={create}>
-              <Save size={14} /> CRIAR PERÍODO
+              <Save size={14} /> CRIAR SORTEIO
             </button>
           </div>
         </div>
@@ -150,7 +211,9 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
                 <tr key={p.id} className="cursor-pointer hover:bg-muted/30" onClick={() => onOpen(p.id)}>
                   <td className="px-4 py-3 font-bold">
                     {p.name}
-                    <span className="block text-[11px] font-normal text-muted-foreground">{{ weekly: "semanal", monthly: "mensal", none: "único" }[p.cadence]}</span>
+                    <span className="block text-[11px] font-normal text-muted-foreground">
+                      {CADENCE[p.cadence]} · {p.city_names.length ? p.city_names.join(", ") : "todo o Brasil"} · mín. {p.min_participants}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     {p.prizes.length === 0 ? (
@@ -174,7 +237,14 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
                   <td className="px-4 py-3">{dt(p.starts_at)} → {dt(p.ends_at)}</td>
                   <td className="px-4 py-3">{dt(p.draw_at)}</td>
                   <td className="px-4 py-3">{p.athletes} atletas · {p.bukys} Bukys</td>
-                  <td className="px-4 py-3"><Badge tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Badge></td>
+                  <td className="px-4 py-3">
+                    <Badge tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Badge>
+                    {p.needs_review && (
+                      <span className="mt-1 flex items-center gap-1 text-[11px] font-bold text-yellow-400">
+                        <AlertTriangle size={12} /> sem o mínimo · decidir
+                      </span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -185,7 +255,7 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
   );
 }
 
-function PeriodDetail({ period, onBack }: { period: Period; onBack: () => void }) {
+function PeriodDetail({ period, periods, onBack }: { period: Period; periods: Period[]; onBack: () => void }) {
   const qc = useQueryClient();
   const editable = period.status === "scheduled";
   const { data: coupons = [] } = useQuery({ queryKey: ["admin-buky", "coupons", period.id], queryFn: () => listCoupons(period.id) });
@@ -194,6 +264,7 @@ function PeriodDetail({ period, onBack }: { period: Period; onBack: () => void }
   const [busy, setBusy] = useState(false);
   const refresh = () => qc.invalidateQueries({ queryKey: ["admin-buky"] });
   const canDraw = (period.status === "open" || period.status === "closed") && new Date(period.ends_at) <= new Date();
+
 
   const draw = async () => {
     if (!confirm(`Sortear agora "${period.name}"? O resultado é definitivo.`)) return;
@@ -230,7 +301,11 @@ function PeriodDetail({ period, onBack }: { period: Period; onBack: () => void }
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-bold italic">{period.name}</h2>
           <p className="text-xs text-muted-foreground">
-            {dt(period.starts_at)} → {dt(period.ends_at)} · sorteio {dt(period.draw_at)} · {period.athletes} atletas · {period.bukys} Bukys
+            {dt(period.starts_at)} → {dt(period.ends_at)} · sorteio {dt(period.draw_at)} · {period.athletes} atletas (mín. {period.min_participants}) ·{" "}
+            {period.bukys} Bukys
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {CADENCE[period.cadence]} · {period.city_names.length ? period.city_names.join(", ") : "todo o Brasil"} · resgate em {period.redeem_days} dias
           </p>
         </div>
         <Badge tone={STATUS[period.status].tone}>{STATUS[period.status].label}</Badge>
@@ -240,17 +315,21 @@ function PeriodDetail({ period, onBack }: { period: Period; onBack: () => void }
             <Dice5 size={14} /> SORTEAR AGORA
           </button>
         )}
-        {period.status !== "drawn" && period.status !== "cancelled" && (
+        {period.status !== "drawn" && period.status !== "cancelled" && period.status !== "merged" && (
           <button type="button" className={btnDanger} onClick={cancel}>
             <XCircle size={14} /> CANCELAR
           </button>
         )}
       </div>
 
+      {period.needs_review && <ReviewPanel period={period} periods={periods} onDraw={draw} busy={busy} onDone={refresh} />}
+      {period.status === "merged" && period.review_note && <p className="mb-4 text-sm text-muted-foreground">{period.review_note}</p>}
+      <PeriodSettings period={period} onSaved={refresh} />
+
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-bold italic">PRÊMIOS EM SORTEIO · CUPONS ({coupons.length})</h3>
         {editable && (
-          <button type="button" className={btnPrimary} onClick={() => setEditing({ kind: "physical", scope: "city", winners_count: 1, draw_order: (coupons.length + 1) * 10, repeat_next: false })}>
+          <button type="button" className={btnPrimary} onClick={() => setEditing({ kind: "physical", scope: "raffle", discount_pct: null, winners_count: 1, draw_order: (coupons.length + 1) * 10, repeat_next: false })}>
             <Plus size={14} /> NOVO CUPOM
           </button>
         )}
@@ -280,7 +359,7 @@ function PeriodDetail({ period, onBack }: { period: Period; onBack: () => void }
           <table className="w-full text-sm">
             <thead className="text-left text-[11px] uppercase text-muted-foreground">
               <tr>
-                <th className="px-4 py-3">#</th>
+                <th className="px-4 py-3">%</th>
                 <th className="px-4 py-3">Cupom</th>
                 <th className="px-4 py-3">Tipo e alcance</th>
                 <th className="px-4 py-3">Ganhadores</th>
@@ -291,7 +370,7 @@ function PeriodDetail({ period, onBack }: { period: Period; onBack: () => void }
             <tbody className="divide-y divide-border">
               {coupons.map((c) => (
                 <tr key={c.id}>
-                  <td className="px-4 py-3 text-muted-foreground">{c.draw_order}</td>
+                  <td className="px-4 py-3 font-bold text-primary">{c.discount_pct ? `${c.discount_pct}%` : <span className="text-muted-foreground">—</span>}</td>
                   <td className="px-4 py-3">
                     <p className="font-bold">{c.title} {c.benefit && <span className="text-primary">· {c.benefit}</span>}</p>
                     <p className="text-[11px] text-muted-foreground">{c.sponsor_name}{c.repeat_next ? " · repete no próximo período" : ""}</p>
@@ -334,6 +413,114 @@ function PeriodDetail({ period, onBack }: { period: Period; onBack: () => void }
       </div>
 
       {period.status === "drawn" && <Results period={period} results={results} onChange={refresh} />}
+    </div>
+  );
+}
+
+/** Sin el mínimo de participantes: el admin decide sortear igual o unir con otro sorteo (nunca automático). */
+function ReviewPanel({ period, periods, onDraw, busy, onDone }: { period: Period; periods: Period[]; onDraw: () => void; busy: boolean; onDone: () => void }) {
+  const targets = periods.filter((p) => p.id !== period.id && !p.merged_into && ["scheduled", "open", "closed"].includes(p.status));
+  const [target, setTarget] = useState("");
+  const merge = async () => {
+    const t = targets.find((p) => p.id === target);
+    if (!t || !confirm(`Unir "${period.name}" com "${t.name}"? Os participantes e prêmios dos dois serão sorteados juntos em "${t.name}".`)) return;
+    try {
+      const r = await mergePeriod(period.id, t.id);
+      toast.success(`Sorteios unidos: ${r.participants} participantes.`);
+      onDone();
+    } catch (e) {
+      toast.error(`Erro: ${(e as Error).message}`);
+    }
+  };
+  return (
+    <div className={`${card} mb-4 border-yellow-500/40 p-4`}>
+      <p className="flex items-center gap-2 font-bold text-yellow-400">
+        <AlertTriangle size={16} /> Não atingiu o mínimo de participantes ({period.review_note})
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">O sorteio não roda sozinho. Escolha: sortear mesmo assim com quem participou, ou unir com outro sorteio.</p>
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <button type="button" className={btnPrimary} onClick={onDraw} disabled={busy}>
+          <Dice5 size={14} /> SORTEAR MESMO ASSIM
+        </button>
+        <select className={`${inputCls} w-auto min-w-[240px]`} value={target} onChange={(e) => setTarget(e.target.value)} aria-label="Unir com">
+          <option value="">Unir com…</option>
+          {targets.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name} · {p.city_names.length ? p.city_names.join(", ") : "Brasil"} · {p.athletes} atletas
+            </option>
+          ))}
+        </select>
+        <button type="button" className={btnGhost} onClick={merge} disabled={!target}>
+          <Merge size={14} /> UNIR
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Cidades, mínimo, prazo de resgate e regulamento do sorteio. */
+function PeriodSettings({ period, onSaved }: { period: Period; onSaved: () => void }) {
+  const locked = ["drawn", "cancelled", "merged"].includes(period.status);
+  const init = () => ({
+    cities: (period.city_codes ?? []).map((code, i) => ({ code, name: period.city_names[i] ?? String(code) })),
+    min: period.min_participants,
+    days: period.redeem_days,
+    rules: period.rules_text ?? "",
+  });
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState(init);
+  useEffect(() => setF(init()), [period.id, period.rules_version]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (locked) return null;
+  if (!open)
+    return (
+      <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <span>
+          Regulamento v{period.rules_version} {period.rules_text ? "· oficial" : "· provisório (teste)"}
+        </span>
+        <button type="button" className={btnGhost} onClick={() => setOpen(true)}>
+          EDITAR CIDADES, MÍNIMO E REGULAMENTO
+        </button>
+      </div>
+    );
+  const save = async () => {
+    const patch: Partial<PeriodInput> = { min_participants: f.min, redeem_days: f.days, rules_text: f.rules.trim() || null };
+    // Las ciudades solo cambian antes de abrir (un atleta ya pudo enviar desde una de ellas)
+    if (period.status === "scheduled") patch.city_codes = f.cities.length ? f.cities.map((c) => c.code) : null;
+    try {
+      await updatePeriod(period.id, patch);
+      toast.success((period.rules_text ?? "") !== f.rules.trim() ? "Salvo. O regulamento mudou: os atletas aceitam de novo no próximo envio." : "Salvo.");
+      setOpen(false);
+      onSaved();
+    } catch (e) {
+      toast.error(`Erro: ${(e as Error).message}`);
+    }
+  };
+  return (
+    <div className={`${card} mb-4 grid gap-3 p-4 md:grid-cols-4`}>
+      <div className="md:col-span-2">
+        <Field label="Cidades" hint={period.status === "scheduled" ? "Vazio = todo o Brasil" : "Só mudam antes de abrir"}>
+          <CitiesField value={f.cities} onChange={(cities) => setF({ ...f, cities })} disabled={period.status !== "scheduled"} />
+        </Field>
+      </div>
+      <Field label="Mínimo de participantes">
+        <input type="number" min={1} className={inputCls} value={f.min} onChange={(e) => setF({ ...f, min: Math.max(1, Number(e.target.value) || 1) })} />
+      </Field>
+      <Field label="Prazo para resgatar (dias)">
+        <input type="number" min={1} max={365} className={inputCls} value={f.days} onChange={(e) => setF({ ...f, days: Math.min(365, Math.max(1, Number(e.target.value) || 1)) })} />
+      </Field>
+      <div className="md:col-span-4">
+        <Field label={`Regulamento (versão ${period.rules_version})`} hint="Vazio = texto provisório de teste">
+          <textarea className={`${inputCls} min-h-[110px]`} value={f.rules} onChange={(e) => setF({ ...f, rules: e.target.value })} />
+        </Field>
+      </div>
+      <div className="flex gap-2 md:col-span-4">
+        <button type="button" className={btnPrimary} onClick={save}>
+          <Save size={14} /> SALVAR
+        </button>
+        <button type="button" className={btnGhost} onClick={() => setOpen(false)}>
+          CANCELAR
+        </button>
+      </div>
     </div>
   );
 }
@@ -394,7 +581,8 @@ function CouponForm({ periodId, initial, editable, onDone }: { periodId: string;
         benefit: c.benefit ?? null,
         image_url: c.image_url ?? null,
         kind: c.kind ?? "physical",
-        scope: c.kind === "physical" ? "city" : c.scope ?? "national",
+        scope: c.kind === "physical" && c.scope !== "raffle" ? "city" : c.scope ?? "raffle",
+        discount_pct: c.discount_pct ?? null,
         city_code: city?.code ?? null,
         state_code: c.scope === "state" ? c.state_code ?? null : city?.state_code ?? null,
         winners_count: c.winners_count ?? 1,
@@ -429,22 +617,38 @@ function CouponForm({ periodId, initial, editable, onDone }: { periodId: string;
       <Field label="Benefício (aparece grande)">
         <input className={inputCls} value={c.benefit ?? ""} onChange={(e) => set({ benefit: e.target.value })} placeholder="50%" />
       </Field>
+      <Field label="% de desconto" hint="Sorteia do maior para o menor %">
+        <input
+          type="number"
+          min={1}
+          max={100}
+          className={inputCls}
+          disabled={rulesLocked}
+          value={c.discount_pct ?? ""}
+          placeholder="100"
+          onChange={(e) => set({ discount_pct: e.target.value ? Math.min(100, Math.max(1, Number(e.target.value))) : null })}
+        />
+      </Field>
       <Field label="Tipo">
-        <select className={inputCls} value={c.kind} disabled={rulesLocked} onChange={(e) => set({ kind: e.target.value as Coupon["kind"], scope: e.target.value === "physical" ? "city" : c.scope })}>
-          <option value="physical">Físico (só atletas de uma cidade)</option>
+        <select
+          className={inputCls}
+          value={c.kind}
+          disabled={rulesLocked}
+          onChange={(e) => set({ kind: e.target.value as Coupon["kind"], scope: e.target.value === "physical" && c.scope !== "raffle" ? "city" : c.scope })}
+        >
+          <option value="physical">Físico (no local do patrocinador)</option>
           <option value="digital">Digital</option>
         </select>
       </Field>
-      {c.kind === "digital" && (
-        <Field label="Alcance">
-          <select className={inputCls} value={c.scope} disabled={rulesLocked} onChange={(e) => set({ scope: e.target.value as Coupon["scope"] })}>
-            <option value="national">Nacional</option>
-            <option value="state">Estado</option>
-            <option value="city">Cidade</option>
-          </select>
-        </Field>
-      )}
-      {(c.kind === "physical" || c.scope === "city") && (
+      <Field label="Quem concorre">
+        <select className={inputCls} value={c.scope ?? "raffle"} disabled={rulesLocked} onChange={(e) => set({ scope: e.target.value as Coupon["scope"] })}>
+          <option value="raffle">Todos do sorteio</option>
+          <option value="city">Só de uma cidade</option>
+          {c.kind === "digital" && <option value="state">Só de um estado</option>}
+          {c.scope === "national" && <option value="national">Nacional (antigo)</option>}
+        </select>
+      </Field>
+      {c.scope === "city" && (
         <Field label="Cidade">
           {rulesLocked ? <input className={inputCls} disabled value={city?.name ?? ""} /> : <AdminCityPicker value={city} onChange={setCity} />}
         </Field>
@@ -459,10 +663,10 @@ function CouponForm({ periodId, initial, editable, onDone }: { periodId: string;
           </select>
         </Field>
       )}
-      <Field label="Ganhadores">
+      <Field label="Quantidade" hint="Cada um tem 1 ganhador e 1 suplente">
         <input type="number" min={1} max={50} className={inputCls} disabled={rulesLocked} value={c.winners_count ?? 1} onChange={(e) => set({ winners_count: Math.min(50, Math.max(1, Number(e.target.value) || 1)) })} />
       </Field>
-      <Field label="Ordem no sorteio" hint="Menor sorteia primeiro">
+      <Field label="Desempate" hint="Mesmo %: menor sorteia primeiro">
         <input type="number" className={inputCls} disabled={rulesLocked} value={c.draw_order ?? 100} onChange={(e) => set({ draw_order: Number(e.target.value) || 0 })} />
       </Field>
       <Field label="Válido até">
@@ -576,10 +780,33 @@ function CodesButton({ coupon, onDone }: { coupon: Coupon; onDone: () => void })
 
 function Results({ period, results, onChange }: { period: Period; results: RaffleResult[]; onChange: () => void }) {
   const [audit, setAudit] = useState<RaffleResult | null>(null);
+  const qc = useQueryClient();
+  const periods = qc.getQueryData<Period[]>(["admin-buky", "periods"]) ?? [];
+  const scheduled = periods.filter((p) => p.status === "scheduled");
+  // Premio sin dueño: ganador y suplente vencidos (o sin suplente), aún no llevado a otro sorteo
+  const orphan = (r: RaffleResult) =>
+    !r.republished_to &&
+    (r.delivery_status === "expired" || r.delivery_status === "unclaimed") &&
+    !results.some((o) => o.coupon_id === r.coupon_id && o.rank === r.rank && ["pending", "notified", "delivered", "standby"].includes(o.delivery_status)) &&
+    (r.role === "substitute" || !results.some((o) => o.coupon_id === r.coupon_id && o.rank === r.rank && o.role === "substitute"));
+  const republish = async (r: RaffleResult) => {
+    if (!scheduled.length) return toast.error("Crie antes um sorteio programado para receber o prêmio.");
+    const names = scheduled.map((p, i) => `${i + 1}. ${p.name} (${p.city_names.join(", ") || "Brasil"})`).join("\n");
+    const n = Number(prompt(`Levar "${r.coupon_title}" para qual sorteio programado?\n${names}`));
+    const target = scheduled[n - 1];
+    if (!target) return;
+    try {
+      await republishPrize(r.id, target.id);
+      toast.success(`Prêmio levado para "${target.name}".`);
+      onChange();
+    } catch (e) {
+      toast.error(`Erro: ${(e as Error).message}`);
+    }
+  };
   const exportCsv = () =>
     downloadCsv(`sorteio-${period.name.replace(/\W+/g, "-")}.csv`, [
-      ["Cupom", "Patrocinador", "Posição", "Ganhador", "E-mail", "Instagram", "Telefone", "Ticket", "Código", "Número sorteado", "Total de participações", "Candidatos", "SHA-256", "Entrega"],
-      ...results.map((r) => [r.coupon_title, r.sponsor_name, r.rank, r.user_name, r.user_email, r.user_instagram, r.user_phone, r.winning_ticket, r.redeem_code, r.winning_number, r.total_weight, r.candidates.length, r.candidates_sha256, r.delivery_status]),
+      ["Cupom", "Patrocinador", "Posição", "Papel", "Atleta", "E-mail", "Instagram", "Telefone", "Ticket", "Código", "Prazo", "Número sorteado", "Total de participações", "Candidatos", "SHA-256", "Entrega"],
+      ...results.map((r) => [r.coupon_title, r.sponsor_name, r.rank, r.role === "winner" ? "ganhador" : "suplente", r.user_name, r.user_email, r.user_instagram, r.user_phone, r.winning_ticket, r.redeem_code, r.redeem_deadline, r.winning_number, r.total_weight, r.candidates.length, r.candidates_sha256, r.delivery_status]),
     ]);
   return (
     <section>
@@ -592,8 +819,8 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
           <thead className="text-left text-[11px] uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Cupom</th>
-              <th className="px-4 py-3">Ganhador</th>
-              <th className="px-4 py-3">Ticket · código</th>
+              <th className="px-4 py-3">Atleta</th>
+              <th className="px-4 py-3">Ticket · código · prazo</th>
               <th className="px-4 py-3">Entrega</th>
               <th className="px-4 py-3" />
             </tr>
@@ -603,7 +830,9 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
               <tr key={r.id}>
                 <td className="px-4 py-3">
                   <p className="font-bold">{r.coupon_title}{r.rank > 1 ? ` · ${r.rank}º` : ""}</p>
-                  <p className="text-[11px] text-muted-foreground">{r.sponsor_name}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {r.sponsor_name} · <span className={r.role === "winner" ? "font-bold text-primary" : ""}>{r.role === "winner" ? "ganhador" : "suplente"}</span>
+                  </p>
                 </td>
                 <td className="px-4 py-3">
                   {r.user_id ? (
@@ -615,7 +844,12 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
                     <span className="text-muted-foreground">sem participantes elegíveis</span>
                   )}
                 </td>
-                <td className="px-4 py-3 font-mono text-xs">{r.winning_ticket ?? "—"}{r.redeem_code ? ` · ${r.redeem_code}` : ""}</td>
+                <td className="px-4 py-3 font-mono text-xs">
+                  {r.winning_ticket ?? "—"}
+                  {r.redeem_code ? ` · ${r.redeem_code}` : ""}
+                  {r.redeem_deadline && <span className="block font-sans text-[11px] text-muted-foreground">até {dt(r.redeem_deadline)}</span>}
+                  {r.republished_to && <span className="block font-sans text-[11px] text-muted-foreground">levado a outro sorteio</span>}
+                </td>
                 <td className="px-4 py-3">
                   {r.user_id && (
                     <select
@@ -627,13 +861,20 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
                       }}
                     >
                       <option value="pending">pendente</option>
-                      <option value="notified">avisado</option>
-                      <option value="delivered">entregue</option>
+                      <option value="notified">avisado · prazo correndo</option>
+                      <option value="delivered">entregue (resgatado)</option>
+                      <option value="standby">suplente · aguardando</option>
+                      <option value="expired">prazo vencido</option>
                       <option value="unclaimed">não resgatado</option>
                     </select>
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
+                  {orphan(r) && (
+                    <button type="button" className={btnGhost} onClick={() => void republish(r)} title="Levar para outro sorteio">
+                      <Repeat size={14} />
+                    </button>
+                  )}
                   <button type="button" className={btnGhost} onClick={() => setAudit(r)} title="Auditoria"><ShieldCheck size={14} /></button>
                 </td>
               </tr>
@@ -653,7 +894,7 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
             </dl>
             <p className="mt-3 text-xs text-muted-foreground">
               Método: número aleatório criptográfico; a lista é percorrida na ordem abaixo somando as participações, e ganha quem fizer a soma passar do número sorteado.
-              Quem já ganhou outro cupom do período fica fora da lista.
+              Quem já ganhou ou é suplente em outro cupom do sorteio fica fora da lista; o suplente é sorteado depois do ganhador, sem ele.
             </p>
             <ol className="mt-3 space-y-0.5 font-mono text-[11px]">
               {audit.candidates.map((c) => (

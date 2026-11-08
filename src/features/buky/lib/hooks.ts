@@ -147,18 +147,29 @@ export function useSendToRaffle() {
   const qc = useQueryClient();
   return useMutation({
     // La clave la genera la pantalla al confirmar: si la red falla y se reintenta, no se duplica el envío.
-    mutationFn: (idempotencyKey: string) => api.sendToRaffle(idempotencyKey),
+    mutationFn: (input: Parameters<typeof api.sendToRaffle>[0]) => api.sendToRaffle(input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: qk.summary });
       void qc.invalidateQueries({ queryKey: qk.raffles });
+      void qc.invalidateQueries({ queryKey: qk.status });
     },
   });
 }
 
-/** Sorteios del atleta: atual, próximos, resultados y mis premios. */
-export function useMyRaffles() {
+/**
+ * Sorteios del atleta (paso 25): abiertos (marcando cuáles valen donde está ahora), próximos,
+ * resultados y mis premios. La posición se redondea (~1 km) para no recargar a cada paso.
+ */
+export function useMyRaffles(pos?: { lat: number; lon: number } | null) {
   const { user } = useAuth();
-  return useQuery({ queryKey: qk.raffles, queryFn: api.getMyRaffles, enabled: Boolean(user), staleTime: 30_000 });
+  const key = pos ? `${pos.lat.toFixed(2)},${pos.lon.toFixed(2)}` : "none";
+  return useQuery({
+    queryKey: [...qk.raffles, key],
+    queryFn: () => api.getMyRaffles(pos ? { lat: Number(pos.lat.toFixed(3)), lon: Number(pos.lon.toFixed(3)) } : null),
+    enabled: Boolean(user),
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
 }
 
 export function useIsRouteTester() {

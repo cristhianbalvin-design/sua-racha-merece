@@ -406,8 +406,23 @@ export async function getZoneCoupons(cityCode?: number | null): Promise<ZoneCoup
   return (data ?? []) as ZoneCoupon[];
 }
 
-export async function sendToRaffle(idempotencyKey: string): Promise<{ ticket: string; amount: number; period_name?: string; ends_at?: string; duplicate: boolean }> {
-  const { data, error } = await supabase.rpc("buky_send_to_raffle", { p_idempotency_key: idempotencyKey });
+/** Envía Bukys a un sorteo elegido (paso 25): desde donde está el atleta y con el reglamento aceptado. */
+export async function sendToRaffle(input: {
+  periodId: string;
+  amount: number;
+  lat: number | null;
+  lon: number | null;
+  rulesVersion: number;
+  idempotencyKey: string;
+}): Promise<{ ticket: string; amount: number; period_name?: string; ends_at?: string; balance?: number; duplicate: boolean }> {
+  const { data, error } = await supabase.rpc("buky_send_to_raffle_v2", {
+    p_period_id: input.periodId,
+    p_amount: input.amount,
+    p_lat: input.lat,
+    p_lon: input.lon,
+    p_rules_version: input.rulesVersion,
+    p_idempotency_key: input.idempotencyKey,
+  });
   if (error) fail(error);
   return data;
 }
@@ -428,7 +443,9 @@ export interface Prize {
   benefit: string | null;
   image_url: string | null;
   kind: "physical" | "digital";
-  scope: "city" | "state" | "national";
+  scope: "raffle" | "city" | "state" | "national";
+  /** % de descuento (paso 25): los premios se sortean de mayor a menor %. */
+  discount_pct?: number | null;
   city: string | null;
   uf: string | null;
   winners_count: number;
@@ -440,11 +457,21 @@ export interface Prize {
 export interface RafflePeriod {
   id: string;
   name: string;
-  status: "scheduled" | "open" | "closed" | "drawn" | "cancelled";
+  status: "scheduled" | "open" | "closed" | "drawn" | "cancelled" | "merged";
+  cadence?: "weekly" | "biweekly" | "monthly" | "none";
   starts_at: string;
   ends_at: string;
   draw_at: string;
   drawn_at: string | null;
+  /** Ciudades del sorteo; national = todo Brasil. */
+  national?: boolean;
+  cities?: string[];
+  /** Vale para la ciudad donde está el atleta ahora (puede enviar). */
+  available_here?: boolean;
+  participants?: number;
+  min_participants?: number;
+  redeem_days?: number;
+  rules?: { version: number; text: string; provisional: boolean; accepted: boolean };
   my_bukys: number;
   my_tickets: string[];
   prizes: Prize[];
@@ -456,6 +483,7 @@ export interface PrizeResult {
   title: string;
   benefit: string | null;
   image_url: string | null;
+  discount_pct?: number | null;
   sponsor: string;
   winners: number;
   cities: string[];
@@ -473,22 +501,31 @@ export interface MyPrize extends Prize {
   period: string;
   ticket: string | null;
   redeem_code: string | null;
-  delivery_status: "pending" | "notified" | "delivered" | "unclaimed";
+  delivery_status: "pending" | "notified" | "delivered" | "unclaimed" | "standby" | "expired";
+  /** winner = ganador; substitute = suplente (recibe el premio si el ganador no canjea a tiempo). */
+  role?: "winner" | "substitute";
+  redeem_deadline?: string | null;
   drawn_at: string;
 }
 
 export interface MyRaffles {
-  current: RafflePeriod | null;
+  /** Ciudad donde está el atleta ahora (null sin ubicación o fuera de Brasil). */
+  here: { code: number; name: string } | null;
+  /** Sorteos abiertos (y cerrados esperando el sorteo), primero los que valen donde está. */
+  open: RafflePeriod[];
   upcoming: RafflePeriod[];
   past: PastRaffle[];
   my_prizes: MyPrize[];
 }
 
-export async function getMyRaffles(): Promise<MyRaffles> {
-  const { data, error } = await supabase.rpc("buky_my_raffles");
+export async function getMyRaffles(pos?: { lat: number; lon: number } | null): Promise<MyRaffles> {
+  const { data, error } = await supabase.rpc("buky_my_raffles", { p_lat: pos?.lat ?? null, p_lon: pos?.lon ?? null });
   if (error) fail(error);
-  return (data ?? { current: null, upcoming: [], past: [], my_prizes: [] }) as MyRaffles;
+  return (data ?? { here: null, open: [], upcoming: [], past: [], my_prizes: [] }) as MyRaffles;
 }
+
+/** Premio por canjear: ganador (o suplente activado) con el plazo corriendo. */
+export const isToRedeem = (p: Pick<MyPrize, "delivery_status">) => p.delivery_status === "pending" || p.delivery_status === "notified";
 
 // ------------------------------------------------------------------ historial de un entrenamiento
 
