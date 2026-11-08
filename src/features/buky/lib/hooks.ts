@@ -13,6 +13,7 @@ export const qk = {
   sessions: (id?: string) => ["buky", "sessions", id] as const,
   states: ["buky", "states"] as const,
   routeRules: ["buky", "route-rules"] as const,
+  status: ["buky", "status"] as const,
 };
 
 export function useBukyProfile() {
@@ -67,6 +68,12 @@ export function useStates() {
 export function useSummary() {
   const { user } = useAuth();
   return useQuery({ queryKey: qk.summary, queryFn: api.getSummary, enabled: Boolean(user), staleTime: 15_000 });
+}
+
+/** Progreso histórico (Fase 1), bloqueo por bicicleta y reglas del entrenamiento (paso 24). */
+export function useMyStatus() {
+  const { user } = useAuth();
+  return useQuery({ queryKey: qk.status, queryFn: api.getMyStatus, enabled: Boolean(user), staleTime: 15_000 });
 }
 
 export function useRoutes(cityCode?: number | null) {

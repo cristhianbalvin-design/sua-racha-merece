@@ -43,6 +43,16 @@ export default function Resumo() {
         </p>
       )}
 
+      {valid && (r.stop_reason === "time_limit" || r.stop_reason === "bike") && (
+        <p className="mt-2 flex gap-2 rounded-2xl border border-[var(--buky-line)] p-4 text-sm text-[var(--buky-muted)]" role="status">
+          <CircleAlert size={18} className={`shrink-0 ${r.stop_reason === "bike" ? "text-[var(--buky-danger)]" : "text-[#ffb020]"}`} />
+          <span>
+            {pt.resumo.fim[r.stop_reason](t.rules.session_max_min)}
+            {r.stop_reason === "bike" && <span className="mt-1 block text-[var(--buky-faint)]">{pt.resumo.bikeBloqueio}</span>}
+          </span>
+        </p>
+      )}
+
       {r.stats && (
         <dl className="mt-6 grid grid-cols-3 border-y border-[var(--buky-line)] py-4 text-center">
           <div>
@@ -67,7 +77,7 @@ export default function Resumo() {
             {r.passes.map((p, i) => (
               <li key={i} className="buky-row flex items-center justify-between py-3 text-[15px]">
                 <span>{labels.get(p.point_id) ?? "Waypoint"}</span>
-                {p.valid ? (
+                {(p.awarded ?? p.valid) ? (
                   <span className="font-buky text-[22px] text-[var(--buky-neon)]">+1</span>
                 ) : (
                   <span className="text-sm text-[var(--buky-faint)]">{pt.resumo.rejeicoes[p.reject_reason ?? ""] ?? p.reject_reason}</span>

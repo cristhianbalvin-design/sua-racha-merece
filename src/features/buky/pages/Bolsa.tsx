@@ -5,6 +5,7 @@ import mascote from "../assets/buky-mascote.webp";
 import { pt } from "../i18n";
 import { ScreenHeader, Spinner, ErrorBox } from "../components/ui";
 import SendToRaffleSheet from "../components/SendToRaffleSheet";
+import ProgressGoals from "../components/ProgressGoals";
 import { fmtCountdown } from "../lib/countdown";
 import { useMyRaffles, useSummary } from "../lib/hooks";
 
@@ -99,7 +100,9 @@ export default function Bolsa() {
         </li>
       </ul>
 
-      <section className="mt-2 px-6">
+      <ProgressGoals className="mt-4 px-6" />
+
+      <section className="mt-4 px-6">
         <h2 className="buky-label py-2 text-[var(--buky-muted)]">{pt.bolsa.movimentos}</h2>
         <ul>
           {[

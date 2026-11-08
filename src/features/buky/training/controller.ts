@@ -11,10 +11,17 @@
  *    lecturas guardadas y vuelve a encender el GPS;
  *  - si al terminar no hay internet, queda "pendiente" y se reenvía al volver la conexión
  *    (el servidor es idempotente: reenviar no duplica Bukys).
+ *
+ * Reglas del paso 24 (también las aplica el servidor):
+ *  - el entrenamiento se cierra solo al cumplir rules.session_max_min (1 h);
+ *  - bicicleta: avisos con BikeDetector (velocidad + podómetro si lo hay); al 3.º se corta;
+ *  - en vivo solo se cuenta "+1" si el punto no superó 2 Bukys en el entrenamiento y pasaron 3 min.
  */
-import { CollectionEngine, type GpsReading } from "@/features/buky/engine";
+import { BikeDetector, CollectionEngine, type GpsReading } from "@/features/buky/engine";
 import * as api from "../lib/api";
-import type { BukyRoute, CloseResult, CompactReading } from "../lib/api";
+import type { BukyRoute, CloseResult, CompactReading, StopReason } from "../lib/api";
+import { DEFAULT_TRAINING_RULES, type TrainingRules } from "./rules";
+import { startStepCounter, type StepCounter } from "./stepSource";
 import { LiveStats } from "./liveStats";
 import { getGpsSource, keepScreenOn, type RawFix } from "./gpsSource";
 import * as storage from "./storage";
@@ -50,6 +57,14 @@ export interface TrainingState {
   readings: number;
   /** El GPS sigue con la pantalla apagada (app nativa). */
   background: boolean;
+  /** Reglas vigentes (límite de tiempo y bicicleta). */
+  rules: TrainingRules;
+  /** Avisos de bicicleta en este entrenamiento. */
+  bikeWarnings: number;
+  /** true si hay podómetro (app con permiso); false sin él; null mientras se averigua. */
+  steps: boolean | null;
+  /** Motivo del cierre automático, si lo hubo. */
+  stopReason: StopReason | null;
   result: CloseResult | null;
   error: string | null;
 }
@@ -73,6 +88,10 @@ const INITIAL: TrainingState = {
   weakGps: false,
   readings: 0,
   background: false,
+  rules: DEFAULT_TRAINING_RULES,
+  bikeWarnings: 0,
+  steps: null,
+  stopReason: null,
   result: null,
   error: null,
 };
@@ -100,6 +119,12 @@ class TrainingController {
   private userId: string | null = null;
   private restored = false;
   private onPass: ((p: LivePass) => void) | null = null;
+  private onBike: ((n: number) => void) | null = null;
+  private bike: BikeDetector | null = null;
+  private steps: StepCounter | null = null;
+  /** Bukys contados en vivo por punto (para no mostrar "+1" que el servidor no va a dar). */
+  private livePerPoint = new Map<string, number[]>();
+  private finishing = false;
 
   // ---------------------------------------------------------------- store
   subscribe = (fn: () => void) => {
@@ -117,8 +142,13 @@ class TrainingController {
     this.onPass = fn;
   }
 
+  /** Avisa a la pantalla en cada aviso de bicicleta (n = avisos acumulados). */
+  setBikeListener(fn: ((n: number) => void) | null) {
+    this.onBike = fn;
+  }
+
   // ---------------------------------------------------------------- ciclo de vida
-  async start(userId: string, route: BukyRoute, cityName: string): Promise<void> {
+  async start(userId: string, route: BukyRoute, cityName: string, rules: TrainingRules = DEFAULT_TRAINING_RULES): Promise<void> {
     if (this.state.status === "running" || this.state.status === "starting") return;
     if (route.points.length === 0) throw new Error("route_without_points");
     this.userId = userId;
@@ -147,6 +177,7 @@ class TrainingController {
       path: route.path ?? null,
       startedAt: Date.now(),
       phase: "running",
+      rules,
     };
     storage.saveMeta(meta);
     await this.beginTracking(meta, []);
@@ -171,6 +202,9 @@ class TrainingController {
         points: meta.points,
         path: meta.path ?? null,
         startedAt: meta.startedAt,
+        rules: meta.rules ?? DEFAULT_TRAINING_RULES,
+        bikeWarnings: meta.bikeWarnings ?? 0,
+        stopReason: meta.stopReason ?? null,
       });
       void this.sendPending();
       return;
@@ -180,16 +214,20 @@ class TrainingController {
   }
 
   private async beginTracking(meta: storage.TrainingMeta, previous: CompactReading[]) {
+    const rules = meta.rules ?? DEFAULT_TRAINING_RULES;
     this.engine = new CollectionEngine(meta.points);
     const labels = new Map(meta.points.map((p) => [p.id, p.label]));
     const passes: LivePass[] = [];
     this.live = new LiveStats();
+    this.livePerPoint = new Map();
+    this.bike = new BikeDetector({ speedKmh: rules.bike_speed_kmh, windowS: rules.bike_window_s, windowNoStepsS: rules.bike_window_nosteps_s });
+    this.bike.warnings = meta.bikeWarnings ?? 0;
     // Reconstruye el estado del motor y el recorrido con lo ya registrado
     for (const r of previous) {
       const res = this.engine.process(toReading(meta.sessionId, r), r[2]);
       if (res.accepted) this.live.add(r[3], r[4], r[1]);
       for (const p of res.passes) {
-        passes.push({ pointId: p.pointId, label: labels.get(p.pointId) ?? "", at: p.at });
+        if (this.countsLive(p.pointId, p.at, rules)) passes.push({ pointId: p.pointId, label: labels.get(p.pointId) ?? "", at: p.at });
       }
     }
     this.seq = previous.length ? previous[previous.length - 1][0] + 1 : 0;
@@ -210,6 +248,9 @@ class TrainingController {
       visited: [...new Set(passes.map((p) => p.pointId))],
       readings: previous.length,
       background: source.background,
+      rules,
+      bikeWarnings: this.bike.warnings,
+      steps: null,
       ...this.live.snapshot(),
     });
 
@@ -218,13 +259,35 @@ class TrainingController {
       (err) => this.set({ error: err, weakGps: true }),
     );
     if (!source.background) this.releaseScreen = await keepScreenOn();
+    void startStepCounter().then((c) => {
+      if (this.state.status !== "running" || this.state.sessionId !== meta.sessionId) {
+        void c?.stop();
+        return;
+      }
+      this.steps = c;
+      this.set({ steps: Boolean(c) });
+    });
 
     this.heartbeatTimer = setInterval(() => void this.sendHeartbeat(), HEARTBEAT_MS);
     this.weakTimer = setInterval(() => {
       const f = this.state.lastFix;
       const weak = !f || Date.now() - f.at > 20_000 || f.accuracy > 25;
       if (weak !== this.state.weakGps) this.set({ weakGps: weak });
+      // Límite de tiempo: se cierra solo y conserva los Bukys
+      if (this.state.status === "running" && this.state.startedAt && Date.now() - this.state.startedAt >= rules.session_max_min * 60_000) {
+        void this.finish("time_limit");
+      }
     }, 5_000);
+  }
+
+  /** Igual que el servidor: máx. N Bukys por punto y M minutos entre ellos (dentro de este entrenamiento). */
+  private countsLive(pointId: string, at: number, rules: TrainingRules): boolean {
+    const times = this.livePerPoint.get(pointId) ?? [];
+    if (times.length >= rules.point_max_per_day) return false;
+    const last = times[times.length - 1];
+    if (last !== undefined && at - last < rules.point_min_gap_min * 60_000) return false;
+    this.livePerPoint.set(pointId, [...times, at]);
+    return true;
   }
 
   private handleFix(fix: RawFix, labels: Map<string, string>) {
@@ -243,21 +306,37 @@ class TrainingController {
     if (this.buffer.length >= FLUSH_EVERY) void this.flush();
 
     const res = this.engine.process(toReading(sessionId, compact), fix.receivedAt);
-    if (res.accepted) this.live.add(fix.lat, fix.lon, fix.fixTime);
+    let snap: ReturnType<LiveStats["snapshot"]> | null = null;
+    let warned = false;
+    if (res.accepted) {
+      this.live.add(fix.lat, fix.lon, fix.fixTime);
+      snap = this.live.snapshot();
+      warned = this.bike?.update(fix.fixTime, snap.speedKmh, this.steps?.current() ?? null) ?? false;
+    }
     const patch: Partial<TrainingState> = {
-      ...(res.accepted ? this.live.snapshot() : {}),
+      ...(snap ?? {}),
+      ...(warned ? { bikeWarnings: this.bike!.warnings } : {}),
       lastFix: { lat: fix.lat, lon: fix.lon, accuracy: fix.accuracy, at: fix.receivedAt },
       readings: this.state.readings + 1,
       weakGps: fix.accuracy > 25,
       error: null,
     };
-    if (res.passes.length) {
-      const newPasses = res.passes.map((p) => ({ pointId: p.pointId, label: labels.get(p.pointId) ?? "", at: p.at }));
+    const rules = this.state.rules;
+    const counted = res.passes.filter((p) => this.countsLive(p.pointId, p.at, rules));
+    if (counted.length) {
+      const newPasses = counted.map((p) => ({ pointId: p.pointId, label: labels.get(p.pointId) ?? "", at: p.at }));
       patch.passes = [...this.state.passes, ...newPasses];
       patch.visited = [...new Set([...this.state.visited, ...newPasses.map((p) => p.pointId)])];
       newPasses.forEach((p) => this.onPass?.(p));
     }
     this.set(patch);
+    if (warned) {
+      const n = this.bike!.warnings;
+      const meta = storage.loadMeta();
+      if (meta) storage.saveMeta({ ...meta, bikeWarnings: n });
+      this.onBike?.(n);
+      if (n >= rules.bike_warnings_to_stop) void this.finish("bike");
+    }
   }
 
   private async flush() {
@@ -290,15 +369,23 @@ class TrainingController {
     this.stopGps = null;
     this.releaseScreen?.();
     this.releaseScreen = null;
+    await this.steps?.stop().catch(() => {});
+    this.steps = null;
     await this.flush();
   }
 
-  /** Terminar: detiene el GPS y envía el recorrido al servidor. */
-  async finish(): Promise<CloseResult | null> {
-    if (this.state.status !== "running") return null;
-    await this.stopTracking();
+  /** Terminar (el atleta, el límite de tiempo o la bicicleta): detiene el GPS y envía el recorrido. */
+  async finish(reason: StopReason = "user"): Promise<CloseResult | null> {
+    if (this.state.status !== "running" || this.finishing) return null;
+    this.finishing = true;
+    this.set({ stopReason: reason });
+    try {
+      await this.stopTracking();
+    } finally {
+      this.finishing = false;
+    }
     const meta = storage.loadMeta();
-    if (meta) storage.saveMeta({ ...meta, phase: "pending", endedAt: Date.now() });
+    if (meta) storage.saveMeta({ ...meta, phase: "pending", endedAt: Date.now(), stopReason: reason, bikeWarnings: this.state.bikeWarnings });
     this.set({ status: "pending" });
     return this.sendPending();
   }
@@ -310,7 +397,10 @@ class TrainingController {
     this.set({ status: "closing", error: null });
     try {
       const readings = await storage.readReadings(sessionId);
-      const result = await api.closeSession(sessionId, readings);
+      const result = await api.closeSession(sessionId, readings, {
+        stop_reason: this.state.stopReason ?? "user",
+        bike_warnings: this.state.bikeWarnings,
+      });
       storage.saveMeta(null);
       await storage.deleteReadings(sessionId).catch(() => {});
       this.set({ status: "done", result });

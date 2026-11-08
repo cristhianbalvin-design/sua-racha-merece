@@ -108,6 +108,14 @@ export const pt = {
     devagar: "devagar",
     rapido: "rápido demais",
     acelere: (min: number) => `Acelere: abaixo de ${min} km/h o Buky não conta.`,
+    // Paso 24: límite de tiempo y bicicleta
+    restante: (min: number) => `Faltam ${min} min · o treino termina sozinho em ${min === 1 ? "1 minuto" : `${min} minutos`}`,
+    limite: (min: number) => `Limite de ${min} min por treino`,
+    bikeAviso: (n: number, de: number) => `Aviso ${n} de ${de}: parece que você não está correndo`,
+    bikeAvisoTexto: (de: number) =>
+      `Detectamos velocidade de bicicleta ou veículo sem passos. No aviso ${de} o treino termina sozinho; os Bukys que você já coletou correndo ficam com você.`,
+    semPassos: "Sem contador de passos: a detecção de bicicleta usa só a velocidade.",
+    bloqueado: "Seu treino foi interrompido por bicicleta duas vezes hoje. Você pode voltar a treinar amanhã a partir das 00:00.",
   },
 
   resumo: {
@@ -120,12 +128,19 @@ export const pt = {
       no_readings: "Não recebemos sinal de GPS suficiente.",
       session_invalid: "O treino não pôde ser validado.",
     } as Record<string, string>,
+    fim: {
+      time_limit: (min: number) => `O treino terminou sozinho ao completar ${min} minutos. Seus Bukys ficaram na bolsa.`,
+      bike: () => "O treino foi interrompido: detectamos 3 vezes velocidade de bicicleta ou veículo sem passos. Os Bukys que você coletou correndo antes ficaram na bolsa.",
+    } as Record<string, (min: number) => string>,
+    bikeBloqueio: "Se acontecer de novo hoje, você só poderá treinar amanhã.",
     rejeicoes: {
       too_slow: "caminhando",
       too_fast: "rápido demais",
       no_speed: "sem velocidade",
       mock_location: "localização simulada",
       point_once_per_day: "ponto já contado hoje",
+      point_daily_limit: "já ganhou 2 neste ponto hoje",
+      point_too_soon: "menos de 3 min desde o anterior",
       daily_cap: "limite diário de rotas próprias",
     } as Record<string, string>,
     distancia: "Distância",
@@ -154,6 +169,13 @@ export const pt = {
     movimentos: "Movimentos",
     encontrados: "Encontrados no caminho",
     presenteados: "Presentes da 3buk",
+    // Fase 1: progreso histórico (solo cuentan los Bukys coletados correndo)
+    progresso: "Seu progresso",
+    progressoTexto: "Contam só os Bukys coletados correndo. Os presentes da 3buk não entram.",
+    metaPatrocinio: "Patrocínio · Kit 3buk",
+    metaFoto: "Foto grátis no ano",
+    faltam: (n: number) => `faltam ${n}`,
+    liberado: "liberado",
     enviados: "Enviados ao sorteio",
     sorteioAtual: "Sorteio atual",
     encerra: (d: string) => `encerra ${d}`,
@@ -275,6 +297,9 @@ export const pt = {
     ticketCorrida: "Ticket para uma corrida",
     participar: "Quero participar",
     semCampanha: "Não há campanha aberta agora. Volte em breve!",
+    bloqueado: (min: number) => `Libere com ${min} Bukys coletados correndo`,
+    bloqueadoTexto: (falta: number, min: number) =>
+      `Faltam ${falta} Bukys para participar. O patrocínio abre quando você soma ${min} Bukys coletados correndo (os presentes da 3buk não contam).`,
     escolha: "Escolha a campanha",
     ate: (d: string) => `até ${d}`,
     premio: "Prêmio",

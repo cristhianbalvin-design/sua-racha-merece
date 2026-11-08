@@ -100,7 +100,7 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
 
   UPDATE public.buky_raffle_periods SET status = 'open'
-  WHERE id = v_p AND status = 'scheduled' AND NOT EXISTS (SELECT 1 FROM public.buky_raffle_periods WHERE status = 'open');
+  WHERE id = v_p AND status = 'scheduled';  -- paso 25: puede haber varios abiertos
 END $$;
 
 -- ---------- Próximo sorteio

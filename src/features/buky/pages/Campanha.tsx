@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronLeft, ImagePlus, Instagram } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { submitParticipationEvidence } from "@/lib/participationEvidence";
 import { supabase } from "@/lib/supabase";
 import { pt } from "../i18n";
 import { Spinner } from "../components/ui";
+import { useMyStatus } from "../lib/hooks";
 
 const P = pt.patrocinio;
 type PhotoRef = { id: string; imageUrl: string };
@@ -52,6 +53,7 @@ export default function Campanha() {
   const fromFotos = (location.state as { photo?: PhotoRef } | null)?.photo ?? null;
 
   const { data: campaign, isLoading } = useQuery({ queryKey: ["buky", "campaign", id], queryFn: () => apiGetCampaignById(id) });
+  const { data: st } = useMyStatus();
   const { data: part, isLoading: loadingPart } = useQuery({
     queryKey: ["buky", "participation", id, user?.id],
     queryFn: () => myParticipation(user!.id, id),
@@ -78,6 +80,8 @@ export default function Campanha() {
   const igUrl = useMemo(() => (igShot ? URL.createObjectURL(igShot) : null), [igShot]);
 
   if (isLoading || loadingPart) return <Spinner label={pt.comum.carregando} />;
+  // Fase 1: sin los Bukys históricos necesarios vuelve a Patrocínio, que muestra cuánto falta
+  if (st && !st.tester && st.found_total < st.sponsorship_min && !part) return <Navigate to="/app/patrocinio" replace />;
 
   const back = (
     <button type="button" onClick={() => navigate("/app/patrocinio")} aria-label={pt.comum.voltar} className="-ml-1 p-1">

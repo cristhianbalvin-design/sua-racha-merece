@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateSession, windowedSpeedsKmh, type BukyPoint, type GpsReading } from "@/features/buky/engine";
+import { BikeDetector, evaluateSession, windowedSpeedsKmh, type BukyPoint, type GpsReading } from "@/features/buky/engine";
 
 // Ruta recta hacia el norte en Niterói: 1 m ≈ 1/111 320 grados de latitud.
 const BASE = { lat: -22.9035, lon: -43.1153 };
@@ -86,15 +86,20 @@ describe("evaluateSession", () => {
     expect(ev.passes.some((p) => p.rejectReason === "too_fast")).toBe(true);
   });
 
-  it("vehículo: 30 km/h sostenidos por más de 60 s anula el entrenamiento", () => {
+  it("bicicleta sostenida (paso 24): ya no anula el entrenamiento; las pasadas legítimas valen y se cuentan avisos", () => {
     const ev = evaluateSession(route, track([[10, 60], [30, 120], [10, 120]]));
-    expect(ev.status).toBe("invalid");
-    expect(ev.reason).toBe("vehicle");
+    expect(ev.status).toBe("valid");
+    expect(ev.reason).toBeNull();
+    expect(ev.stats.bikeWarnings).toBe(1);
+    expect(ev.passes.some((p) => p.valid)).toBe(true);
+    expect(ev.passes.filter((p) => p.speedKmh !== null && p.speedKmh > 25).every((p) => p.rejectReason === "too_fast")).toBe(true);
   });
 
-  it("vehículo rápido (45 km/h) también se detecta pese al filtro de saltos", () => {
+  it("vehículo rápido (45 km/h): avisos de bicicleta y ninguna pasada válida", () => {
     const ev = evaluateSession(route, track([[45, 150]]));
-    expect(ev.reason).toBe("vehicle");
+    expect(ev.status).toBe("valid");
+    expect(ev.stats.bikeWarnings).toBeGreaterThanOrEqual(1);
+    expect(ev.passes.every((p) => !p.valid)).toBe(true);
   });
 
   it("ubicación falsa: anula el entrenamiento", () => {
@@ -118,5 +123,39 @@ describe("evaluateSession", () => {
   it("respeta los límites configurados por el admin", () => {
     const ev = evaluateSession(route, track([[7, 800]]), { speedMinKmh: 8 });
     expect(ev.passes.every((p) => p.rejectReason === "too_slow")).toBe(true);
+  });
+});
+
+describe("BikeDetector (paso 24)", () => {
+  const rules = { speedKmh: 25, windowS: 30, windowNoStepsS: 60 };
+  const feed = (d: BikeDetector, secs: number, kmh: number, stepsPerS: number | null, from = 0) => {
+    let n = 0;
+    for (let s = 0; s <= secs; s++) if (d.update(T0 + (from + s) * 1000, kmh, stepsPerS === null ? null : (from + s) * stepsPerS)) n++;
+    return n;
+  };
+
+  it("con podómetro: 30 s rápido y sin pasos = 1 aviso", () => {
+    const d = new BikeDetector(rules);
+    expect(feed(d, 30, 28, 0)).toBe(1);
+  });
+
+  it("con podómetro: rápido pero con pasos (sprint) no avisa", () => {
+    const d = new BikeDetector(rules);
+    expect(feed(d, 90, 27, 3)).toBe(0);
+  });
+
+  it("sin podómetro: hace falta la ventana larga (60 s)", () => {
+    const d = new BikeDetector(rules);
+    expect(feed(d, 45, 30, null)).toBe(0);
+    expect(feed(d, 20, 30, null, 46)).toBe(1);
+  });
+
+  it("3 avisos en 90 s de bicicleta con podómetro; bajar la velocidad reinicia la ventana", () => {
+    const d = new BikeDetector(rules);
+    expect(feed(d, 90, 30, 0)).toBe(3);
+    const e = new BikeDetector(rules);
+    feed(e, 20, 30, 0);
+    e.update(T0 + 21_000, 10, 0);
+    expect(feed(e, 25, 30, 0, 22)).toBe(0);
   });
 });

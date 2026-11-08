@@ -34,6 +34,9 @@ BEGIN
   IF (SELECT distance_m FROM public.buky_sessions WHERE id = '${SID}') NOT BETWEEN 1400 AND 1500 THEN
     RAISE EXCEPTION 'distancia no guardada';
   END IF;
+  IF (SELECT start_city_code FROM public.buky_sessions WHERE id = '${SID}') IS DISTINCT FROM 3303302 THEN
+    RAISE EXCEPTION 'ciudad de inicio no guardada';
+  END IF;
   IF EXISTS (SELECT 1 FROM public.buky_passes WHERE session_id = '${SID}' AND (speed_kmh < 9 OR speed_kmh > 11)) THEN
     RAISE EXCEPTION 'velocidad de las pasadas mal guardada';
   END IF;

@@ -3,7 +3,7 @@
 //
 // La app la llama al tocar "Terminar" (y la reintenta si no hubo conexión). Recibe el recorrido
 // completo, vuelve a calcular las pasadas con el mismo motor de la app, aplica las reglas de
-// velocidad (caminar no cuenta, vehículo anula) y ubicación falsa, guarda el recorrido comprimido
+// velocidad (caminar no cuenta; la bicicleta solo registra avisos) y ubicación falsa, el límite de 1 h, guarda el recorrido comprimido
 // en el bucket privado buky-tracks y llama a buky_finalize_session, que acredita los Bukys
 // (idempotente: reintentar no duplica). Las reglas se leen de app_settings (claves buky_*).
 // ============================================================
@@ -48,7 +48,7 @@ serve(async (req) => {
 
     const raw = await req.text();
     if (raw.length > MAX_BODY_BYTES) return json({ error: "body_too_large" }, 413);
-    const { sessionId, readings } = parseCloseRequest(JSON.parse(raw));
+    const { sessionId, readings, info } = parseCloseRequest(JSON.parse(raw));
 
     const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", {
       auth: { persistSession: false },
@@ -101,20 +101,29 @@ serve(async (req) => {
       readings,
       rules: rulesFromSettings(settingRows ?? []),
       trackPath: storedPath,
+      info,
     });
 
     const { data: result, error: fErr } = await admin.rpc("buky_finalize_session", params);
     if (fErr) throw fErr;
 
+    // Pasadas tal como quedaron en la base: incluye los topes por punto (paso 24), que decide el SQL
+    const { data: saved } = await admin
+      .from("buky_passes")
+      .select("point_id, passed_at, speed_kmh, valid, awarded, reject_reason")
+      .eq("session_id", sessionId)
+      .order("passed_at");
     return json({
       ...result,
-      passes: evaluation.passes.map((p) => ({
-        point_id: p.pointId,
-        at: new Date(p.at).toISOString(),
-        speed_kmh: p.speedKmh,
-        valid: p.valid,
-        reject_reason: p.rejectReason,
-      })),
+      passes: saved
+        ? saved.map((p) => ({ point_id: p.point_id, at: p.passed_at, speed_kmh: p.speed_kmh, valid: p.valid, awarded: p.awarded, reject_reason: p.reject_reason }))
+        : evaluation.passes.map((p) => ({
+            point_id: p.pointId,
+            at: new Date(p.at).toISOString(),
+            speed_kmh: p.speedKmh,
+            valid: p.valid,
+            reject_reason: p.rejectReason,
+          })),
       stats: evaluation.stats,
     });
   } catch (err) {

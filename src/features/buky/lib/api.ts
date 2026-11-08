@@ -141,8 +141,33 @@ export interface CloseResult {
   passes_valid?: number;
   passes_rejected?: number;
   duplicate?: boolean;
-  passes?: { point_id: string; at: string; speed_kmh: number | null; valid: boolean; reject_reason: string | null }[];
-  stats?: { distanceM: number; durationS: number; maxSpeedKmh: number; avgSpeedKmh: number };
+  passes?: { point_id: string; at: string; speed_kmh: number | null; valid: boolean; awarded?: boolean; reject_reason: string | null }[];
+  stats?: { distanceM: number; durationS: number; maxSpeedKmh: number; avgSpeedKmh: number; bikeWarnings?: number };
+  /** Por qué terminó: el atleta, el límite de tiempo o la bicicleta (paso 24). */
+  stop_reason?: StopReason | null;
+}
+
+export type StopReason = "user" | "time_limit" | "bike";
+
+import { DEFAULT_TRAINING_RULES, type TrainingRules } from "../training/rules";
+export { DEFAULT_TRAINING_RULES, type TrainingRules };
+
+export interface MyStatus {
+  found_total: number;
+  gift_total: number;
+  sponsorship_min: number;
+  free_photo_min: number;
+  tester: boolean;
+  bike_stops_today: number;
+  blocked_today: boolean;
+  rules: TrainingRules;
+}
+
+export async function getMyStatus(): Promise<MyStatus> {
+  const { data, error } = await supabase.rpc("buky_my_status");
+  if (error) fail(error);
+  const s = data as MyStatus;
+  return { ...s, rules: { ...DEFAULT_TRAINING_RULES, ...(s?.rules ?? {}) } };
 }
 
 /** Error con el código que devuelve el SQL (p. ej. "no_open_period"). */
@@ -322,9 +347,13 @@ export async function heartbeat(sessionId: string, livePasses: number, lastPoint
 /** Lectura compacta: [seq, fixTime, receivedAt, lat, lon, accuracy, simulated]. */
 export type CompactReading = [number, number, number, number, number, number, number];
 
-export async function closeSession(sessionId: string, readings: CompactReading[]): Promise<CloseResult> {
+export async function closeSession(
+  sessionId: string,
+  readings: CompactReading[],
+  info: { stop_reason?: StopReason; bike_warnings?: number } = {},
+): Promise<CloseResult> {
   const { data, error } = await supabase.functions.invoke("buky-close-session", {
-    body: { session_id: sessionId, readings },
+    body: { session_id: sessionId, readings, ...info },
   });
   if (error) {
     // FunctionsHttpError trae la respuesta: se extrae el código de error del cuerpo

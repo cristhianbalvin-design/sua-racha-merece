@@ -12,7 +12,13 @@
  * Reglas de velocidad (decisión del cliente, 3 de noviembre de 2026; valores en app_settings):
  * - la pasada vale si la velocidad al cruzar el punto está entre la mínima y la máxima
  *   (caminar no cuenta);
- * - si la velocidad supera la máxima de forma sostenida (60 s), el entrenamiento se invalida (vehículo).
+ * - (hasta el 8/11/2026) si la velocidad superaba la máxima 60 s seguidos se anulaba todo el entrenamiento.
+ *
+ * Bicicleta (decisión del cliente, 8 de noviembre de 2026; paso 24):
+ * - un aviso cuando la velocidad supera bikeSpeedKmh durante bikeWindowS seguidos SIN pasos en el podómetro;
+ *   sin podómetro (web o permiso negado) solo cuenta la velocidad, con una ventana más larga;
+ * - al 3.er aviso la app corta el entrenamiento; las pasadas legítimas de antes siguen valiendo.
+ *   El servidor ya no anula el entrenamiento: cada pasada rápida se rechaza sola (too_fast).
  */
 
 // ---------------------------------------------------------------- tipos
@@ -220,8 +226,12 @@ export interface SessionRules {
   speedMinKmh: number;
   /** Velocidad máxima para que una pasada cuente (km/h). */
   speedMaxKmh: number;
-  /** Segundos seguidos por encima de la máxima que anulan el entrenamiento. */
+  /** Obsoleto (paso 24): ya no anula el entrenamiento. Se conserva por compatibilidad. */
   vehicleWindowS: number;
+  /** Bicicleta: velocidad (km/h) a partir de la cual corre la ventana de aviso. */
+  bikeSpeedKmh: number;
+  /** Bicicleta sin podómetro: segundos seguidos por encima de la velocidad para un aviso. */
+  bikeWindowNoStepsS: number;
   /** Ventana (s), centrada en la pasada, para medir la velocidad del atleta. */
   speedWindowS: number;
   /** Precisión GPS máxima (m). */
@@ -234,6 +244,8 @@ export const DEFAULT_SESSION_RULES: SessionRules = {
   speedMinKmh: 6,
   speedMaxKmh: 25,
   vehicleWindowS: 60,
+  bikeSpeedKmh: 25,
+  bikeWindowNoStepsS: 60,
   speedWindowS: 30,
   maxAccuracyM: 25,
   mockMaxRatio: 0.05,
@@ -266,6 +278,8 @@ export interface SessionStats {
   avgSpeedKmh: number;
   /** Mayor tramo continuo (s) por encima de la velocidad máxima. */
   longestFastS: number;
+  /** Avisos de bicicleta según la velocidad (el servidor no ve el podómetro). */
+  bikeWarnings: number;
 }
 
 export interface SessionEvaluation {
@@ -351,7 +365,10 @@ export function evaluateSession(
   let reason: SessionInvalidReason | null = null;
   if (accepted.length === 0) reason = "no_readings";
   else if (inWindow.length > 0 && simulatedReadings / inWindow.length > r.mockMaxRatio) reason = "mock_location";
-  else if (longestFastS >= r.vehicleWindowS) reason = "vehicle";
+
+  // Bicicleta: solo se cuentan avisos (el servidor no ve el podómetro); no anula el entrenamiento.
+  const bike = new BikeDetector({ speedKmh: r.bikeSpeedKmh, windowS: r.bikeWindowNoStepsS, windowNoStepsS: r.bikeWindowNoStepsS });
+  for (let i = 0; i < accepted.length; i++) bike.update(accepted[i].fixTime, speeds[i], null);
 
   const evaluated: EvaluatedPass[] = passes.map((p) => {
     const i = indexById.get(p.readingId);
@@ -389,6 +406,60 @@ export function evaluateSession(
       maxSpeedKmh: round1(maxSpeed),
       avgSpeedKmh: durationS > 0 ? round1((distanceM / durationS) * 3.6) : 0,
       longestFastS: Math.round(longestFastS),
+      bikeWarnings: bike.warnings,
     },
   };
+}
+
+// ---------------------------------------------------------------- bicicleta
+
+export interface BikeRules {
+  /** Velocidad (km/h) a partir de la cual corre la ventana. */
+  speedKmh: number;
+  /** Segundos seguidos rápido y SIN pasos para un aviso (con podómetro). */
+  windowS: number;
+  /** Segundos seguidos rápido para un aviso cuando no hay podómetro. */
+  windowNoStepsS: number;
+  /** Pasos tolerados dentro de la ventana (vibraciones del teléfono en la bicicleta). */
+  stepTolerance?: number;
+}
+
+/**
+ * Cuenta avisos de bicicleta. Se alimenta con la velocidad del momento y, si hay podómetro, con el
+ * total de pasos acumulado. Un aviso = velocidad > speedKmh durante la ventana completa y (con
+ * podómetro) casi sin pasos en ese intervalo. Tras un aviso la ventana vuelve a empezar.
+ * Lo usan la app (en vivo, con pasos) y el servidor (sin pasos, solo para registrar).
+ */
+export class BikeDetector {
+  warnings = 0;
+  private runStart: number | null = null;
+  private stepsAtStart: number | null = null;
+  constructor(private readonly rules: BikeRules) {}
+
+  /** t en ms; speedKmh null = sin dato (no corta la ventana); steps = pasos acumulados o null. Devuelve true si hubo aviso. */
+  update(t: number, speedKmh: number | null, steps: number | null): boolean {
+    if (speedKmh === null) return false;
+    if (speedKmh <= this.rules.speedKmh) {
+      this.runStart = null;
+      return false;
+    }
+    if (this.runStart === null) {
+      this.runStart = t;
+      this.stepsAtStart = steps;
+      return false;
+    }
+    const withSteps = steps !== null && this.stepsAtStart !== null;
+    const windowMs = (withSteps ? this.rules.windowS : this.rules.windowNoStepsS) * 1000;
+    if (t - this.runStart < windowMs) return false;
+    if (withSteps && steps! - this.stepsAtStart! > (this.rules.stepTolerance ?? 5)) {
+      // Rápido pero con pasos: es un corredor (o sprint). La ventana vuelve a empezar.
+      this.runStart = t;
+      this.stepsAtStart = steps;
+      return false;
+    }
+    this.warnings += 1;
+    this.runStart = t;
+    this.stepsAtStart = steps;
+    return true;
+  }
 }
