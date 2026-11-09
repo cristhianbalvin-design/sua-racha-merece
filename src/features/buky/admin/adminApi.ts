@@ -401,6 +401,8 @@ export interface RaffleResult {
   drawn_at: string;
   delivery_status: "pending" | "notified" | "delivered" | "unclaimed" | "standby" | "expired";
   delivery_note: string | null;
+  redeemed_at: string | null;
+  redeemed_channel: string | null;
   /** Paso 25: ganador o suplente, plazo de canje y a qué sorteo se llevó si nadie canjeó. */
   role: "winner" | "substitute";
   redeem_deadline: string | null;

@@ -516,6 +516,8 @@ export interface MyPrize extends Prize {
   period: string;
   ticket: string | null;
   redeem_code: string | null;
+  redeem_token?: string | null;
+  redeemed_at?: string | null;
   delivery_status: "pending" | "notified" | "delivered" | "unclaimed" | "standby" | "expired";
   /** winner = ganador; substitute = suplente (recibe el premio si el ganador no canjea a tiempo). */
   role?: "winner" | "substitute";

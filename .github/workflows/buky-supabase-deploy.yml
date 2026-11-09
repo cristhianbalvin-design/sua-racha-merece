@@ -25,6 +25,10 @@ on:
         description: "Publicar create-premium-checkout y sync-premium-payment (Premium y recargas)"
         type: boolean
         default: false
+      funciones_avisos:
+        description: "Publicar send-notifications e invite-sponsor"
+        type: boolean
+        default: false
       ciudades:
         description: "Paso 18: normalizar la ciudad de los usuarios existentes (con respaldo)"
         type: boolean
@@ -54,7 +58,7 @@ jobs:
           TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           [ -n "$DB" ] || { echo "::error::Falta el secreto SUPABASE_DB_URL"; exit 1; }
-          if { [ "${{ inputs.funcion }}" = "true" ] || [ "${{ inputs.funciones_pagos }}" = "true" ]; } && [ -z "$TOKEN" ]; then echo "::error::Falta el secreto SUPABASE_ACCESS_TOKEN"; exit 1; fi
+          if { [ "${{ inputs.funcion }}" = "true" ] || [ "${{ inputs.funciones_pagos }}" = "true" ] || [ "${{ inputs.funciones_avisos }}" = "true" ]; } && [ -z "$TOKEN" ]; then echo "::error::Falta el secreto SUPABASE_ACCESS_TOKEN"; exit 1; fi
           echo "$DB" | grep -q "$PROJECT_REF" || { echo "::error::SUPABASE_DB_URL no es del proyecto $PROJECT_REF"; exit 1; }
           echo "::notice title=Proyecto::$PROJECT_REF"
 
@@ -67,7 +71,7 @@ jobs:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -e
-          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql supabase/manual-sql/buky/23_*.sql supabase/manual-sql/buky/24_*.sql supabase/manual-sql/buky/25_*.sql supabase/manual-sql/buky/26_*.sql supabase/manual-sql/buky/27_*.sql; do
+          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql supabase/manual-sql/buky/23_*.sql supabase/manual-sql/buky/24_*.sql supabase/manual-sql/buky/25_*.sql supabase/manual-sql/buky/26_*.sql supabase/manual-sql/buky/27_*.sql supabase/manual-sql/buky/28_*.sql; do
             psql "$DB" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
             echo "::notice title=SQL aplicado::$(basename "$f") · sha256 $(sha256sum "$f" | cut -c1-12)"
           done
@@ -126,3 +130,11 @@ jobs:
             npx --yes supabase@2 functions deploy "$f" --project-ref "$PROJECT_REF" --use-api 2>&1 | tail -3
             echo "::notice title=Edge Function::$f publicada en $PROJECT_REF"
           done
+
+      - name: Publicar funciones de avisos
+        if: inputs.funciones_avisos
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          npx --yes supabase@2 functions deploy send-notifications --project-ref "$PROJECT_REF" --use-api --no-verify-jwt
+          npx --yes supabase@2 functions deploy invite-sponsor --project-ref "$PROJECT_REF" --use-api

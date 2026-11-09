@@ -82,3 +82,9 @@ CREATE TABLE public.notifications (id uuid PRIMARY KEY DEFAULT gen_random_uuid()
   message text, campaign_id uuid, read boolean DEFAULT false, created_at timestamptz DEFAULT now());
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users see own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
+
+-- Stubs para Vault y alta de invitados; pg_net puede faltar en Postgres local.
+CREATE SCHEMA vault;
+CREATE TABLE vault.decrypted_secrets (name text, decrypted_secret text);
+CREATE FUNCTION vault.create_secret(p_secret text,p_name text) RETURNS uuid LANGUAGE plpgsql AS $$ BEGIN INSERT INTO vault.decrypted_secrets VALUES(p_name,p_secret); RETURN gen_random_uuid(); END $$;
+CREATE TABLE public.photographers (email text, auth_user_id uuid);

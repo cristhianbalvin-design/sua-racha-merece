@@ -6,6 +6,7 @@ import AdminRotas from "./AdminRotas";
 import AdminSorteios from "./AdminSorteios";
 import AdminPatrocinadores from "./AdminPatrocinadores";
 import AdminTreinos from "./AdminTreinos";
+import AdminAvisos from "./AdminAvisos";
 import AdminConfig from "./AdminConfig";
 
 const TABS = [
@@ -13,6 +14,7 @@ const TABS = [
   { to: "sorteios", label: "Sorteios" },
   { to: "patrocinadores", label: "Patrocinadores" },
   { to: "treinos", label: "Treinos e atletas" },
+  { to: "avisos", label: "Avisos" },
   { to: "config", label: "Configurações" },
 ];
 
@@ -64,6 +66,7 @@ export default function AdminBuky() {
         <Route path="sorteios" element={<AdminSorteios />} />
         <Route path="patrocinadores" element={<AdminPatrocinadores />} />
         <Route path="treinos" element={<AdminTreinos />} />
+        <Route path="avisos" element={<AdminAvisos />} />
         <Route path="config" element={<AdminConfig />} />
       </Routes>
     </div>

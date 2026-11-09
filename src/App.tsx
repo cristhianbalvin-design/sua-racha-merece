@@ -5,7 +5,8 @@ import OneSignal from "react-onesignal";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import Patrocinador from "./pages/Patrocinador";
 import { initializeMockData } from "./lib/mockApi";
 
 import Landing from "./pages/Landing";
@@ -86,6 +87,9 @@ const AnimatedRoutes = () => {
       <Route path="/plano" element={<Navigate to="/completar-perfil" replace />} />
       <Route path="/completar-perfil" element={<PageTransition><CompleteProfile /></PageTransition>} />
 
+      <Route path="/patrocinador" element={<ProtectedRoute><Patrocinador /></ProtectedRoute>} />
+      <Route path="/patrocinador/validar/:token" element={<ProtectedRoute><Patrocinador /></ProtectedRoute>} />
+
       {/* User (with layout) */}
       <Route element={<ProtectedRoute><UserLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={SHOW_BUKY_APP ? <Navigate to="/app" replace /> : <Dashboard />} />
@@ -145,21 +149,27 @@ const AnimatedRoutes = () => {
   );
 };
 
-const App = () => {
+let oneSignalReady: Promise<void> | undefined;
+let identityQueue: Promise<void> = Promise.resolve();
+function PushIdentity() {
+  const { user, loading } = useAuth();
   useEffect(() => {
-    if (IS_NATIVE) return; // OneSignal web no aplica dentro de la app nativa
-    OneSignal.init({
-      appId: "f4c2d37d-d6a4-4209-9814-cf2c9cce92e1",
-      serviceWorkerPath: "sw.js",
-      allowLocalhostAsSecureOrigin: true,
-    }).catch(console.error);
-  }, []);
+    if (IS_NATIVE || loading) return;
+    let cancelled = false;
+    oneSignalReady ??= OneSignal.init({ appId: "f4c2d37d-d6a4-4209-9814-cf2c9cce92e1", serviceWorkerPath: "sw.js", allowLocalhostAsSecureOrigin: true });
+    identityQueue = identityQueue.catch(console.error).then(async () => { await oneSignalReady; if (!cancelled) { if (user?.id) await OneSignal.login(user.id); else await OneSignal.logout(); } }).catch(console.error);
+    return () => { cancelled = true; };
+  }, [user?.id, loading]);
+  return null;
+}
 
+const App = () => {
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
+          <PushIdentity />
           <Toaster />
           <Sonner />
           {!IS_NATIVE && <PWAInstallPrompt />}

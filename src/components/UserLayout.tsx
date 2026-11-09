@@ -8,6 +8,7 @@ import UserProfileBanner from './UserProfileBanner';
 import Logo from './Logo';
 import { apiGetActiveHomePopup, apiAcceptTermsForOAuthUser, apiGetNotifications, apiEnsureParticipation } from '@/lib/mockApi';
 import type { HomePopup } from '@/data/mockData';
+import { useSponsors } from '@/lib/sponsorApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { TermsModal } from './TermsModal';
 import { toast } from 'sonner';
@@ -40,6 +41,7 @@ const UserLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, updateUserContext } = useAuth();
+  const sponsors = useSponsors();
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   // Show profile banner on all pages except campaign detail/submission
@@ -107,7 +109,7 @@ const UserLayout = () => {
         toast.success('Termos e Condições aceitos com sucesso!');
         updateUserContext({ acceptedTerms: true });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Accept terms error:', e);
       toast.error('Erro ao aceitar termos. Tente novamente.');
     }
@@ -139,6 +141,7 @@ const UserLayout = () => {
         >
           <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
           <div className="flex items-center px-2 min-w-max">
+            {!!sponsors.data?.length && <Link className="px-3 py-3 text-[10px] font-bold" to="/patrocinador">PATROCINADOR</Link>}
             {mainTabs.map(({ to, href, label, icon: Icon, featured }) => {
               const isActive = to !== null && (location.pathname === to || (to === '/dashboard' && location.pathname === '/campanhas'));
               if (featured) {
