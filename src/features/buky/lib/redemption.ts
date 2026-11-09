@@ -22,5 +22,5 @@ export function redemptionStatus(
   if (prize.delivery_status === "expired") return "expired";
   if (prize.delivery_status !== "pending" && prize.delivery_status !== "notified") return "inactive";
   const deadline = prize.redeem_deadline ? Date.parse(prize.redeem_deadline) : NaN;
-  return Number.isFinite(deadline) && now > deadline ? "expired" : "available";
+  return !Number.isFinite(deadline) || now > deadline ? "expired" : "available";
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
 import { Bell, Images, User as UserIcon } from 'lucide-react';
+import { useSponsors } from '@/pages/Patrocinador';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetNotifications } from '@/lib/mockApi';
 import { SHOW_FACE_SEARCH } from '@/config/features';
@@ -11,6 +12,7 @@ import { SHOW_FACE_SEARCH } from '@/config/features';
 const DesktopHeader = () => {
   const location = useLocation();
   const { user, isAdmin } = useAuth();
+  const sponsors = useSponsors();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -83,6 +85,7 @@ const DesktopHeader = () => {
             </Link>
           );
         })}
+        {!!sponsors.data?.length && <Link to="/patrocinador">Patrocinador</Link>}
         <Link
           to="/notificacoes"
           className={`relative transition-colors ${

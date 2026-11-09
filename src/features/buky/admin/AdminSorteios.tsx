@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ChevronLeft, Dice5, Download, Gift, KeyRound, Merge, Plus, Repeat, Save, ShieldCheck, Trash2, X, XCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { getCity, type City } from "../lib/api";
 import { useStates } from "../lib/hooks";
@@ -855,6 +856,7 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
                     <select
                       className={inputCls + " w-36"}
                       value={r.delivery_status}
+                      disabled={r.delivery_status === "delivered"}
                       onChange={async (e) => {
                         await setDelivery(r.id, e.target.value as RaffleResult["delivery_status"], r.delivery_note).catch((err) => toast.error(String(err.message)));
                         onChange();
@@ -862,7 +864,7 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
                     >
                       <option value="pending">pendente</option>
                       <option value="notified">avisado · prazo correndo</option>
-                      <option value="delivered">entregue (resgatado)</option>
+                      {r.delivery_status === "delivered" && <option value="delivered">entregue (resgatado)</option>}
                       <option value="standby">suplente · aguardando</option>
                       <option value="expired">prazo vencido</option>
                       <option value="unclaimed">não resgatado</option>
@@ -870,6 +872,8 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
+                  {r.delivery_status === "delivered" && <p className="text-xs">Usado em {r.redeemed_at ? dt(r.redeemed_at) : "?"} ? {r.redeemed_channel ?? "?"}</p>}
+                  {r.user_id && ["pending", "notified"].includes(r.delivery_status) && <button className={btnGhost} onClick={async () => { if (!confirm("Confirmar o uso manual deste pr?mio?")) return; const note = prompt("Observa??o (opcional):"); if (note === null) return; const { error } = await supabase.rpc("admin_buky_redeem", { p_result_id: r.id, p_note: note }); if (error) toast.error(error.message); else { toast.success("Uso confirmado."); onChange(); } }}>Marcar como usado</button>}
                   {orphan(r) && (
                     <button type="button" className={btnGhost} onClick={() => void republish(r)} title="Levar para outro sorteio">
                       <Repeat size={14} />

@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import QRCode from "qrcode";
+import { redemptionStatus } from "../lib/redemption";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Copy, MapPin } from "lucide-react";
 import { toast } from "sonner";
@@ -281,7 +283,10 @@ function Proximos({ periods, onPrize }: { periods: RafflePeriod[]; onPrize: (p: 
 }
 
 function MyPrizeCard({ p }: { p: MyPrize }) {
-  const toRedeem = isToRedeem(p);
+  const status = redemptionStatus(p);
+  const toRedeem = status === "available";
+  const [qr, setQr] = useState("");
+  useEffect(() => { let active = true; if (toRedeem && p.kind === "physical" && p.redeem_token) void QRCode.toDataURL(`https://www.3buk.com/patrocinador/validar/${encodeURIComponent(p.redeem_token)}`, { width: 280, margin: 2 }).then(url => { if (active) setQr(url); }).catch(() => { if (active) setQr(""); }); else setQr(""); return () => { active = false; }; }, [toRedeem, p.kind, p.redeem_token]);
   const standby = p.delivery_status === "standby";
   const copy = async () => {
     try {
@@ -306,13 +311,15 @@ function MyPrizeCard({ p }: { p: MyPrize }) {
             toRedeem ? "border-[#ffd27a]/50 text-[#ffd27a]" : "border-[var(--buky-line)] text-[var(--buky-muted)]"
           }`}
         >
-          {(S.entrega[p.delivery_status] ?? p.delivery_status).toUpperCase()}
+          {(status === "available" ? "Dispon?vel" : status === "redeemed" ? `Usado em ${p.redeemed_at ? fmtDayTime(p.redeemed_at) : "?"}` : status === "expired" ? "Expirado" : (S.entrega[p.delivery_status] ?? p.delivery_status)).toUpperCase()}
         </span>
       </div>
       {toRedeem && p.redeem_deadline && <p className="mt-2 text-[13px] font-semibold text-[#ffd27a]">{S.resgateAte(fmtDayTime(p.redeem_deadline))}</p>}
+      {qr && <div className="mt-3"><p className="text-sm">Mostre o QR no estabelecimento.</p><img src={qr} alt="QR para resgatar pr?mio" className="mx-auto mt-2 w-64 max-w-full rounded" /></div>}
+      {p.kind === "digital" && toRedeem && <p className="mt-3 text-sm">Use este c?digo na loja do patrocinador.</p>}
       {standby ? (
         <p className="mt-3 text-[13px] leading-snug text-[var(--buky-muted)]">{S.suplenteAguarde}</p>
-      ) : p.delivery_status === "expired" ? (
+      ) : status === "expired" ? (
         <p className="mt-3 text-[13px] text-[var(--buky-faint)]">{S.vencido}</p>
       ) : p.redeem_code ? (
         <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-[var(--buky-bg)] px-3 py-2.5">

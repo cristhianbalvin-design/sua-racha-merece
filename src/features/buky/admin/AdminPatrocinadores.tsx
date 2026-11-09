@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Save } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { listSponsors, saveSponsor, type Sponsor } from "./adminApi";
 import { Badge, btnGhost, btnPrimary, card, Field, inputCls } from "./ui";
@@ -8,6 +9,7 @@ import { Badge, btnGhost, btnPrimary, card, Field, inputCls } from "./ui";
 export default function AdminPatrocinadores() {
   const qc = useQueryClient();
   const { data: sponsors = [], isLoading } = useQuery({ queryKey: ["admin-buky", "sponsors"], queryFn: listSponsors });
+  const [team, setTeam] = useState<Sponsor | null>(null);
   const [edit, setEdit] = useState<Partial<Sponsor> | null>(null);
 
   const save = async () => {
@@ -44,6 +46,7 @@ export default function AdminPatrocinadores() {
           </div>
         </div>
       )}
+      {team && <Team sponsor={team} onClose={() => setTeam(null)} />}
       <div className={`${card} overflow-hidden`}>
         {isLoading ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Carregando…</p>
@@ -59,6 +62,7 @@ export default function AdminPatrocinadores() {
                   <p className="text-[11px] text-muted-foreground">{[s.instagram && `@${s.instagram}`, s.website].filter(Boolean).join(" · ")}</p>
                 </div>
                 {s.active ? <Badge tone="green">ativo</Badge> : <Badge>inativo</Badge>}
+                <button type="button" className={btnGhost} onClick={() => setTeam(s)}>EQUIPE</button>
                 <button type="button" className={btnGhost} onClick={() => setEdit(s)}>EDITAR</button>
               </div>
             ))}
@@ -67,4 +71,12 @@ export default function AdminPatrocinadores() {
       </div>
     </div>
   );
+}
+
+function Team({ sponsor, onClose }: { sponsor: Sponsor; onClose: () => void }) {
+  const [email, setEmail] = useState(""); const [role, setRole] = useState("staff"); const [busy, setBusy] = useState(false);
+  const members = useQuery({ queryKey: ["sponsor-members", sponsor.id], queryFn: async () => { const { data, error } = await supabase.rpc("admin_buky_sponsor_members", { p_sponsor_id: sponsor.id }); if (error) throw error; return data as { user_id: string; name: string; email: string; role: string; revoked_at: string | null }[]; } });
+  const invite = async () => { setBusy(true); try { const { error } = await supabase.functions.invoke("invite-sponsor", { body: { sponsor_id: sponsor.id, email: email.trim(), role } }); if (error) throw error; toast.success("Convite enviado."); setEmail(""); await members.refetch(); } catch (e) { toast.error(`Erro: ${(e as Error).message}`); } finally { setBusy(false); } };
+  const revoke = async (id: string) => { if (!confirm("Revogar o acesso deste membro?")) return; const { error } = await supabase.rpc("admin_buky_sponsor_revoke", { p_sponsor_id: sponsor.id, p_user_id: id }); if (error) toast.error(error.message); else await members.refetch(); };
+  return <section className={`${card} mb-4 p-4`}><div className="flex justify-between"><h2 className="font-bold">Equipe ? {sponsor.name}</h2><button onClick={onClose}>Fechar</button></div><form className="mt-3 flex flex-wrap gap-2" onSubmit={e => { e.preventDefault(); void invite(); }}><input className={inputCls} type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="E-mail"/><select className={inputCls} value={role} onChange={e => setRole(e.target.value)}><option value="staff">Equipe</option><option value="owner">Respons?vel</option></select><button disabled={busy} className={btnPrimary}>Convidar</button></form>{members.error ? <p>Erro ao carregar equipe.</p> : members.isLoading ? <p>Carregando?</p> : members.data?.map(m => <div className="flex justify-between gap-3 border-b py-2" key={m.user_id}><span>{m.name} ? {m.email} ? {m.role} {m.revoked_at && "? revogado"}</span>{!m.revoked_at && <button className={btnGhost} onClick={() => void revoke(m.user_id)}>Revogar</button>}</div>)}</section>;
 }

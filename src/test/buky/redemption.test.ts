@@ -15,6 +15,7 @@ describe("validación de premios", () => {
     expect(redemptionStatus(prize, Date.parse(deadline) + 1)).toBe("expired");
     expect(redemptionStatus({ delivery_status: "delivered", redeem_deadline: deadline }, Date.parse(deadline) + 1)).toBe("redeemed");
     expect(redemptionStatus({ delivery_status: "standby" })).toBe("inactive");
+    expect(redemptionStatus({ delivery_status: "pending" })).toBe("expired");
     expect(redemptionStatus({ delivery_status: "expired" })).toBe("expired");
   });
 });

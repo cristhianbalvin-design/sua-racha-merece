@@ -4,7 +4,10 @@ import { ChevronRight, Footprints, LogOut, Pencil, Route, SlidersHorizontal, Wal
 import { useQuery } from "@tanstack/react-query";
 import { apiGetMyWallet, brl } from "@/lib/walletApi";
 import { useAuth } from "@/contexts/AuthContext";
-import { pt } from "../i18n";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import { useSponsors } from "@/pages/Patrocinador";
+import { avisos, pt } from "../i18n";
 import { fmtDate, fmtDuration, isToday, ProfileAvatar, Sheet, Spinner } from "../components/ui";
 import RouteSketch from "../components/RouteSketch";
 import type { SessionHistoryItem } from "../lib/api";
@@ -13,7 +16,11 @@ import { useBukyProfile, useCity, useMySessions, useSummary } from "../lib/hooks
 /** Perfil (mockup 5): datos, 4 indicadores e historial de entrenamientos. */
 export default function Perfil() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const sponsors = useSponsors();
+  const emailPref = useQuery({ queryKey: ["email-pref", user?.id], enabled: !!user, queryFn: async () => { const { data, error } = await supabase.from("users").select("email_notifications").eq("id", user!.id).single(); if (error) throw error; return data.email_notifications as boolean; } });
+  const [savingEmail, setSavingEmail] = useState(false);
+  const setEmail = async (enabled: boolean) => { if (!user) return; setSavingEmail(true); const { error } = await supabase.from("users").update({ email_notifications: enabled }).eq("id", user.id); if (error) toast.error("N?o foi poss?vel salvar a prefer?ncia."); else await emailPref.refetch(); setSavingEmail(false); };
   const { data: p } = useBukyProfile();
   const { data: city } = useCity(p?.city_code);
   const { data: s } = useSummary();
@@ -79,6 +86,8 @@ export default function Perfil() {
         <ChevronRight size={18} className="shrink-0 text-[var(--buky-faint)]" />
       </Link>
 
+      <div className="mt-5 rounded-[18px] border border-[var(--buky-line)] p-4"><label className="flex items-center justify-between gap-3"><span>{avisos.email}</span><input type="checkbox" role="switch" checked={emailPref.data ?? false} disabled={emailPref.isLoading || !!emailPref.error || savingEmail} onChange={e => void setEmail(e.target.checked)} /></label><p className="mt-2 text-xs text-[var(--buky-muted)]">{avisos.emailNota}</p>{emailPref.error && <p className="text-sm">N?o foi poss?vel carregar a prefer?ncia.</p>}</div>
+      {sponsors.data && sponsors.data.length > 0 && <Link className="mt-4 block text-[var(--buky-neon)]" to="/patrocinador">Painel do patrocinador ?</Link>}
       <section className="mt-7">
         <h2 className="buky-label text-[var(--buky-muted)]">{pt.perfil.historico}</h2>
         {isLoading ? (
