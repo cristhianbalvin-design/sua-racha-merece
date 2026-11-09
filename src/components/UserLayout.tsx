@@ -8,7 +8,7 @@ import UserProfileBanner from './UserProfileBanner';
 import Logo from './Logo';
 import { apiGetActiveHomePopup, apiAcceptTermsForOAuthUser, apiGetNotifications, apiEnsureParticipation } from '@/lib/mockApi';
 import type { HomePopup } from '@/data/mockData';
-import { useSponsors } from '@/pages/Patrocinador';
+import { useSponsors } from '@/lib/sponsorApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { TermsModal } from './TermsModal';
 import { toast } from 'sonner';
@@ -109,7 +109,7 @@ const UserLayout = () => {
         toast.success('Termos e Condições aceitos com sucesso!');
         updateUserContext({ acceptedTerms: true });
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Accept terms error:', e);
       toast.error('Erro ao aceitar termos. Tente novamente.');
     }

@@ -6,7 +6,7 @@ import { apiGetMyWallet, brl } from "@/lib/walletApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { useSponsors } from "@/pages/Patrocinador";
+import { useSponsors } from "@/lib/sponsorApi";
 import { avisos, pt } from "../i18n";
 import { fmtDate, fmtDuration, isToday, ProfileAvatar, Sheet, Spinner } from "../components/ui";
 import RouteSketch from "../components/RouteSketch";
@@ -18,15 +18,41 @@ export default function Perfil() {
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const sponsors = useSponsors();
-  const emailPref = useQuery({ queryKey: ["email-pref", user?.id], enabled: !!user, queryFn: async () => { const { data, error } = await supabase.from("users").select("email_notifications").eq("id", user!.id).single(); if (error) throw error; return data.email_notifications as boolean; } });
+  const emailPref = useQuery({
+    queryKey: ["email-pref", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("email_notifications")
+        .eq("id", user!.id)
+        .single();
+      if (error) throw error;
+      return (data as { email_notifications?: boolean } | null)?.email_notifications ?? true;
+    },
+  });
   const [savingEmail, setSavingEmail] = useState(false);
-  const setEmail = async (enabled: boolean) => { if (!user) return; setSavingEmail(true); const { error } = await supabase.from("users").update({ email_notifications: enabled }).eq("id", user.id); if (error) toast.error("N?o foi poss?vel salvar a prefer?ncia."); else await emailPref.refetch(); setSavingEmail(false); };
+  const setEmail = async (enabled: boolean) => {
+    if (!user) return;
+    setSavingEmail(true);
+    const { error } = await supabase
+      .from("users")
+      .update({ email_notifications: enabled })
+      .eq("id", user.id);
+    if (error) toast.error("Não foi possível salvar a preferência.");
+    else await emailPref.refetch();
+    setSavingEmail(false);
+  };
   const { data: p } = useBukyProfile();
   const { data: city } = useCity(p?.city_code);
   const { data: s } = useSummary();
   const { data: sessions = [], isLoading } = useMySessions();
   const [menu, setMenu] = useState(false);
-  const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: apiGetMyWallet, staleTime: 30_000 });
+  const { data: wallet } = useQuery({
+    queryKey: ["wallet"],
+    queryFn: apiGetMyWallet,
+    staleTime: 30_000,
+  });
 
   const nameParts = (p?.name ?? "").trim().split(/\s+/);
   const stats = [
@@ -40,7 +66,12 @@ export default function Perfil() {
     <div className="px-6 pt-[calc(env(safe-area-inset-top,0px)+30px)]">
       <div className="flex items-center justify-between">
         <p className="buky-label text-[var(--buky-neon)]">{pt.perfil.rotulo}</p>
-        <button type="button" aria-label="Configurações" onClick={() => setMenu(true)} className="p-1 text-white">
+        <button
+          type="button"
+          aria-label="Configurações"
+          onClick={() => setMenu(true)}
+          className="p-1 text-white"
+        >
           <SlidersHorizontal size={22} />
         </button>
       </div>
@@ -59,41 +90,87 @@ export default function Perfil() {
           </h1>
           <p className="mt-2 truncate text-sm text-[var(--buky-muted)]">
             {[p?.neighborhood, city?.name].filter(Boolean).join(", ")}
-            {p?.instagram && <span className="font-semibold text-[var(--buky-neon)]"> · @{p.instagram}</span>}
+            {p?.instagram && (
+              <span className="font-semibold text-[var(--buky-neon)]">
+                {" "}
+                · @{p.instagram}
+              </span>
+            )}
           </p>
         </div>
       </div>
 
       <dl className="mt-6 grid grid-cols-2 border-y border-[var(--buky-line)]">
         {stats.map((st, i) => (
-          <div key={st.label} className={`py-3 ${i % 2 === 0 ? "border-r border-[var(--buky-line)] pr-4" : "pl-5"} ${i < 2 ? "border-b border-[var(--buky-line)]" : ""}`}>
+          <div
+            key={st.label}
+            className={`py-3 ${i % 2 === 0 ? "border-r border-[var(--buky-line)] pr-4" : "pl-5"} ${i < 2 ? "border-b border-[var(--buky-line)]" : ""}`}
+          >
             <dt className="text-[13px] text-[var(--buky-muted)]">{st.label}</dt>
-            <dd className={`font-buky-xcond mt-1 text-[clamp(36px,11vw,44px)] leading-none ${st.neon ? "text-[var(--buky-neon)]" : ""}`}>{st.value}</dd>
+            <dd
+              className={`font-buky-xcond mt-1 text-[clamp(36px,11vw,44px)] leading-none ${st.neon ? "text-[var(--buky-neon)]" : ""}`}
+            >
+              {st.value}
+            </dd>
           </div>
         ))}
       </dl>
-      <p className="mt-4 text-[13px] leading-snug text-[var(--buky-muted)]">{pt.perfil.nota}</p>
+      <p className="mt-4 text-[13px] leading-snug text-[var(--buky-muted)]">
+        {pt.perfil.nota}
+      </p>
 
-      <Link to="/app/perfil/saldo" className="mt-5 flex items-center gap-3 rounded-[18px] border border-[var(--buky-line)] bg-[#111] p-4">
+      <Link
+        to="/app/perfil/saldo"
+        className="mt-5 flex items-center gap-3 rounded-[18px] border border-[var(--buky-line)] bg-[#111] p-4"
+      >
         <Wallet size={20} className="shrink-0 text-[var(--buky-neon)]" />
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-semibold">{pt.saldo.perfilCard(brl(wallet?.balance_cents ?? 0))}</span>
+          <span className="block text-[15px] font-semibold">
+            {pt.saldo.perfilCard(brl(wallet?.balance_cents ?? 0))}
+          </span>
           <span className="block truncate text-[12px] text-[var(--buky-muted)]">
-            {wallet?.premium?.active && wallet.premium.until ? `Premium até ${fmtDate(wallet.premium.until, { day: "2-digit", month: "2-digit", year: "2-digit" })} · ` : ""}
+            {wallet?.premium?.active && wallet.premium.until
+              ? `Premium até ${fmtDate(wallet.premium.until, { day: "2-digit", month: "2-digit", year: "2-digit" })} · `
+              : ""}
             {pt.saldo.perfilCardSub}
           </span>
         </span>
         <ChevronRight size={18} className="shrink-0 text-[var(--buky-faint)]" />
       </Link>
 
-      <div className="mt-5 rounded-[18px] border border-[var(--buky-line)] p-4"><label className="flex items-center justify-between gap-3"><span>{avisos.email}</span><input type="checkbox" role="switch" checked={emailPref.data ?? false} disabled={emailPref.isLoading || !!emailPref.error || savingEmail} onChange={e => void setEmail(e.target.checked)} /></label><p className="mt-2 text-xs text-[var(--buky-muted)]">{avisos.emailNota}</p>{emailPref.error && <p className="text-sm">N?o foi poss?vel carregar a prefer?ncia.</p>}</div>
-      {sponsors.data && sponsors.data.length > 0 && <Link className="mt-4 block text-[var(--buky-neon)]" to="/patrocinador">Painel do patrocinador ?</Link>}
+      <div className="mt-5 rounded-[18px] border border-[var(--buky-line)] p-4">
+        <label className="flex items-center justify-between gap-3">
+          <span>{avisos.email}</span>
+          <input
+            type="checkbox"
+            role="switch"
+            checked={emailPref.data ?? false}
+            disabled={emailPref.isLoading || !!emailPref.error || savingEmail}
+            onChange={(e) => void setEmail(e.target.checked)}
+          />
+        </label>
+        <p className="mt-2 text-xs text-[var(--buky-muted)]">
+          {avisos.emailNota}
+        </p>
+        {emailPref.error && (
+          <p className="text-sm">Não foi possível carregar a preferência.</p>
+        )}
+      </div>
+      {sponsors.data && sponsors.data.length > 0 && (
+        <Link className="mt-4 block text-[var(--buky-neon)]" to="/patrocinador">
+          Painel do patrocinador →
+        </Link>
+      )}
       <section className="mt-7">
-        <h2 className="buky-label text-[var(--buky-muted)]">{pt.perfil.historico}</h2>
+        <h2 className="buky-label text-[var(--buky-muted)]">
+          {pt.perfil.historico}
+        </h2>
         {isLoading ? (
           <Spinner />
         ) : sessions.length === 0 ? (
-          <p className="py-6 text-sm text-[var(--buky-faint)]">{pt.perfil.semHistorico}</p>
+          <p className="py-6 text-sm text-[var(--buky-faint)]">
+            {pt.perfil.semHistorico}
+          </p>
         ) : (
           <ul className="mt-3 space-y-3">
             {sessions.map((x) => (
@@ -106,13 +183,19 @@ export default function Perfil() {
       <Sheet open={menu} onClose={() => setMenu(false)} label="Configurações">
         <ul className="text-[16px]">
           <li>
-            <Link to="/app/completar" state={{ edit: true }} className="flex items-center gap-3 py-4">
-              <Pencil size={18} className="text-[var(--buky-neon)]" /> {pt.perfil.editar}
+            <Link
+              to="/app/completar"
+              state={{ edit: true }}
+              className="flex items-center gap-3 py-4"
+            >
+              <Pencil size={18} className="text-[var(--buky-neon)]" />{" "}
+              {pt.perfil.editar}
             </Link>
           </li>
           <li className="buky-row">
             <Link to="/app/rotas/nova" className="flex items-center gap-3 py-4">
-              <Route size={18} className="text-[var(--buky-neon)]" /> {pt.rota.titulo}
+              <Route size={18} className="text-[var(--buky-neon)]" />{" "}
+              {pt.rota.titulo}
             </Link>
           </li>
           <li className="buky-row">
@@ -124,7 +207,8 @@ export default function Perfil() {
                 navigate("/entrar", { replace: true });
               }}
             >
-              <LogOut size={18} className="text-[var(--buky-danger)]" /> {pt.perfil.sair}
+              <LogOut size={18} className="text-[var(--buky-danger)]" />{" "}
+              {pt.perfil.sair}
             </button>
           </li>
         </ul>

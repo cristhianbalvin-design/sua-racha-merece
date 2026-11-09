@@ -286,7 +286,24 @@ function MyPrizeCard({ p }: { p: MyPrize }) {
   const status = redemptionStatus(p);
   const toRedeem = status === "available";
   const [qr, setQr] = useState("");
-  useEffect(() => { let active = true; if (toRedeem && p.kind === "physical" && p.redeem_token) void QRCode.toDataURL(`https://www.3buk.com/patrocinador/validar/${encodeURIComponent(p.redeem_token)}`, { width: 280, margin: 2 }).then(url => { if (active) setQr(url); }).catch(() => { if (active) setQr(""); }); else setQr(""); return () => { active = false; }; }, [toRedeem, p.kind, p.redeem_token]);
+  useEffect(() => {
+    let active = true;
+    if (toRedeem && p.kind === "physical" && p.redeem_token)
+      void QRCode.toDataURL(
+        `https://www.3buk.com/patrocinador/validar/${encodeURIComponent(p.redeem_token)}`,
+        { width: 280, margin: 2 },
+      )
+        .then((url) => {
+          if (active) setQr(url);
+        })
+        .catch(() => {
+          if (active) setQr("");
+        });
+    else setQr("");
+    return () => {
+      active = false;
+    };
+  }, [toRedeem, p.kind, p.redeem_token]);
   const standby = p.delivery_status === "standby";
   const copy = async () => {
     try {
@@ -297,7 +314,9 @@ function MyPrizeCard({ p }: { p: MyPrize }) {
     }
   };
   return (
-    <li className={`rounded-[20px] border p-4 ${toRedeem ? "border-[var(--buky-neon)] bg-[rgba(57,255,20,0.06)]" : "border-[var(--buky-line)]"}`}>
+    <li
+      className={`rounded-[20px] border p-4 ${toRedeem ? "border-[var(--buky-neon)] bg-[rgba(57,255,20,0.06)]" : "border-[var(--buky-line)]"}`}
+    >
       <div className="flex items-start gap-3">
         <PrizeThumb prize={p} size={48} />
         <div className="min-w-0 flex-1">
@@ -308,32 +327,77 @@ function MyPrizeCard({ p }: { p: MyPrize }) {
         </div>
         <span
           className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-bold ${
-            toRedeem ? "border-[#ffd27a]/50 text-[#ffd27a]" : "border-[var(--buky-line)] text-[var(--buky-muted)]"
+            toRedeem
+              ? "border-[#ffd27a]/50 text-[#ffd27a]"
+              : "border-[var(--buky-line)] text-[var(--buky-muted)]"
           }`}
         >
-          {(status === "available" ? "Dispon?vel" : status === "redeemed" ? `Usado em ${p.redeemed_at ? fmtDayTime(p.redeemed_at) : "?"}` : status === "expired" ? "Expirado" : (S.entrega[p.delivery_status] ?? p.delivery_status)).toUpperCase()}
+          {(status === "available"
+            ? "Disponível"
+            : status === "redeemed"
+              ? `Usado em ${p.redeemed_at ? fmtDayTime(p.redeemed_at) : "—"}`
+              : status === "expired"
+                ? "Expirado"
+                : (S.entrega[p.delivery_status] ?? p.delivery_status)
+          ).toUpperCase()}
         </span>
       </div>
-      {toRedeem && p.redeem_deadline && <p className="mt-2 text-[13px] font-semibold text-[#ffd27a]">{S.resgateAte(fmtDayTime(p.redeem_deadline))}</p>}
-      {qr && <div className="mt-3"><p className="text-sm">Mostre o QR no estabelecimento.</p><img src={qr} alt="QR para resgatar pr?mio" className="mx-auto mt-2 w-64 max-w-full rounded" /></div>}
-      {p.kind === "digital" && toRedeem && <p className="mt-3 text-sm">Use este c?digo na loja do patrocinador.</p>}
+      {toRedeem && p.redeem_deadline && (
+        <p className="mt-2 text-[13px] font-semibold text-[#ffd27a]">
+          {S.resgateAte(fmtDayTime(p.redeem_deadline))}
+        </p>
+      )}
+      {qr && (
+        <div className="mt-3">
+          <p className="text-sm">Mostre o QR no estabelecimento.</p>
+          <img
+            src={qr}
+            alt="QR para resgatar prêmio"
+            className="mx-auto mt-2 w-64 max-w-full rounded"
+          />
+        </div>
+      )}
+      {p.kind === "digital" && toRedeem && (
+        <p className="mt-3 text-sm">Use este código na loja do patrocinador.</p>
+      )}
       {standby ? (
-        <p className="mt-3 text-[13px] leading-snug text-[var(--buky-muted)]">{S.suplenteAguarde}</p>
+        <p className="mt-3 text-[13px] leading-snug text-[var(--buky-muted)]">
+          {S.suplenteAguarde}
+        </p>
       ) : status === "expired" ? (
         <p className="mt-3 text-[13px] text-[var(--buky-faint)]">{S.vencido}</p>
       ) : p.redeem_code ? (
         <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-[var(--buky-bg)] px-3 py-2.5">
-          <span className="font-mono text-[16px] tracking-wider">{p.redeem_code}</span>
-          <button type="button" onClick={() => void copy()} className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--buky-line)] px-3 text-[13px] font-semibold">
+          <span className="font-mono text-[16px] tracking-wider">
+            {p.redeem_code}
+          </span>
+          <button
+            type="button"
+            onClick={() => void copy()}
+            className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--buky-line)] px-3 text-[13px] font-semibold"
+          >
             <Copy size={14} /> {S.copiar}
           </button>
         </div>
       ) : (
-        <p className="mt-3 text-[13px] text-[var(--buky-muted)]">{S.semCodigo}</p>
+        <p className="mt-3 text-[13px] text-[var(--buky-muted)]">
+          {S.semCodigo}
+        </p>
       )}
-      {p.redeem_instructions && !standby && <p className="mt-2 text-[13px] leading-snug text-[#d9d9d9]">{p.redeem_instructions}</p>}
+      {p.redeem_instructions && !standby && (
+        <p className="mt-2 text-[13px] leading-snug text-[#d9d9d9]">
+          {p.redeem_instructions}
+        </p>
+      )}
       <p className="mt-2 text-[12px] text-[var(--buky-faint)]">
-        {[p.valid_until ? S.validoAte(fmtDay(`${p.valid_until}T12:00:00Z`)) : null, p.ticket ? `Ticket ${p.ticket}` : null].filter(Boolean).join(" · ")}
+        {[
+          p.valid_until
+            ? S.validoAte(fmtDay(`${p.valid_until}T12:00:00Z`))
+            : null,
+          p.ticket ? `Ticket ${p.ticket}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       </p>
     </li>
   );

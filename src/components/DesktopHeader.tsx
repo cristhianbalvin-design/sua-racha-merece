@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
 import { Bell, Images, User as UserIcon } from 'lucide-react';
-import { useSponsors } from '@/pages/Patrocinador';
+import { useSponsors } from '@/lib/sponsorApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGetNotifications } from '@/lib/mockApi';
 import { SHOW_FACE_SEARCH } from '@/config/features';

@@ -520,4 +520,11 @@ export const pt = {
 
 export type Pt = typeof pt;
 
-export const avisos = { titulo: "Avisos", vazios: "Voc? ainda n?o tem avisos.", marcarTodos: "Marcar todos como lidos", email: "Avisos por e-mail", emailNota: "Avisos de pr?mio s?o enviados mesmo com esta op??o desativada.", erro: "N?o foi poss?vel carregar os avisos." };
+export const avisos = {
+  titulo: "Avisos",
+  vazios: "Você ainda não tem avisos.",
+  marcarTodos: "Marcar todos como lidos",
+  email: "Avisos por e-mail",
+  emailNota: "Avisos de prêmio são enviados mesmo com esta opção desativada.",
+  erro: "Não foi possível carregar os avisos.",
+};

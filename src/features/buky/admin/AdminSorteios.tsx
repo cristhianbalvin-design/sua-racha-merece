@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ChevronLeft, Dice5, Download, Gift, KeyRound, Merge, Plus, Repeat, Save, ShieldCheck, Trash2, X, XCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useConfirm } from "@/hooks/useConfirm";
 import { toast } from "sonner";
 import { getCity, type City } from "../lib/api";
 import { useStates } from "../lib/hooks";
@@ -779,8 +780,17 @@ function CodesButton({ coupon, onDone }: { coupon: Coupon; onDone: () => void })
   );
 }
 
-function Results({ period, results, onChange }: { period: Period; results: RaffleResult[]; onChange: () => void }) {
+function Results({
+  period,
+  results,
+  onChange,
+}: {
+  period: Period;
+  results: RaffleResult[];
+  onChange: () => void;
+}) {
   const [audit, setAudit] = useState<RaffleResult | null>(null);
+  const [confirmRedeem, confirmDialog] = useConfirm();
   const qc = useQueryClient();
   const periods = qc.getQueryData<Period[]>(["admin-buky", "periods"]) ?? [];
   const scheduled = periods.filter((p) => p.status === "scheduled");
@@ -788,12 +798,37 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
   const orphan = (r: RaffleResult) =>
     !r.republished_to &&
     (r.delivery_status === "expired" || r.delivery_status === "unclaimed") &&
-    !results.some((o) => o.coupon_id === r.coupon_id && o.rank === r.rank && ["pending", "notified", "delivered", "standby"].includes(o.delivery_status)) &&
-    (r.role === "substitute" || !results.some((o) => o.coupon_id === r.coupon_id && o.rank === r.rank && o.role === "substitute"));
+    !results.some(
+      (o) =>
+        o.coupon_id === r.coupon_id &&
+        o.rank === r.rank &&
+        ["pending", "notified", "delivered", "standby"].includes(
+          o.delivery_status,
+        ),
+    ) &&
+    (r.role === "substitute" ||
+      !results.some(
+        (o) =>
+          o.coupon_id === r.coupon_id &&
+          o.rank === r.rank &&
+          o.role === "substitute",
+      ));
   const republish = async (r: RaffleResult) => {
-    if (!scheduled.length) return toast.error("Crie antes um sorteio programado para receber o prêmio.");
-    const names = scheduled.map((p, i) => `${i + 1}. ${p.name} (${p.city_names.join(", ") || "Brasil"})`).join("\n");
-    const n = Number(prompt(`Levar "${r.coupon_title}" para qual sorteio programado?\n${names}`));
+    if (!scheduled.length)
+      return toast.error(
+        "Crie antes um sorteio programado para receber o prêmio.",
+      );
+    const names = scheduled
+      .map(
+        (p, i) =>
+          `${i + 1}. ${p.name} (${p.city_names.join(", ") || "Brasil"})`,
+      )
+      .join("\n");
+    const n = Number(
+      prompt(
+        `Levar "${r.coupon_title}" para qual sorteio programado?\n${names}`,
+      ),
+    );
     const target = scheduled[n - 1];
     if (!target) return;
     try {
@@ -806,14 +841,51 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
   };
   const exportCsv = () =>
     downloadCsv(`sorteio-${period.name.replace(/\W+/g, "-")}.csv`, [
-      ["Cupom", "Patrocinador", "Posição", "Papel", "Atleta", "E-mail", "Instagram", "Telefone", "Ticket", "Código", "Prazo", "Número sorteado", "Total de participações", "Candidatos", "SHA-256", "Entrega"],
-      ...results.map((r) => [r.coupon_title, r.sponsor_name, r.rank, r.role === "winner" ? "ganhador" : "suplente", r.user_name, r.user_email, r.user_instagram, r.user_phone, r.winning_ticket, r.redeem_code, r.redeem_deadline, r.winning_number, r.total_weight, r.candidates.length, r.candidates_sha256, r.delivery_status]),
+      [
+        "Cupom",
+        "Patrocinador",
+        "Posição",
+        "Papel",
+        "Atleta",
+        "E-mail",
+        "Instagram",
+        "Telefone",
+        "Ticket",
+        "Código",
+        "Prazo",
+        "Número sorteado",
+        "Total de participações",
+        "Candidatos",
+        "SHA-256",
+        "Entrega",
+      ],
+      ...results.map((r) => [
+        r.coupon_title,
+        r.sponsor_name,
+        r.rank,
+        r.role === "winner" ? "ganhador" : "suplente",
+        r.user_name,
+        r.user_email,
+        r.user_instagram,
+        r.user_phone,
+        r.winning_ticket,
+        r.redeem_code,
+        r.redeem_deadline,
+        r.winning_number,
+        r.total_weight,
+        r.candidates.length,
+        r.candidates_sha256,
+        r.delivery_status,
+      ]),
     ]);
   return (
     <section>
+      {confirmDialog}
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-bold italic">RESULTADO</h3>
-        <button type="button" className={btnGhost} onClick={exportCsv}><Download size={14} /> CSV</button>
+        <button type="button" className={btnGhost} onClick={exportCsv}>
+          <Download size={14} /> CSV
+        </button>
       </div>
       <div className={`${card} overflow-hidden`}>
         <table className="w-full text-sm">
@@ -830,26 +902,54 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
             {results.map((r) => (
               <tr key={r.id}>
                 <td className="px-4 py-3">
-                  <p className="font-bold">{r.coupon_title}{r.rank > 1 ? ` · ${r.rank}º` : ""}</p>
+                  <p className="font-bold">
+                    {r.coupon_title}
+                    {r.rank > 1 ? ` · ${r.rank}º` : ""}
+                  </p>
                   <p className="text-[11px] text-muted-foreground">
-                    {r.sponsor_name} · <span className={r.role === "winner" ? "font-bold text-primary" : ""}>{r.role === "winner" ? "ganhador" : "suplente"}</span>
+                    {r.sponsor_name} ·{" "}
+                    <span
+                      className={
+                        r.role === "winner" ? "font-bold text-primary" : ""
+                      }
+                    >
+                      {r.role === "winner" ? "ganhador" : "suplente"}
+                    </span>
                   </p>
                 </td>
                 <td className="px-4 py-3">
                   {r.user_id ? (
                     <>
                       <p className="font-bold">{r.user_name ?? "—"}</p>
-                      <p className="text-[11px] text-muted-foreground">{[r.user_instagram && `@${r.user_instagram}`, r.user_email, r.user_phone].filter(Boolean).join(" · ")}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {[
+                          r.user_instagram && `@${r.user_instagram}`,
+                          r.user_email,
+                          r.user_phone,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
                     </>
                   ) : (
-                    <span className="text-muted-foreground">sem participantes elegíveis</span>
+                    <span className="text-muted-foreground">
+                      sem participantes elegíveis
+                    </span>
                   )}
                 </td>
                 <td className="px-4 py-3 font-mono text-xs">
                   {r.winning_ticket ?? "—"}
                   {r.redeem_code ? ` · ${r.redeem_code}` : ""}
-                  {r.redeem_deadline && <span className="block font-sans text-[11px] text-muted-foreground">até {dt(r.redeem_deadline)}</span>}
-                  {r.republished_to && <span className="block font-sans text-[11px] text-muted-foreground">levado a outro sorteio</span>}
+                  {r.redeem_deadline && (
+                    <span className="block font-sans text-[11px] text-muted-foreground">
+                      até {dt(r.redeem_deadline)}
+                    </span>
+                  )}
+                  {r.republished_to && (
+                    <span className="block font-sans text-[11px] text-muted-foreground">
+                      levado a outro sorteio
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   {r.user_id && (
@@ -858,13 +958,19 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
                       value={r.delivery_status}
                       disabled={r.delivery_status === "delivered"}
                       onChange={async (e) => {
-                        await setDelivery(r.id, e.target.value as RaffleResult["delivery_status"], r.delivery_note).catch((err) => toast.error(String(err.message)));
+                        await setDelivery(
+                          r.id,
+                          e.target.value as RaffleResult["delivery_status"],
+                          r.delivery_note,
+                        ).catch((err) => toast.error(String(err.message)));
                         onChange();
                       }}
                     >
                       <option value="pending">pendente</option>
                       <option value="notified">avisado · prazo correndo</option>
-                      {r.delivery_status === "delivered" && <option value="delivered">entregue (resgatado)</option>}
+                      {r.delivery_status === "delivered" && (
+                        <option value="delivered">entregue (resgatado)</option>
+                      )}
                       <option value="standby">suplente · aguardando</option>
                       <option value="expired">prazo vencido</option>
                       <option value="unclaimed">não resgatado</option>
@@ -872,14 +978,64 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  {r.delivery_status === "delivered" && <p className="text-xs">Usado em {r.redeemed_at ? dt(r.redeemed_at) : "?"} ? {r.redeemed_channel ?? "?"}</p>}
-                  {r.user_id && ["pending", "notified"].includes(r.delivery_status) && <button className={btnGhost} onClick={async () => { if (!confirm("Confirmar o uso manual deste pr?mio?")) return; const note = prompt("Observa??o (opcional):"); if (note === null) return; const { error } = await supabase.rpc("admin_buky_redeem", { p_result_id: r.id, p_note: note }); if (error) toast.error(error.message); else { toast.success("Uso confirmado."); onChange(); } }}>Marcar como usado</button>}
+                  {r.delivery_status === "delivered" && (
+                    <p className="text-xs">
+                      Usado em {r.redeemed_at ? dt(r.redeemed_at) : "—"} ·{" "}
+                      {(
+                        { qr: "QR", code: "Código", admin: "Admin" } as Record<
+                          string,
+                          string
+                        >
+                      )[r.redeemed_channel ?? ""] ?? "—"}
+                    </p>
+                  )}
+                  {r.user_id &&
+                    ["pending", "notified"].includes(r.delivery_status) && (
+                      <button
+                        className={btnGhost}
+                        onClick={async () => {
+                          if (
+                            !(await confirmRedeem({
+                              description:
+                                "Confirmar o uso manual deste prêmio?",
+                              confirmLabel: "Confirmar uso",
+                            }))
+                          )
+                            return;
+                          const note = prompt("Observação (opcional):");
+                          if (note === null) return;
+                          const { error } = await supabase.rpc(
+                            "admin_buky_redeem",
+                            { p_result_id: r.id, p_note: note },
+                          );
+                          if (error) toast.error(error.message);
+                          else {
+                            toast.success("Uso confirmado.");
+                            onChange();
+                          }
+                        }}
+                      >
+                        Marcar como usado
+                      </button>
+                    )}
                   {orphan(r) && (
-                    <button type="button" className={btnGhost} onClick={() => void republish(r)} title="Levar para outro sorteio">
+                    <button
+                      type="button"
+                      className={btnGhost}
+                      onClick={() => void republish(r)}
+                      title="Levar para outro sorteio"
+                    >
                       <Repeat size={14} />
                     </button>
                   )}
-                  <button type="button" className={btnGhost} onClick={() => setAudit(r)} title="Auditoria"><ShieldCheck size={14} /></button>
+                  <button
+                    type="button"
+                    className={btnGhost}
+                    onClick={() => setAudit(r)}
+                    title="Auditoria"
+                  >
+                    <ShieldCheck size={14} />
+                  </button>
                 </td>
               </tr>
             ))}
@@ -887,22 +1043,61 @@ function Results({ period, results, onChange }: { period: Period; results: Raffl
         </table>
       </div>
       {audit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setAudit(null)}>
-          <div className={`${card} max-h-[80vh] w-full max-w-lg overflow-auto p-4 text-sm`} onClick={(e) => e.stopPropagation()}>
-            <h4 className="font-bold italic">AUDITORIA · {audit.coupon_title}</h4>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setAudit(null)}
+        >
+          <div
+            className={`${card} max-h-[80vh] w-full max-w-lg overflow-auto p-4 text-sm`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="font-bold italic">
+              AUDITORIA · {audit.coupon_title}
+            </h4>
             <dl className="mt-3 space-y-1 text-xs">
-              <div><dt className="inline text-muted-foreground">Sorteado em: </dt><dd className="inline">{dt(audit.drawn_at)}</dd></div>
-              <div><dt className="inline text-muted-foreground">Participações elegíveis: </dt><dd className="inline">{audit.total_weight} ({audit.candidates.length} atletas)</dd></div>
-              <div><dt className="inline text-muted-foreground">Número sorteado: </dt><dd className="inline">{audit.winning_number ?? "—"} (entre 0 e {Math.max(0, audit.total_weight - 1)})</dd></div>
-              <div><dt className="inline text-muted-foreground">SHA-256 da lista: </dt><dd className="inline break-all font-mono">{audit.candidates_sha256}</dd></div>
+              <div>
+                <dt className="inline text-muted-foreground">Sorteado em: </dt>
+                <dd className="inline">{dt(audit.drawn_at)}</dd>
+              </div>
+              <div>
+                <dt className="inline text-muted-foreground">
+                  Participações elegíveis:{" "}
+                </dt>
+                <dd className="inline">
+                  {audit.total_weight} ({audit.candidates.length} atletas)
+                </dd>
+              </div>
+              <div>
+                <dt className="inline text-muted-foreground">
+                  Número sorteado:{" "}
+                </dt>
+                <dd className="inline">
+                  {audit.winning_number ?? "—"} (entre 0 e{" "}
+                  {Math.max(0, audit.total_weight - 1)})
+                </dd>
+              </div>
+              <div>
+                <dt className="inline text-muted-foreground">
+                  SHA-256 da lista:{" "}
+                </dt>
+                <dd className="inline break-all font-mono">
+                  {audit.candidates_sha256}
+                </dd>
+              </div>
             </dl>
             <p className="mt-3 text-xs text-muted-foreground">
-              Método: número aleatório criptográfico; a lista é percorrida na ordem abaixo somando as participações, e ganha quem fizer a soma passar do número sorteado.
-              Quem já ganhou ou é suplente em outro cupom do sorteio fica fora da lista; o suplente é sorteado depois do ganhador, sem ele.
+              Método: número aleatório criptográfico; a lista é percorrida na
+              ordem abaixo somando as participações, e ganha quem fizer a soma
+              passar do número sorteado. Quem já ganhou ou é suplente em outro
+              cupom do sorteio fica fora da lista; o suplente é sorteado depois
+              do ganhador, sem ele.
             </p>
             <ol className="mt-3 space-y-0.5 font-mono text-[11px]">
               {audit.candidates.map((c) => (
-                <li key={c.user_id} className={c.user_id === audit.user_id ? "text-primary" : ""}>
+                <li
+                  key={c.user_id}
+                  className={c.user_id === audit.user_id ? "text-primary" : ""}
+                >
                   {c.user_id.slice(0, 8)} · {c.weight}
                 </li>
               ))}
