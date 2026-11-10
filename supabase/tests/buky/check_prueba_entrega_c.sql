@@ -14,3 +14,15 @@ DO $$ BEGIN
     RAISE EXCEPTION 'el aviso del premio de prueba debe encolar e-mail y push una sola vez';
   END IF;
 END $$;
+-- Premio de prueba para un atleta por e-mail (dos veces: no duplica)
+INSERT INTO public.users (id, email, name, role) VALUES
+  ('74b18062-cae4-4034-b89e-a442cfa80b8e', 'Atleta-Prueba@buky.test', 'Atleta', 'USUARIO')
+ON CONFLICT (id) DO NOTHING;
+\set email 'atleta-prueba@buky.test'
+\i :sqldir/prueba_premio_atleta.sql
+\i :sqldir/prueba_premio_atleta.sql
+DO $$ BEGIN
+  IF (SELECT count(*) FROM public.buky_raffle_results WHERE user_id = '74b18062-cae4-4034-b89e-a442cfa80b8e' AND redeem_token IS NOT NULL) <> 1 THEN
+    RAISE EXCEPTION 'premio de prueba del atleta';
+  END IF;
+END $$;
