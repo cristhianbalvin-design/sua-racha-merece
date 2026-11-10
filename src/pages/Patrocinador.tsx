@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import jsQR from "jsqr";
 import { useSponsors } from "@/lib/sponsorApi";
@@ -88,6 +89,8 @@ const rpcError = (error: unknown) => {
   );
 };
 export default function Patrocinador() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const { token } = useParams();
   const [confirmRedeem, confirmDialog] = useConfirm();
   const { data: sponsors = [], isLoading, error } = useSponsors();
@@ -256,9 +259,15 @@ export default function Patrocinador() {
       ) : error ? (
         <p>{texto.erroPatrocinadores}</p>
       ) : !sponsors.length ? (
-        <p className="mt-6">
-          {texto.semPatrocinador}
-        </p>
+        <div className="mt-6 space-y-4">
+          <p>Você entrou como <strong>{user?.email}</strong>.</p>
+          <p>Esta conta não pertence a uma equipe de patrocinador.</p>
+          <button className="w-full rounded-xl bg-primary p-3 font-bold text-primary-foreground" onClick={async () => {
+            await supabase.auth.signOut();
+            navigate('/login?redirectTo=%2Fpatrocinador', { replace: true });
+          }}>Sair e entrar com outra conta</button>
+          <Link className="block rounded-xl border p-3 text-center font-bold" to="/patrocinador/acesso">Recebi um convite</Link>
+        </div>
       ) : (
         <>
           {sponsors.length > 1 ? (

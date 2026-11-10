@@ -29,7 +29,9 @@ const Login = () => {
       await login(email, password);
       toast.success('Login bem-sucedido!');
       clearAuthRedirect();
-      if (email.toLowerCase() === 'admin@3buk.com' || email.toLowerCase() === 'cristhianbalvin@gmail.com') {
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+      } else if (email.toLowerCase() === 'admin@3buk.com' || email.toLowerCase() === 'cristhianbalvin@gmail.com') {
         navigate('/admin/usuarios');
       } else {
         navigate(redirectTo || '/dashboard', { replace: Boolean(redirectTo) });

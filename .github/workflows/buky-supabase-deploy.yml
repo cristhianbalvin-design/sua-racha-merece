@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       sql:
-        description: "Aplicar los pasos SQL 15–17 y 19–27"
+        description: "Aplicar los pasos SQL 15–17 y 19–29"
         type: boolean
         default: true
       datos_prueba:
@@ -73,13 +73,13 @@ jobs:
       - name: Instalar psql
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null && psql --version
 
-      - name: Aplicar pasos SQL 15–17 y 19–27
+      - name: Aplicar pasos SQL 15–17 y 19–29
         if: inputs.sql
         env:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -e
-          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql supabase/manual-sql/buky/23_*.sql supabase/manual-sql/buky/24_*.sql supabase/manual-sql/buky/25_*.sql supabase/manual-sql/buky/26_*.sql supabase/manual-sql/buky/27_*.sql supabase/manual-sql/buky/28_*.sql; do
+          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql supabase/manual-sql/buky/23_*.sql supabase/manual-sql/buky/24_*.sql supabase/manual-sql/buky/25_*.sql supabase/manual-sql/buky/26_*.sql supabase/manual-sql/buky/27_*.sql supabase/manual-sql/buky/28_*.sql supabase/manual-sql/buky/29_*.sql; do
             psql "$DB" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
             echo "::notice title=SQL aplicado::$(basename "$f") · sha256 $(sha256sum "$f" | cut -c1-12)"
           done
@@ -158,4 +158,4 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           npx --yes supabase@2 functions deploy send-notifications --project-ref "$PROJECT_REF" --use-api --no-verify-jwt
-          npx --yes supabase@2 functions deploy invite-sponsor --project-ref "$PROJECT_REF" --use-api
+          npx --yes supabase@2 functions deploy invite-sponsor --project-ref "$PROJECT_REF" --use-api --no-verify-jwt
