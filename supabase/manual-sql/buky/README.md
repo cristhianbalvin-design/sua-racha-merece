@@ -18,6 +18,7 @@ Scripts para correr **a mano en el SQL Editor de Supabase**, en orden y uno por 
 | 26 | `26_ronda3_inicio.sql` | Ronda 3: tope de 12 Bukys por día (todas las rutas), bloqueo por bicicleta desde el 1.er corte (una sola vez), solo la app instalada inicia entrenamientos; ranking de la ciudad y ganadores de patrocinio para Início |
 | 27 | `27_saldo_fotos_premium.sql` | Saldo en R$ (sin créditos): Premium acredita R$50, recargas de R$20/30/50, foto a R$10 del saldo con confirmación, fotos gratis por año (Premium 3, Freemium 1 con 300 Bukys), devoluciones (webhook y admin), aviso de vencimiento del Premium |
 | 28 | `28_patrocinadores_avisos.sql` | Equipo de patrocinadores, canje y cola de avisos. Los premios son transaccionales y se envían aunque se desactiven los avisos por e-mail; los demás respetan la preferencia. |
+| 29 | `29_reenvio_acceso.sql` | Límite atómico de tres reenvíos de acceso por correo y hora. |
 
 Después de los SQL se despliega la Edge Function (verify_jwt activado; no necesita secrets nuevos):
 
@@ -88,4 +89,3 @@ Cambiar 1–3 solo toca `buky_draw_period_internal` / `buky_send_to_raffle`; 4 e
 Los pasos 16 y 17 solo agregan objetos nuevos (`buky_*`). Antes del lanzamiento se revierten con
 `DROP TABLE … CASCADE` de las tablas `buky_*`, `DROP FUNCTION` de las funciones `buky_*`/`admin_buky_*` y
 `SELECT cron.unschedule('buky-raffle-tick')`. El paso 15 agrega columnas nuevas a `users` sin tocar las existentes.
-

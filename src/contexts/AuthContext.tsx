@@ -108,7 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === 'PASSWORD_RECOVERY') {
         isRecoveryRef.current = true;
         setIsRecovery(true);
-        setLoading(false);
+        if (session?.user && window.location.pathname === '/patrocinador/acesso') {
+          fetchUserProfile(session.user.id, session.user);
+        } else {
+          setLoading(false);
+        }
         return;
       }
       if (session?.user) {
@@ -194,7 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginWithGoogle = async (redirectTo?: string) => {
-    if (redirectTo) {
+    if (redirectTo && !redirectTo.startsWith('/patrocinador')) {
       persistAuthRedirect(redirectTo);
     } else {
       clearAuthRedirect();
@@ -203,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}${redirectTo?.startsWith('/patrocinador') ? redirectTo : '/dashboard'}`,
         queryParams: {
           prompt: 'select_account',
         },

@@ -7,6 +7,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Patrocinador from "./pages/Patrocinador";
+import PatrocinadorAcesso from "./pages/PatrocinadorAcesso";
+import { parseLinkError } from "./lib/sponsorAccess";
 import { initializeMockData } from "./lib/mockApi";
 
 import Landing from "./pages/Landing";
@@ -87,7 +89,8 @@ const AnimatedRoutes = () => {
       <Route path="/plano" element={<Navigate to="/completar-perfil" replace />} />
       <Route path="/completar-perfil" element={<PageTransition><CompleteProfile /></PageTransition>} />
 
-      <Route path="/patrocinador" element={<ProtectedRoute><Patrocinador /></ProtectedRoute>} />
+      <Route path="/patrocinador/acesso" element={<PatrocinadorAcesso />} />
+      <Route path="/patrocinador" element={parseLinkError(location.search, location.hash) ? <Navigate to={`/patrocinador/acesso${location.search}${location.hash}`} replace /> : <ProtectedRoute><Patrocinador /></ProtectedRoute>} />
       <Route path="/patrocinador/validar/:token" element={<ProtectedRoute><Patrocinador /></ProtectedRoute>} />
 
       {/* User (with layout) */}
