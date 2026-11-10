@@ -37,6 +37,10 @@ on:
         description: "Cargar los datos de prueba de sorteos (premios con imágenes, próximo y pasado)"
         type: boolean
         default: false
+      premio_teste_email:
+        description: "E-mail de un atleta para darle un premio [TESTE] con QR (prueba del canje)"
+        type: string
+        default: ""
       prueba_entrega_c:
         description: "Prueba de la Entrega C: canje (se deshace) y premio [TESTE] real con aviso por e-mail"
         type: boolean
@@ -105,6 +109,13 @@ jobs:
         env:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: psql "$DB" -q -v ON_ERROR_STOP=1 -At -f supabase/manual-sql/buky/prueba_entrega_c.sql 2>&1 | grep -E "OK|premio=|ERROR" | sed 's/^/::notice title=Prueba Entrega C::/'
+
+      - name: Premio de prueba para un atleta
+        if: inputs.premio_teste_email != ''
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+          EMAIL: ${{ inputs.premio_teste_email }}
+        run: psql "$DB" -q -v ON_ERROR_STOP=1 -v email="$EMAIL" -f supabase/manual-sql/buky/prueba_premio_atleta.sql 2>&1 | grep -E "OK|ya existía|ERROR" | sed 's/^/::notice title=Premio de prueba::/'
 
       - name: Verificar en la base
         env:
