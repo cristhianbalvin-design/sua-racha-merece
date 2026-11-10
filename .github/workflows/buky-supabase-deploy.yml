@@ -37,6 +37,10 @@ on:
         description: "Cargar los datos de prueba de sorteos (premios con imágenes, próximo y pasado)"
         type: boolean
         default: false
+      prueba_entrega_c:
+        description: "Prueba de la Entrega C: canje (se deshace) y premio [TESTE] real con aviso por e-mail"
+        type: boolean
+        default: false
 
 concurrency:
   group: buky-supabase-deploy
@@ -95,6 +99,12 @@ jobs:
         env:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: psql "$DB" -q -v ON_ERROR_STOP=1 -At -F ' · ' -f supabase/manual-sql/buky/datos_prueba_sorteios.sql | tail -3 | sed 's/^/::notice title=Datos de sorteos::/'
+
+      - name: Prueba de la Entrega C
+        if: inputs.prueba_entrega_c
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: psql "$DB" -q -v ON_ERROR_STOP=1 -At -f supabase/manual-sql/buky/prueba_entrega_c.sql 2>&1 | grep -E "OK|premio=|ERROR" | sed 's/^/::notice title=Prueba Entrega C::/'
 
       - name: Verificar en la base
         env:

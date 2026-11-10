@@ -22,6 +22,7 @@ for f in "$HERE"/test_*.sql; do run "$f"; done
 run "$SQL/datos_prueba_niteroi.sql"
 # Pantalla Sorteios (paso 20) con los datos de prueba de sorteos
 run "$HERE/check_sorteios.sql"
+run "$HERE/check_prueba_entrega_c.sql"
 # Contrato Edge Function → SQL (si Deno está instalado)
 if command -v deno >/dev/null 2>&1; then
   deno run --quiet "$HERE/contract_close_session.ts" > "$DATA/contract.sql" && run "$DATA/contract.sql" && echo "ok  contrato buky-close-session"
