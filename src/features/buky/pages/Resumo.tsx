@@ -5,6 +5,7 @@ import { CircleAlert } from "lucide-react";
 import mascote from "../assets/buky-mascote.webp";
 import { pt } from "../i18n";
 import { fmtDuration, fmtKm } from "../components/ui";
+import ShareButton from "../share/ShareButton";
 import { training, useTraining } from "../training/useTraining";
 
 /** Resumen al terminar: lo que el servidor confirmó (o por qué no validó). */
@@ -87,6 +88,8 @@ export default function Resumo() {
           </ul>
         </section>
       )}
+
+      <ShareButton data={{ date: t.startedAt ?? Date.now(), city: t.cityName, bukys: r.bukys, shape: t.path ?? t.points, distance: r.stats?.distanceM ?? null, duration: r.stats?.durationS ?? null, speed: r.stats?.avgSpeedKmh ?? null }} />
 
       <div className="mt-8 space-y-3">
         <Link to="/app/bolsa" className="buky-btn">

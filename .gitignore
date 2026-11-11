@@ -44,3 +44,5 @@ test_insert.js
 dev-dist/
 .vercel
 .npm-cache/
+
+.pg-entrega-e/

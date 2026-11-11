@@ -10,6 +10,7 @@ import { useSponsors } from "@/lib/sponsorApi";
 import { avisos, pt } from "../i18n";
 import { fmtDate, fmtDuration, isToday, ProfileAvatar, Sheet, Spinner } from "../components/ui";
 import RouteSketch from "../components/RouteSketch";
+import ShareButton from "../share/ShareButton";
 import type { SessionHistoryItem } from "../lib/api";
 import { useBukyProfile, useCity, useMySessions, useSummary } from "../lib/hooks";
 
@@ -46,6 +47,15 @@ export default function Perfil() {
   const { data: p } = useBukyProfile();
   const { data: city } = useCity(p?.city_code);
   const { data: s } = useSummary();
+  const { data: counters } = useQuery({
+    queryKey: ["buky", "counters", user?.id],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("buky_my_counters");
+      if (error) throw error;
+      return data as { sorteios: number };
+    },
+  });
   const { data: sessions = [], isLoading } = useMySessions();
   const [menu, setMenu] = useState(false);
   const { data: wallet } = useQuery({
@@ -56,10 +66,12 @@ export default function Perfil() {
 
   const nameParts = (p?.name ?? "").trim().split(/\s+/);
   const stats = [
-    { label: pt.perfil.saldo, value: s?.balance ?? 0, neon: true },
-    { label: pt.perfil.passagens, value: s?.passes_valid_total ?? 0 },
+    { label: pt.perfil.bukysNaBolsa, value: s?.balance ?? 0, neon: true },
+    { label: pt.perfil.totalBukys, value: s?.found_total ?? 0 },
     { label: pt.perfil.enviados, value: s?.sent_total ?? 0 },
-    { label: pt.perfil.participacoes, value: p?.campaigns_participated ?? 0 },
+    { label: pt.perfil.sorteios, value: counters?.sorteios ?? 0 },
+    { label: pt.perfil.patrocinios, value: p?.campaigns_participated ?? 0 },
+    { label: pt.perfil.passagens, value: s?.passes_valid_total ?? 0 },
   ];
 
   return (
@@ -100,15 +112,15 @@ export default function Perfil() {
         </div>
       </div>
 
-      <dl className="mt-6 grid grid-cols-2 border-y border-[var(--buky-line)]">
+      <dl className="mt-6 grid grid-cols-3 border-y border-[var(--buky-line)]">
         {stats.map((st, i) => (
           <div
             key={st.label}
-            className={`py-3 ${i % 2 === 0 ? "border-r border-[var(--buky-line)] pr-4" : "pl-5"} ${i < 2 ? "border-b border-[var(--buky-line)]" : ""}`}
+            className={`py-3 ${i % 3 !== 2 ? "border-r border-[var(--buky-line)]" : ""} ${i % 3 ? "pl-3" : ""} ${i < 3 ? "border-b border-[var(--buky-line)]" : ""}`}
           >
             <dt className="text-[13px] text-[var(--buky-muted)]">{st.label}</dt>
             <dd
-              className={`font-buky-xcond mt-1 text-[clamp(36px,11vw,44px)] leading-none ${st.neon ? "text-[var(--buky-neon)]" : ""}`}
+              className={`font-buky-xcond mt-1 text-[clamp(28px,8vw,36px)] leading-none ${st.neon ? "text-[var(--buky-neon)]" : ""}`}
             >
               {st.value}
             </dd>
@@ -267,6 +279,7 @@ function HistoryCard({ x, name }: { x: SessionHistoryItem; name: string }) {
         </dl>
         <RouteSketch shape={x.shape} className="mt-3" />
       </Link>
+      <ShareButton data={{ date: x.started_at, city: place ?? "", bukys: x.bukys_awarded, shape: x.shape, distance: x.distance_m, duration: x.duration_s, speed: x.avg_speed_kmh }} />
     </li>
   );
 }
