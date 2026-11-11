@@ -19,6 +19,7 @@ Scripts para correr **a mano en el SQL Editor de Supabase**, en orden y uno por 
 | 27 | `27_saldo_fotos_premium.sql` | Saldo en R$ (sin créditos): Premium acredita R$50, recargas de R$20/30/50, foto a R$10 del saldo con confirmación, fotos gratis por año (Premium 3, Freemium 1 con 300 Bukys), devoluciones (webhook y admin), aviso de vencimiento del Premium |
 | 28 | `28_patrocinadores_avisos.sql` | Equipo de patrocinadores, canje y cola de avisos. Los premios son transaccionales y se envían aunque se desactiven los avisos por e-mail; los demás respetan la preferencia. |
 | 29 | `29_reenvio_acceso.sql` | Límite atómico de tres reenvíos de acceso por correo y hora. |
+| 32 | `32_marketplace.sql` | Tienda, reservas, pagos y descuentos |
 | 30 | `30_entrega_e.sql` | Privacidad del ranking, contacto y contador de sorteos |
 | 31 | `31_limites_ranking_fotos.sql` | Límites por plan, ranking mensual y CPF privado para descargas reconocidas |
 
@@ -48,7 +49,8 @@ Quien quede sin ciudad la elige en la app (es obligatoria para enviar Bukys al s
 | `buky_bike_warnings_to_stop` / `buky_bike_stops_to_block` | 3 / 2 | Avisos que cortan el entrenamiento; cortes en el día que bloquean hasta mañana |
 | `buky_sponsorship_min_found` / `buky_free_photo_min_found` | 200 / 300 | Bukys recogidos corriendo para patrocinio y foto gratis (Fase 1) |
 | `buky_raffle_min_participants` / `buky_redeem_days` | 30 / 15 | Valores iniciales de cada sorteo nuevo (paso 25) |
-| `buky_speed_window_s` | 30 | Ventana para medir la velocidad al cruzar un punto |
+| `buky_speed_window_s` | 32 | `32_marketplace.sql` | Tienda, reservas, pagos y descuentos |
+| 30 | Ventana para medir la velocidad al cruzar un punto |
 | `buky_max_accuracy_m` | 25 | Precisión GPS mínima aceptada |
 | `buky_mock_max_ratio` | 0.05 | Proporción de lecturas con ubicación falsa que anula el entrenamiento |
 | `buky_point_radius_default_m` | 50 | Radio de los puntos de las rutas del atleta |

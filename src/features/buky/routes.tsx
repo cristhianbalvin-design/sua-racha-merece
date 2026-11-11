@@ -20,6 +20,11 @@ const CompletarPerfil = lazy(() => import("./pages/CompletarPerfil"));
 const CriarRota = lazy(() => import("./pages/CriarRota"));
 const Entrar = lazy(() => import("./pages/Entrar"));
 const Cadastro = lazy(() => import("./pages/Cadastro"));
+const Loja = lazy(() => import("./pages/Loja").then(m => ({ default: m.Loja })));
+const Produto = lazy(() => import("./pages/Loja").then(m => ({ default: m.Produto })));
+const Carrinho = lazy(() => import("./pages/Loja").then(m => ({ default: m.Carrinho })));
+const Pedidos = lazy(() => import("./pages/Loja").then(m => ({ default: m.Pedidos })));
+const Pedido = lazy(() => import("./pages/Loja").then(m => ({ default: m.Pedido })));
 const AdminBuky = lazy(() => import("./admin/AdminBuky"));
 
 const Loading = () => (
@@ -33,6 +38,7 @@ const S = ({ children }: { children: ReactNode }) => <Suspense fallback={<Loadin
 /** Rutas de la app del atleta. Se insertan dentro de <Routes> en App.tsx. */
 export const bukyRoutes = (
   <>
+    <Route path="/app/loja" element={<div className="buky"><S><Loja /></S></div>} />
     <Route path="/entrar" element={<S><Entrar /></S>} />
     <Route path="/cadastro" element={<S><Cadastro /></S>} />
     <Route
@@ -55,6 +61,10 @@ export const bukyRoutes = (
       <Route path="patrocinio/:id" element={<S><Campanha /></S>} />
       <Route path="avisos" element={<S><Avisos /></S>} />
       <Route path="sorteios" element={<S><Sorteios /></S>} />
+      <Route path="loja/produto/:slug" element={<S><Produto /></S>} />
+      <Route path="loja/carrinho" element={<S><Carrinho /></S>} />
+      <Route path="loja/pedidos" element={<S><Pedidos /></S>} />
+      <Route path="loja/pedido/:id" element={<S><Pedido /></S>} />
       <Route path="perfil" element={<S><Perfil /></S>} />
       <Route path="perfil/treino/:id" element={<S><TreinoDetalhe /></S>} />
       <Route path="perfil/saldo" element={<S><Saldo /></S>} />
