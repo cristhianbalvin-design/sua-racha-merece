@@ -39,6 +39,19 @@ DO $$ DECLARE r jsonb; i integer; BEGIN
 END $$;
 COMMIT;
 \c - postgres
+-- Transición (photo_require_face_match = 0): sin coincidencia guardada, la inscripción sigue sirviendo.
+INSERT INTO public.participations(id, user_id, status) VALUES
+ ('31000000-0000-0000-0000-0000000000a1', '31000000-0000-0000-0000-000000000001', 'Ganhador');
+DO $$ DECLARE r jsonb; BEGIN
+  PERFORM set_config('request.jwt.claim.sub', '31000000-0000-0000-0000-000000000001', true);
+  r := public.check_and_register_download('31000000-0000-0000-0000-000000000002');
+  IF r->>'reason' <> 'cpf_required' THEN RAISE EXCEPTION 'inscripción debe valer en transición: %', r; END IF;
+  UPDATE public.app_settings SET value = '1' WHERE key = 'photo_require_face_match';
+  r := public.check_and_register_download('31000000-0000-0000-0000-000000000002');
+  IF r->>'reason' <> 'not_recognized' THEN RAISE EXCEPTION 'con 1 se exige coincidencia: %', r; END IF;
+  UPDATE public.app_settings SET value = '0' WHERE key = 'photo_require_face_match';
+END $$;
+DELETE FROM public.participations WHERE id = '31000000-0000-0000-0000-0000000000a1';
 INSERT INTO public.photo_face_matches(user_id, photo_id, similarity) VALUES
  ('31000000-0000-0000-0000-000000000001', '31000000-0000-0000-0000-000000000002', 0.9);
 SELECT public.apply_buky_movement('31000000-0000-0000-0000-000000000001', 'found', 300);

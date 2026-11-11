@@ -5,7 +5,10 @@ INSERT INTO public.app_settings (key, value, description) VALUES
  ('buky_daily_sessions_freemium', '3', 'Entrenamientos diarios Freemium'),
  ('buky_daily_sessions_premium', '2', 'Entrenamientos diarios Premium'),
  ('wallet_topup_min_cents', '1000', 'Recarga mínima en centavos'),
- ('wallet_topup_max_cents', '20000', 'Recarga máxima en centavos')
+ ('wallet_topup_max_cents', '20000', 'Recarga máxima en centavos'),
+ -- 0 mientras match-face no guarde coincidencias en producción: se acepta la coincidencia guardada O la
+ -- inscripción (regla anterior). Poner en 1 cuando match-face esté publicado y los usuarios hayan buscado de nuevo.
+ ('photo_require_face_match', '0', 'Exigir coincidencia facial guardada para descargar (1) o aceptar también la inscripción (0)')
 ON CONFLICT (key) DO NOTHING;
 
 CREATE OR REPLACE FUNCTION public.buky_start_session(p_session_id uuid, p_route_id uuid, p_client jsonb DEFAULT NULL)
@@ -316,7 +319,10 @@ BEGIN
     RETURN jsonb_build_object('allowed', false, 'reason', 'photo_not_available');
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM public.photo_face_matches WHERE user_id = v_user_id AND photo_id = p_event_photo_id) THEN
+  IF NOT EXISTS (SELECT 1 FROM public.photo_face_matches WHERE user_id = v_user_id AND photo_id = p_event_photo_id)
+     AND (public.setting_int('photo_require_face_match', 1) = 1
+          OR NOT EXISTS (SELECT 1 FROM public.participations
+                         WHERE user_id = v_user_id AND status <> 'Não concluído')) THEN
     RETURN jsonb_build_object('allowed', false, 'reason', 'not_recognized');
   END IF;
   SELECT cpf INTO v_cpf FROM public.user_private WHERE user_id = v_user_id;
