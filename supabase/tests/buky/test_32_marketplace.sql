@@ -61,6 +61,46 @@ DO $$ DECLARE oid uuid; pid uuid; BEGIN
  PERFORM public.revoke_premium_payment(pid); PERFORM public.revoke_premium_payment(pid);
  IF (SELECT stock FROM public.shop_variants WHERE sku='T32')<>1 THEN RAISE EXCEPTION 'reembolso MP'; END IF;
 END $$;
+-- Pago tardío (después de liberada la reserva): si hay stock se vuelve a reservar; si no, se devuelve al saldo.
+DO $$ DECLARE oid uuid; pid uuid; r jsonb;
+  items jsonb := '[{"variant_id":"32000000-0000-0000-0000-000000000011","qty":1}]';
+  addr jsonb := '{"recipient":"A","phone":"123","cep":"24210470","street":"Rua","number":"1","district":"Centro","city":"Niterói","uf":"RJ"}';
+  bal_before bigint;
+BEGIN
+  UPDATE public.shop_variants SET stock = 1 WHERE sku = 'T32';
+  INSERT INTO public.shop_shipping_quotes(id,user_id,cep,items_hash,options,expires_at) VALUES
+    ('32000000-0000-0000-0000-000000000024', auth.uid(), '24210470', public.shop_items_hash(items),
+     '[{"id":"1","company":"Teste","service":"PAC","price_cents":200}]', now() + interval '1 hour');
+  oid := public.shop_create_order(items, addr, '{"quote_id":"32000000-0000-0000-0000-000000000024","option_id":"1"}');
+  pid := public.shop_begin_checkout(oid, auth.uid());
+  UPDATE public.shop_orders SET reserved_until = now() - interval '1 minute' WHERE id = oid;
+  PERFORM public.shop_release_expired();
+  UPDATE public.payments SET status = 'approved' WHERE id = pid;
+  r := public.apply_premium_payment(pid);
+  IF (SELECT status FROM public.shop_orders WHERE id = oid) <> 'paid'
+     OR (SELECT stock FROM public.shop_variants WHERE sku = 'T32') <> 0 THEN
+    RAISE EXCEPTION 'pago tardío con stock debe re-reservar: %', r;
+  END IF;
+
+  UPDATE public.shop_variants SET stock = 1 WHERE sku = 'T32';
+  INSERT INTO public.shop_shipping_quotes(id,user_id,cep,items_hash,options,expires_at) VALUES
+    ('32000000-0000-0000-0000-000000000025', auth.uid(), '24210470', public.shop_items_hash(items),
+     '[{"id":"1","company":"Teste","service":"PAC","price_cents":200}]', now() + interval '1 hour');
+  oid := public.shop_create_order(items, addr, '{"quote_id":"32000000-0000-0000-0000-000000000025","option_id":"1"}');
+  pid := public.shop_begin_checkout(oid, auth.uid());
+  UPDATE public.shop_orders SET reserved_until = now() - interval '1 minute' WHERE id = oid;
+  PERFORM public.shop_release_expired();
+  UPDATE public.shop_variants SET stock = 0 WHERE sku = 'T32';  -- otro comprador se llevó la última
+  SELECT coalesce(balance_cents, 0) INTO bal_before FROM public.wallet_balances WHERE user_id = auth.uid();
+  UPDATE public.payments SET status = 'approved' WHERE id = pid;
+  r := public.apply_premium_payment(pid);
+  PERFORM public.apply_premium_payment(pid);  -- idempotente
+  IF (SELECT status FROM public.shop_orders WHERE id = oid) <> 'cancelled'
+     OR (SELECT balance_cents FROM public.wallet_balances WHERE user_id = auth.uid()) <> coalesce(bal_before, 0) + 1200
+     OR (SELECT stock FROM public.shop_variants WHERE sku = 'T32') <> 0 THEN
+    RAISE EXCEPTION 'pago tardío sin stock debe devolver al saldo: %', r;
+  END IF;
+END $$;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','32000000-0000-0000-0000-000000000002',true);
 DO $$ BEGIN IF EXISTS(SELECT 1 FROM public.shop_orders WHERE user_id='32000000-0000-0000-0000-000000000001') THEN RAISE EXCEPTION 'RLS'; END IF; END $$;

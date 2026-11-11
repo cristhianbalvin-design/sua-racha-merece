@@ -145,7 +145,7 @@ export default function AdminLoja() {
               onClick={() => setSelected(x.id)}
             >
               {new Date(x.created_at).toLocaleDateString("pt-BR")} ·{" "}
-              {labels[x.status]} ? {brl(x.total_cents)} ? {x.id.slice(0, 8)}
+              {labels[x.status]} · {brl(x.total_cents)} · {x.id.slice(0, 8)}
             </button>
           ))}
       </div>
@@ -153,12 +153,12 @@ export default function AdminLoja() {
         <section className={`${card} space-y-3 p-4`}>
           <h3 className="font-bold">Pedido {o.id}</h3>
           <p>
-            {labels[o.status]} ? {brl(o.total_cents)} ? {o.payment_method}
+            {labels[o.status]} · {brl(o.total_cents)} · {o.payment_method}
           </p>
           <p>{Object.values(o.address).filter(Boolean).join(" · ")}</p>
           {o.shop_order_items.map((i, n) => (
             <p key={n}>
-              {i.product_name} ? {i.color} ? {i.size} ? {i.qty} ?{" "}
+              {i.product_name} · {i.color} · {i.size} · {i.qty}× ·{" "}
               {brl(i.unit_cents)}
             </p>
           ))}

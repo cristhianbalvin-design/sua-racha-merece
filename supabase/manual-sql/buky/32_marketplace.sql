@@ -7,7 +7,7 @@ INSERT INTO public.app_settings(key,value,description) VALUES
  ('shop_exchange_days','7','Plazo para solicitar cambio'),
  ('shop_reservation_minutes','30','Duración de la reserva') ON CONFLICT(key) DO NOTHING;
 ALTER TABLE public.wallet_ledger DROP CONSTRAINT IF EXISTS wallet_ledger_reason_check;
-ALTER TABLE public.wallet_ledger ADD CONSTRAINT wallet_ledger_reason_check CHECK (reason IN ('premium_bonus','topup','photo_purchase','payment_reverted','admin_refund','admin_adjustment','shop_purchase'));
+ALTER TABLE public.wallet_ledger ADD CONSTRAINT wallet_ledger_reason_check CHECK (reason IN ('premium_bonus','topup','photo_purchase','payment_reverted','admin_refund','admin_adjustment','shop_purchase','shop_refund'));
 CREATE TABLE IF NOT EXISTS public.shop_products (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), slug text NOT NULL UNIQUE, name text NOT NULL, description text NOT NULL DEFAULT '', images text[] NOT NULL DEFAULT '{}', price_cents integer NOT NULL CHECK(price_cents>0), active boolean NOT NULL DEFAULT false,
  weight_kg numeric NOT NULL DEFAULT 0.5 CHECK(weight_kg>0), width_cm numeric NOT NULL DEFAULT 25 CHECK(width_cm>0), height_cm numeric NOT NULL DEFAULT 5 CHECK(height_cm>0), length_cm numeric NOT NULL DEFAULT 30 CHECK(length_cm>0), created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
@@ -97,7 +97,11 @@ BEGIN
  END LOOP;
  INSERT INTO public.shop_orders(user_id,items_cents,shipping_cents,total_cents,shipping_service,shipping_quote,address,reserved_until)
  VALUES(auth.uid(),subtotal,shipping,subtotal+shipping,concat_ws(' - ',opt->>'company',opt->>'service'),opt,p_address,now()+make_interval(mins=>public.setting_int('shop_reservation_minutes',30))) RETURNING id INTO oid;
- INSERT INTO public.shop_order_items SELECT oid,v.id,p.name,v.color,v.size,p.price_cents,x.qty FROM (SELECT (j->>'variant_id')::uuid id,sum((j->>'qty')::int)::int qty FROM jsonb_array_elements(p_items) j GROUP BY 1) x JOIN public.shop_variants v ON v.id=x.id JOIN public.shop_products p ON p.id=v.product_id;
+ INSERT INTO public.shop_order_items (order_id, variant_id, product_name, color, size, unit_cents, qty)
+ SELECT oid, v.id, p.name, v.color, v.size, p.price_cents, it.qty
+ FROM (SELECT (j->>'variant_id')::uuid AS vid, sum((j->>'qty')::int)::int AS qty FROM jsonb_array_elements(p_items) j GROUP BY 1) it
+ JOIN public.shop_variants v ON v.id = it.vid
+ JOIN public.shop_products p ON p.id = v.product_id;
  DELETE FROM public.shop_shipping_quotes WHERE id=q.id;
  RETURN oid;
 END $$;
@@ -132,7 +136,7 @@ BEGIN
  IF p_status='shipped' AND (coalesce(trim(p_tracking_code),'')='' OR coalesce(trim(p_tracking_url),'')='') THEN RAISE EXCEPTION 'tracking_required'; END IF;
  IF p_status='cancelled' THEN
  PERFORM public.shop_restore_stock(o.id);
- IF o.payment_method='wallet' AND o.paid_at IS NOT NULL THEN PERFORM public.apply_wallet_movement(o.user_id,o.total_cents,'admin_refund','shop_order',o.id::text,'shop_refund:'||o.id::text,p_note,auth.uid()); END IF;
+ IF o.payment_method='wallet' AND o.paid_at IS NOT NULL THEN PERFORM public.apply_wallet_movement(o.user_id,o.total_cents,'shop_refund','shop_order',o.id::text,'shop_refund:'||o.id::text,p_note,auth.uid()); END IF;
  END IF;
  UPDATE public.shop_orders SET status=p_status,tracking_code=coalesce(p_tracking_code,tracking_code),tracking_url=coalesce(p_tracking_url,tracking_url),shipped_at=CASE WHEN p_status='shipped' THEN now() ELSE shipped_at END,delivered_at=CASE WHEN p_status='delivered' THEN now() ELSE delivered_at END WHERE id=o.id;
  IF p_status IN ('shipped','delivered') THEN INSERT INTO public.notifications(user_id,type,title,message) VALUES(o.user_id,'shop_order_'||p_status,CASE WHEN p_status='shipped' THEN 'Pedido enviado' ELSE 'Pedido entregue' END,'Confira os detalhes do seu pedido.'); END IF;
@@ -175,6 +179,9 @@ DECLARE
   v_was_active boolean;
   v_new_until timestamptz;
   v_grant integer;
+  v_order public.shop_orders%ROWTYPE;
+  v_item record;
+  v_shop_ok boolean;
 BEGIN
   SELECT * INTO v_payment FROM public.payments WHERE id = p_payment_id FOR UPDATE;
   IF NOT FOUND THEN
@@ -191,11 +198,47 @@ BEGIN
   END IF;
 
   IF v_payment.product = 'shop_order' THEN
-    UPDATE public.shop_orders SET status='paid',paid_at=now(),payment_method='mercadopago' WHERE payment_id=v_payment.id AND user_id=v_payment.user_id AND total_cents=v_payment.amount_cents AND status='pending_payment' AND reserved_until>now();
-    IF NOT FOUND THEN RAISE EXCEPTION 'shop_order_not_payable'; END IF;
-    UPDATE public.payments SET premium_applied_at=now() WHERE id=v_payment.id;
-    INSERT INTO public.notifications(user_id,type,title,message) VALUES(v_payment.user_id,'shop_order_paid','Pagamento confirmado','Seu pedido foi pago.');
-    RETURN jsonb_build_object('applied',true,'product','shop_order');
+    SELECT * INTO v_order FROM public.shop_orders
+    WHERE payment_id = v_payment.id AND user_id = v_payment.user_id FOR UPDATE;
+
+    IF FOUND AND v_order.total_cents = v_payment.amount_cents AND v_order.status = 'pending_payment' THEN
+      -- Caso normal (aunque la reserva haya vencido hace instantes: el stock sigue descontado).
+      UPDATE public.shop_orders SET status = 'paid', paid_at = now(), payment_method = 'mercadopago' WHERE id = v_order.id;
+      v_shop_ok := true;
+    ELSIF FOUND AND v_order.total_cents = v_payment.amount_cents AND v_order.status = 'cancelled' AND v_order.paid_at IS NULL THEN
+      -- Pago tardío: la reserva venció y el stock se liberó. Se intenta reservar de nuevo todo el pedido;
+      -- si falta alguna unidad, no se vende y el monto pagado vuelve al saldo del atleta.
+      BEGIN
+        FOR v_item IN SELECT variant_id, qty FROM public.shop_order_items WHERE order_id = v_order.id ORDER BY variant_id LOOP
+          UPDATE public.shop_variants SET stock = stock - v_item.qty WHERE id = v_item.variant_id AND stock >= v_item.qty;
+          IF NOT FOUND THEN RAISE EXCEPTION 'late_payment_no_stock'; END IF;
+        END LOOP;
+        UPDATE public.shop_orders SET status = 'paid', paid_at = now(), payment_method = 'mercadopago' WHERE id = v_order.id;
+        v_shop_ok := true;
+      EXCEPTION WHEN raise_exception THEN
+        IF SQLERRM <> 'late_payment_no_stock' THEN RAISE; END IF;
+        v_shop_ok := false;  -- el bloque deshace las reservas parciales
+      END;
+    ELSIF FOUND AND v_order.paid_at IS NOT NULL THEN
+      UPDATE public.payments SET premium_applied_at = now() WHERE id = v_payment.id;
+      RETURN jsonb_build_object('applied', false, 'reason', 'already_paid');
+    ELSE
+      v_shop_ok := false;  -- pedido inexistente o monto distinto: no se entrega nada, se devuelve al saldo
+    END IF;
+
+    UPDATE public.payments SET premium_applied_at = now() WHERE id = v_payment.id;
+    IF v_shop_ok THEN
+      INSERT INTO public.notifications (user_id, type, title, message)
+      VALUES (v_payment.user_id, 'shop_order_paid', 'Pagamento confirmado', 'Seu pedido foi pago.');
+      RETURN jsonb_build_object('applied', true, 'product', 'shop_order');
+    END IF;
+    PERFORM public.apply_wallet_movement(v_payment.user_id, v_payment.amount_cents, 'shop_refund', 'payment',
+                                         v_payment.id::text, 'shop_late:' || v_payment.id::text,
+                                         'Pagamento recebido depois do fim da reserva; valor devolvido ao saldo');
+    INSERT INTO public.notifications (user_id, type, title, message)
+    VALUES (v_payment.user_id, 'shop_order_refunded', 'Pedido não confirmado',
+            'Seu pagamento chegou depois do fim da reserva e o produto esgotou. O valor foi devolvido ao seu saldo 3buk.');
+    RETURN jsonb_build_object('applied', true, 'product', 'shop_order', 'refunded_to_wallet', v_payment.amount_cents);
   END IF;
   IF v_payment.product = 'wallet_topup' THEN
     -- Recarga: el monto pagado entra al saldo
@@ -309,7 +352,7 @@ BEGIN
   admin_notice:= NEW.type IN ('buky_raffle_review','buky_prize_unclaimed') AND EXISTS (SELECT 1
   FROM public.users
   WHERE id=NEW.user_id AND role='ADMIN');
-IF NEW.type NOT IN ('buky_raffle_won','buky_raffle_substitute','premium_expiring','shop_order_paid','shop_order_shipped','shop_order_delivered') AND NOT admin_notice THEN
+IF NEW.type NOT IN ('buky_raffle_won','buky_raffle_substitute','premium_expiring','shop_order_paid','shop_order_shipped','shop_order_delivered','shop_order_refunded') AND NOT admin_notice THEN
   RETURN NEW;
   END IF;
 IF NEW.type='buky_raffle_substitute' THEN

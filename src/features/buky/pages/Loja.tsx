@@ -165,12 +165,26 @@ export function Loja() {
     <Gate>
       <h1 className="font-buky text-4xl">Loja 3buk</h1>
       <div className="flex gap-3">
-        <button className={button} onClick={() => setTab("products")}>
-          Produtos
-        </button>
-        <button className={button} onClick={() => setTab("discounts")}>
-          Descontos
-        </button>
+        {(
+          [
+            ["products", "Produtos"],
+            ["discounts", "Descontos"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={tab === id}
+            onClick={() => setTab(id)}
+            className={
+              tab === id
+                ? button
+                : "rounded-full border border-[var(--buky-line)] px-5 py-3 font-semibold text-white"
+            }
+          >
+            {label}
+          </button>
+        ))}
       </div>
       {tab === "products" ? (
         <div className="grid grid-cols-2 gap-3">
@@ -499,10 +513,10 @@ export function Carrinho() {
       {cart.map((i) => (
         <div className={panel} key={i.variant_id}>
           <p>
-            {i.product} ? {i.color} ? {i.size}
+            {i.product} · {i.color} · {i.size}
           </p>
           <p>
-            {brl(i.unit_cents)} ? {i.qty}
+            {brl(i.unit_cents)} × {i.qty}
           </p>
           <button
             onClick={() =>
@@ -540,7 +554,7 @@ export function Carrinho() {
                 checked={option === o.id}
                 onChange={() => setOption(o.id)}
               />{" "}
-              {o.company} ? {o.service} ? {brl(o.price_cents)} ? {o.days} dias
+              {o.company} · {o.service} · {brl(o.price_cents)} · {o.days} dias
             </label>
           ))}
           {(
@@ -565,7 +579,7 @@ export function Carrinho() {
             </label>
           ))}
           <p>
-            Produtos: {brl(subtotal)} ? Frete:{" "}
+            Produtos: {brl(subtotal)} · Frete:{" "}
             {selected ? brl(selected.price_cents) : "—"}
           </p>
           <p className="text-xl">Total: {brl(total)}</p>
@@ -693,7 +707,7 @@ export function Pedido() {
           <p>Pagamento → Preparando → Enviado → Entregue</p>
           {o.shop_order_items.map((i) => (
             <p key={i.variant_id}>
-              {i.product_name} ? {i.color} ? {i.size} ? {i.qty}
+              {i.product_name} · {i.color} · {i.size} · {i.qty}×
             </p>
           ))}
           <p>Total: {brl(o.total_cents)}</p>

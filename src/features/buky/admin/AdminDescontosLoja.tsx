@@ -123,7 +123,7 @@ export default function AdminDescontosLoja() {
       <div className="flex flex-wrap gap-2">
         {discounts.data?.map((d) => (
           <button className={btnPrimary} key={d.id} onClick={() => edit(d)}>
-            {d.brand_name} ? {d.title}
+            {d.brand_name} · {d.title}
           </button>
         ))}
       </div>
