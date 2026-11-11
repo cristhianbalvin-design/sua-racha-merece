@@ -1,3 +1,4 @@
+import CpfProfile from "@/components/CpfProfile";
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -115,6 +116,7 @@ const UserProfile = () => {
 
   return (
     <div className="px-4 md:px-8 py-4 max-w-2xl mx-auto">
+      <CpfProfile />
       {athleteNumber !== null && (
         <div className="mb-4 text-center">
           <span className="inline-flex rounded-full bg-primary/15 px-4 py-1.5 text-sm font-bold text-primary">

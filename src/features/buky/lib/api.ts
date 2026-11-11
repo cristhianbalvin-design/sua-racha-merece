@@ -167,6 +167,11 @@ export interface MyStatus {
   sponsorship_min: number;
   free_photo_min: number;
   tester: boolean;
+  plan: "freemium" | "premium";
+  sessions_today: number;
+  sessions_max: number;
+  bukys_today: number;
+  bukys_max: number;
   bike_stops_today: number;
   blocked_today: boolean;
   rules: TrainingRules;
@@ -626,6 +631,7 @@ export async function getSessionTrack(trackPath: string): Promise<{ lat: number;
 
 export interface CityRanking {
   city: string | null;
+  period: string;
   top: { pos: number; initials: string; nickname: string | null; avatar_url: string | null; bukys: number; me: boolean }[];
   me: { pos: number; bukys: number } | null;
   total: number;
@@ -634,6 +640,12 @@ export interface CityRanking {
 /** Top 3 de la ciudad por Bukys recogidos corriendo (histórico) y mi posición. */
 export async function getCityRanking(cityCode?: number | null): Promise<CityRanking | null> {
   const { data, error } = await supabase.rpc("buky_city_ranking", { p_city_code: cityCode ?? null });
+  if (error) fail(error);
+  return (data as CityRanking) ?? null;
+}
+
+export async function getNationalRanking(): Promise<CityRanking | null> {
+  const { data, error } = await supabase.rpc("buky_national_ranking");
   if (error) fail(error);
   return (data as CityRanking) ?? null;
 }

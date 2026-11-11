@@ -1,3 +1,4 @@
+import CpfDialog from "@/components/CpfDialog";
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
@@ -50,12 +51,15 @@ const UserLibraryPage = () => {
     }
   };
 
+  const [cpfPhoto, setCpfPhoto] = useState<LibraryItem | null>(null);
+
   const downloadAgain = async (item: LibraryItem) => {
     if (busyId) return;
     setBusyId(item.eventPhotoId);
     const toastId = toast.loading('Baixando foto...');
     try {
       const permission = await registerDownloadConfirming(item.eventPhotoId);
+      if (permission.reason === "cpf_required") { toast.dismiss(toastId); setCpfPhoto(item); return; }
       if (!permission.allowed) {
         toast.error(downloadBlockedMessage(permission) ?? 'Esta foto não está mais disponível para download.', { id: toastId });
         return;
@@ -77,6 +81,7 @@ const UserLibraryPage = () => {
 
   return (
     <div className="px-4 md:px-8 py-6 max-w-3xl mx-auto space-y-6">
+      {cpfPhoto && <CpfDialog onClose={() => setCpfPhoto(null)} onSaved={() => { const photo = cpfPhoto; setCpfPhoto(null); void downloadAgain(photo); }} />}
       <Link to="/perfil" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft size={16} /> Perfil
       </Link>

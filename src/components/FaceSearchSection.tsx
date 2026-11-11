@@ -1,3 +1,4 @@
+import CpfDialog from "@/components/CpfDialog";
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Camera, Upload, Loader2, AlertCircle, ImageIcon, Sparkles, UserRound, Calendar as CalendarIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -142,11 +143,14 @@ export const FaceSearchSection = () => {
     }
   };
 
+  const [cpfPhoto, setCpfPhoto] = useState<{ id: string; url: string } | null>(null);
+
   const handleDownload = async (matchId: string, imageUrl: string) => {
     try {
       toast.loading('Verificando permissão...', { id: 'download' });
       const permission = await registerDownloadConfirming(matchId);
 
+      if (permission.reason === "cpf_required") { toast.dismiss("download"); setCpfPhoto({ id: matchId, url: imageUrl }); return; }
       if (permission.allowed) {
         executeDownload(matchId, imageUrl);
         return;
@@ -595,6 +599,7 @@ export const FaceSearchSection = () => {
         </div>
       )}
 
+      {cpfPhoto && <CpfDialog onClose={() => setCpfPhoto(null)} onSaved={() => { const photo = cpfPhoto; setCpfPhoto(null); void handleDownload(photo.id, photo.url); }} />}
       <PhotoCampaignModal 
         photo={campaignPhoto} 
         isForDownload={isDownloadIntent}

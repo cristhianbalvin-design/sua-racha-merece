@@ -109,3 +109,10 @@ export async function apiSetPhotoPriceCents(cents: number): Promise<void> {
     .upsert({ key: 'photo_price_cents', value: cents, updated_at: new Date().toISOString() }, { onConflict: 'key' });
   if (error) throw error;
 }
+
+/** Recargas expresadas en reales enteros. */
+export function topupCents(value: string): number | null {
+  if (!/^\d+$/.test(value)) return null;
+  const amount = Number(value);
+  return Number.isSafeInteger(amount) && amount >= 10 && amount <= 200 ? amount * 100 : null;
+}

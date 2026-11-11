@@ -1,3 +1,4 @@
+import CpfProfile from "@/components/CpfProfile";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Camera, ChevronLeft } from "lucide-react";
@@ -60,7 +61,7 @@ export default function CompletarPerfil() {
     instagram: f.instagram.trim() && !isValidInstagram(f.instagram) ? E.instagram : null,
     bairro: f.bairro.trim() && !isValidNeighborhood(f.bairro) ? E.bairro : null,
     cidade: !city ? E.cidade : null,
-    nickname: !isValidNickname(f.nickname) ? "Apelido inválido ou ofensivo." : null,
+    nickname: !isValidNickname(f.nickname) ? "Use 3 a 20 letras, números, pontos ou sublinhados." : null,
     phone: f.phone && !normalizePhone(f.phone) ? "Confira o número de celular." : null,
     whatsapp: !sameWhatsapp && f.whatsapp && !normalizePhone(f.whatsapp) ? "Confira o número de WhatsApp." : null,
   };
@@ -134,6 +135,7 @@ export default function CompletarPerfil() {
       </div>
       {!editing && <p className="mt-3 text-[15px] text-[var(--buky-muted)]">{pt.cadastro.completarTexto}</p>}
 
+      {editing && <CpfProfile />}
       <form onSubmit={submit} noValidate className="mt-6 space-y-5">
         <label className="buky-field" data-invalid={inv("nome")}>
           <span>{pt.cadastro.nome}</span>
@@ -141,7 +143,7 @@ export default function CompletarPerfil() {
         </label>
         <label className="buky-field" data-invalid={inv("nickname")}>
           <span>Apelido (aparece no ranking) · {f.nickname.length}/20</span>
-          <input maxLength={20} value={f.nickname} onChange={(e) => setF((s) => ({ ...s, nickname: e.target.value }))} />
+          <div className="flex gap-2"><span>@</span><input maxLength={20} value={f.nickname} onChange={(e) => setF((s) => ({ ...s, nickname: e.target.value.replace(/[^A-Za-z0-9_.]/g, "") }))} /></div>
         </label>
         <label className="buky-field">
           <span>E-mail</span>

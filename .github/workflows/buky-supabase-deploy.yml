@@ -10,17 +10,17 @@ on:
   workflow_dispatch:
     inputs:
       sql:
-        description: "Aplicar los pasos SQL 15–17 y 19–30"
+        description: "Aplicar los pasos SQL de Buky (15–17 y 19 en adelante)"
         type: boolean
         default: true
       datos_prueba:
         description: "Cargar los datos de prueba de Niterói ([TESTE])"
         type: boolean
         default: true
-      funcion:
-        description: "Publicar la Edge Function buky-close-session"
-        type: boolean
-        default: true
+      funciones:
+        description: "Otras Edge Functions a publicar, separadas por espacio (p. ej. buky-close-session match-face)"
+        type: string
+        default: ""
       funciones_pagos:
         description: "Publicar create-premium-checkout y sync-premium-payment (Premium y recargas)"
         type: boolean
@@ -41,10 +41,6 @@ on:
         description: "E-mail de un atleta para darle un premio [TESTE] con QR (prueba del canje)"
         type: string
         default: ""
-      prueba_entrega_c:
-        description: "Prueba de la Entrega C: canje (se deshace) y premio [TESTE] real con aviso por e-mail"
-        type: boolean
-        default: false
 
 concurrency:
   group: buky-supabase-deploy
@@ -66,7 +62,7 @@ jobs:
           TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           [ -n "$DB" ] || { echo "::error::Falta el secreto SUPABASE_DB_URL"; exit 1; }
-          if { [ "${{ inputs.funcion }}" = "true" ] || [ "${{ inputs.funciones_pagos }}" = "true" ] || [ "${{ inputs.funciones_avisos }}" = "true" ]; } && [ -z "$TOKEN" ]; then echo "::error::Falta el secreto SUPABASE_ACCESS_TOKEN"; exit 1; fi
+          if { [ -n "${{ inputs.funciones }}" ] || [ "${{ inputs.funciones_pagos }}" = "true" ] || [ "${{ inputs.funciones_avisos }}" = "true" ]; } && [ -z "$TOKEN" ]; then echo "::error::Falta el secreto SUPABASE_ACCESS_TOKEN"; exit 1; fi
           echo "$DB" | grep -q "$PROJECT_REF" || { echo "::error::SUPABASE_DB_URL no es del proyecto $PROJECT_REF"; exit 1; }
           echo "::notice title=Proyecto::$PROJECT_REF"
 
@@ -79,7 +75,7 @@ jobs:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -e
-          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql supabase/manual-sql/buky/23_*.sql supabase/manual-sql/buky/24_*.sql supabase/manual-sql/buky/25_*.sql supabase/manual-sql/buky/26_*.sql supabase/manual-sql/buky/27_*.sql supabase/manual-sql/buky/28_*.sql supabase/manual-sql/buky/29_*.sql supabase/manual-sql/buky/30_*.sql; do
+          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql supabase/manual-sql/buky/23_*.sql supabase/manual-sql/buky/24_*.sql supabase/manual-sql/buky/25_*.sql supabase/manual-sql/buky/26_*.sql supabase/manual-sql/buky/27_*.sql supabase/manual-sql/buky/28_*.sql supabase/manual-sql/buky/29_*.sql supabase/manual-sql/buky/30_*.sql supabase/manual-sql/buky/31_*.sql; do
             psql "$DB" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
             echo "::notice title=SQL aplicado::$(basename "$f") · sha256 $(sha256sum "$f" | cut -c1-12)"
           done
@@ -103,12 +99,6 @@ jobs:
         env:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: psql "$DB" -q -v ON_ERROR_STOP=1 -At -F ' · ' -f supabase/manual-sql/buky/datos_prueba_sorteios.sql | tail -3 | sed 's/^/::notice title=Datos de sorteos::/'
-
-      - name: Prueba de la Entrega C
-        if: inputs.prueba_entrega_c
-        env:
-          DB: ${{ secrets.SUPABASE_DB_URL }}
-        run: psql "$DB" -q -v ON_ERROR_STOP=1 -At -f supabase/manual-sql/buky/prueba_entrega_c.sql 2>&1 | grep -E "OK|premio=|ERROR" | sed 's/^/::notice title=Prueba Entrega C::/'
 
       - name: Premio de prueba para un atleta
         if: inputs.premio_teste_email != ''
@@ -134,13 +124,19 @@ jobs:
           psql "$DB" -At -F ' ' -c "SELECT status, count(*) FROM public.buky_match_user_cities() GROUP BY status ORDER BY 1" \
             | sed 's/^/::notice title=Ciudades de usuarios (vista previa, sin aplicar)::/'
 
-      - name: Publicar la Edge Function
-        if: inputs.funcion
+      - name: Publicar otras Edge Functions
+        if: inputs.funciones != ''
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FUNCIONES: ${{ inputs.funciones }}
         run: |
-          npx --yes supabase@2 functions deploy buky-close-session --project-ref "$PROJECT_REF" --use-api 2>&1 | tail -5
-          echo "::notice title=Edge Function::buky-close-session publicada en $PROJECT_REF"
+          # Solo nombres de carpetas existentes en supabase/functions; las públicas van sin verificación de JWT.
+          for f in $FUNCIONES; do
+            [ -d "supabase/functions/$f" ] || { echo "::error::No existe la función $f"; exit 1; }
+            case "$f" in mercadopago-webhook|send-notifications|invite-sponsor) extra="--no-verify-jwt" ;; *) extra="" ;; esac
+            npx --yes supabase@2 functions deploy "$f" --project-ref "$PROJECT_REF" --use-api $extra 2>&1 | tail -3
+            echo "::notice title=Edge Function::$f publicada en $PROJECT_REF"
+          done
 
       - name: Publicar funciones de pago
         if: inputs.funciones_pagos

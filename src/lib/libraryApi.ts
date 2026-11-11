@@ -144,6 +144,10 @@ export const downloadBlockedMessage = (p: DownloadPermission): string | null => 
     }
     case 'purchase_required':
       return null;
+    case 'not_recognized':
+      return 'Esta foto não foi reconhecida como sua. Faça uma nova busca facial.';
+    case 'cpf_required':
+      return 'Informe seu CPF para baixar a foto.';
     case 'photo_not_available':
       return 'Esta foto não está mais disponível para download.';
     case 'not_authenticated':

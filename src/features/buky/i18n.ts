@@ -151,7 +151,7 @@ export const pt = {
       mock_location: "localização simulada",
       point_once_per_day: "ponto já contado hoje",
       point_daily_limit: "já ganhou 2 neste ponto hoje",
-      daily_total_cap: "limite de 12 Bukys por dia",
+      daily_total_cap: "limite diário de Bukys",
       point_too_soon: "menos de 3 min desde o anterior",
       daily_cap: "limite diário de rotas próprias",
     } as Record<string, string>,
