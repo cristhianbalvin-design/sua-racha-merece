@@ -75,7 +75,7 @@ jobs:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -e
-          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql supabase/manual-sql/buky/23_*.sql supabase/manual-sql/buky/24_*.sql supabase/manual-sql/buky/25_*.sql supabase/manual-sql/buky/26_*.sql supabase/manual-sql/buky/27_*.sql supabase/manual-sql/buky/28_*.sql supabase/manual-sql/buky/29_*.sql supabase/manual-sql/buky/30_*.sql supabase/manual-sql/buky/31_*.sql supabase/manual-sql/buky/32_*.sql; do
+          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql supabase/manual-sql/buky/23_*.sql supabase/manual-sql/buky/24_*.sql supabase/manual-sql/buky/25_*.sql supabase/manual-sql/buky/26_*.sql supabase/manual-sql/buky/27_*.sql supabase/manual-sql/buky/28_*.sql supabase/manual-sql/buky/29_*.sql supabase/manual-sql/buky/30_*.sql supabase/manual-sql/buky/31_*.sql supabase/manual-sql/buky/32_*.sql supabase/manual-sql/buky/33_*.sql; do
             psql "$DB" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
             echo "::notice title=SQL aplicado::$(basename "$f") · sha256 $(sha256sum "$f" | cut -c1-12)"
           done
