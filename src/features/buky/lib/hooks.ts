@@ -201,3 +201,8 @@ export function useSponsorshipWinners() {
   const { user } = useAuth();
   return useQuery({ queryKey: ["buky", "sponsor-winners"], queryFn: api.getSponsorshipWinners, enabled: Boolean(user), staleTime: 5 * 60_000 });
 }
+
+export function useNationalRanking() {
+  const { user } = useAuth();
+  return useQuery({ queryKey: ["buky", "ranking", "national"], queryFn: api.getNationalRanking, enabled: Boolean(user), staleTime: 60_000 });
+}

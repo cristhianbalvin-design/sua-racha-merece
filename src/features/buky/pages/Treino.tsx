@@ -6,9 +6,9 @@ import mascoteMini from "../assets/buky-mascote-mini.webp";
 import { pt } from "../i18n";
 import BukyMap from "../components/BukyMap";
 import CouponList from "../components/CouponList";
-import { isToday, Sheet, Spinner } from "../components/ui";
+import { Sheet, Spinner } from "../components/ui";
 import { getSettings } from "../lib/api";
-import { useBukyProfile, useCouponsHere, useMySessions } from "../lib/hooks";
+import { useBukyProfile, useCouponsHere } from "../lib/hooks";
 import { training, useTraining } from "../training/useTraining";
 import { getGpsSource } from "../training/gpsSource";
 
@@ -18,7 +18,6 @@ export default function Treino() {
   const t = useTraining();
   const { data: profile } = useBukyProfile();
   const { coupons, away } = useCouponsHere(t.lastFix);
-  const { data: sessions = [] } = useMySessions();
   const [toast, setToast] = useState<string | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -61,10 +60,7 @@ export default function Treino() {
     if (t.status === "done") navigate("/app/treino/resumo", { replace: true });
   }, [t.status, navigate]);
 
-  const confirmedToday = useMemo(
-    () => sessions.filter((s) => s.status === "valid" && isToday(s.ended_at)).reduce((a, s) => a + s.bukys_awarded, 0),
-    [sessions],
-  );
+  const confirmedToday = t.rules.bukys_today ?? 0;
 
   const points = useMemo(
     () => t.points.map((p) => ({ ...p, state: t.visited.includes(p.id) ? ("visited" as const) : ("pending" as const) })),
@@ -141,6 +137,7 @@ export default function Treino() {
             <p className="font-buky-xcond mt-1 text-[clamp(72px,22vw,92px)] leading-none text-[var(--buky-neon)]" aria-live="polite">
               {confirmedToday + live}
             </p>
+            {confirmedToday + live >= t.rules.daily_cap && <p className="text-sm">Limite de Bukys de hoje atingido.</p>}
           </div>
           <div className="mt-2 flex flex-col items-center">
             <button

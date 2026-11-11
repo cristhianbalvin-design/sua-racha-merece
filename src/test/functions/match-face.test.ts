@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- El test ejecuta un handler Deno con dobles de prueba. */
 import fs from 'fs';
 import path from 'path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -29,6 +30,7 @@ const mockSupabaseClient = {
   in: vi.fn(() => mockSupabaseClient),
   single: vi.fn(),
   insert: vi.fn(() => mockSupabaseClient),
+  upsert: vi.fn().mockResolvedValue({ error: null }),
   storage: {
     from: vi.fn(() => mockSupabaseClient),
     upload: vi.fn(),
@@ -58,7 +60,7 @@ describe('match-face Edge Function', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSupabaseClient.auth.getUser.mockResolvedValue({ data: { user: { id: '123' } }, error: null });
-    mockSupabaseClient.rpc.mockResolvedValue({ data: [{ id: 'photo1' }], error: null });
+    mockSupabaseClient.rpc.mockResolvedValue({ data: [{ id: 'photo1', similarity: 0.8 }], error: null });
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({ embedding: [0.1, 0.2, 0.3] })
@@ -114,6 +116,11 @@ describe('match-face Edge Function', () => {
       filter_city: null,
     });
 
+    expect(mockSupabaseClient.upsert).toHaveBeenCalledWith(
+      [expect.objectContaining({ user_id: '123', photo_id: 'photo1', similarity: 0.8 })],
+      { onConflict: 'user_id,photo_id' },
+    );
+    // El embedding no se persiste.
     // Ensure insert was NEVER called
     expect(mockSupabaseClient.insert).not.toHaveBeenCalled();
     expect(mockSupabaseClient.storage.upload).not.toHaveBeenCalled();

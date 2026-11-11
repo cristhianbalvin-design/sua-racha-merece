@@ -86,18 +86,20 @@ export async function searchMyPhotos(selfie: File, ev: FotoEvent): Promise<FotoM
 }
 
 /**
- * ok: descargada · needsParticipation: hay que participar del Kit 3buk · purchase: no quedan fotos
+ * ok: descargada · cpfRequired: falta el CPF · purchase: no quedan fotos
  * gratis y la foto cuesta R$10 del saldo (hay que confirmar) · message: otro bloqueo.
  */
 export interface DownloadResult {
   ok: boolean;
-  needsParticipation?: boolean;
+  cpfRequired?: boolean;
   purchase?: { priceCents: number; balanceCents: number; insufficient: boolean };
   message?: string;
 }
 
 export function blockedMessage(p: DownloadPermission): string | null {
   switch (p.reason) {
+    case "not_recognized":
+      return "Esta foto não foi reconhecida como sua. Faça uma nova busca facial.";
     case "photo_not_available":
       return "Esta foto não está mais disponível.";
     case "not_authenticated":
@@ -121,8 +123,9 @@ export async function downloadPhoto(m: FotoMatch, confirm = false): Promise<Down
         },
       };
     }
+    if (perm.reason === "cpf_required") return { ok: false, cpfRequired: true };
     const msg = blockedMessage(perm);
-    return msg ? { ok: false, message: msg } : { ok: false, needsParticipation: true };
+    return { ok: false, message: msg ?? "Não foi possível liberar o download." };
   }
   const res = await fetch(m.image_url);
   if (!res.ok) throw new Error("download");

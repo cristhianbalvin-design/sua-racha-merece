@@ -282,6 +282,8 @@ class TrainingController {
 
   /** Igual que el servidor: máx. N Bukys por punto y M minutos entre ellos (dentro de este entrenamiento). */
   private countsLive(pointId: string, at: number, rules: TrainingRules): boolean {
+    const collected = [...this.livePerPoint.values()].reduce((total, entries) => total + entries.length, 0);
+    if ((rules.bukys_today ?? 0) + collected >= (rules.daily_cap ?? 12)) return false;
     const times = this.livePerPoint.get(pointId) ?? [];
     if (times.length >= rules.point_max_per_day) return false;
     const last = times[times.length - 1];

@@ -1,5 +1,7 @@
 /** Reglas del entrenamiento y progreso histórico (paso 24, buky_my_status). */
 export interface TrainingRules {
+  daily_cap: number;
+  bukys_today: number;
   session_max_min: number;
   point_max_per_day: number;
   point_min_gap_min: number;
@@ -11,6 +13,8 @@ export interface TrainingRules {
 }
 
 export const DEFAULT_TRAINING_RULES: TrainingRules = {
+  daily_cap: 12,
+  bukys_today: 0,
   session_max_min: 60,
   point_max_per_day: 2,
   point_min_gap_min: 3,

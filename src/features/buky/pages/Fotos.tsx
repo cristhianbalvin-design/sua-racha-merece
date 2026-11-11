@@ -1,3 +1,4 @@
+import CpfDialog from "@/components/CpfDialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ export default function Fotos() {
   const [stage, setStage] = useState(0);
   const [matches, setMatches] = useState<FotoMatch[]>([]);
   const [open, setOpen] = useState<FotoMatch | null>(null);
+  const [cpfPhoto, setCpfPhoto] = useState<FotoMatch | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [buy, setBuy] = useState<{ m: FotoMatch; priceCents: number; balanceCents: number; insufficient: boolean } | null>(null);
   const { data: photoStatus, refetch: refetchStatus } = useQuery({ queryKey: ["photo-status"], queryFn: apiGetDownloadStatus, enabled: SHOW_FACE_SEARCH });
@@ -83,9 +85,8 @@ export default function Fotos() {
         void refetchStatus();
       } else if (r.purchase) {
         setBuy({ m, ...r.purchase });
-      } else if (r.needsParticipation) {
-        toast(pt.fotos.liberar);
-        usarNoKit(m);
+      } else if (r.cpfRequired) {
+        setCpfPhoto(m);
       } else toast.error(r.message, { duration: 8000 });
     } catch {
       toast.error(pt.comum.erro);
@@ -110,6 +111,7 @@ export default function Fotos() {
 
   return (
     <div className="pb-6">
+      {cpfPhoto && <CpfDialog onClose={() => setCpfPhoto(null)} onSaved={() => { const photo = cpfPhoto; setCpfPhoto(null); void baixar(photo); }} />}
       <ScreenHeader title={pt.fotos.titulo} />
       <p className="px-6 pt-3 text-[16px] text-[var(--buky-muted)]">{pt.fotos.sub}</p>
 

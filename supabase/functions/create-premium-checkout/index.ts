@@ -63,10 +63,19 @@ serve(async (req) => {
     const product = body.product === "wallet_topup" ? "wallet_topup" : "premium_annual";
     let amountCents = PREMIUM_PRICE_CENTS;
     if (product === "wallet_topup") {
-      const { data: opt } = await admin.from("app_settings").select("value").eq("key", "wallet_topup_options").maybeSingle();
-      const options = Array.isArray(opt?.value) ? (opt!.value as unknown[]).map(Number) : [2000, 3000, 5000];
-      if (!options.includes(Number(body.amount_cents))) return json({ error: "invalid_amount" }, 400);
-      amountCents = Number(body.amount_cents);
+      const { data: settings, error: settingsError } = await admin.from("app_settings").select("key, value")
+        .in("key", ["wallet_topup_options", "wallet_topup_min_cents", "wallet_topup_max_cents"]);
+      if (settingsError) throw settingsError;
+      const values = Object.fromEntries((settings ?? []).map((row) => [row.key, row.value]));
+      const options = Array.isArray(values.wallet_topup_options) ? values.wallet_topup_options.map(Number) : [2000, 3000, 5000];
+      const min = Number(values.wallet_topup_min_cents ?? 1000);
+      const max = Number(values.wallet_topup_max_cents ?? 20000);
+      const amount = body.amount_cents;
+      if (typeof amount !== "number" || !Number.isSafeInteger(amount) || amount % 100 !== 0 ||
+          (!options.includes(amount) && (amount < min || amount > max))) {
+        return json({ error: "invalid_amount", message: "Informe um valor inteiro entre R$10 e R$200." }, 400);
+      }
+      amountCents = amount;
     }
     const back = body.return_to === "app" ? `${siteUrl}/app/perfil/saldo?pagamento=` : `${siteUrl}/creditos?premium=`;
 

@@ -1,3 +1,4 @@
+import { topupCents } from "@/lib/walletApi";
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -17,6 +18,7 @@ const UserWalletPage = () => {
   const [photos, setPhotos] = useState<DownloadStatus | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [otherAmount, setOtherAmount] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -150,6 +152,11 @@ const UserWalletPage = () => {
             </div>
           </div>
 
+          <div className="bg-card rounded-2xl card-shadow p-5">
+            <label>Outro valor (R$)<input type="number" min="10" max="200" step="1" value={otherAmount} onChange={(e) => setOtherAmount(e.target.value)} className="ml-2 rounded border p-2" /></label>
+            <p className="text-sm text-muted-foreground">Informe um valor inteiro de R$10 a R$200.</p>
+            <button type="button" disabled={busy !== null || topupCents(otherAmount) === null} onClick={() => void checkout("other", { product: "wallet_topup", amountCents: topupCents(otherAmount)!, returnTo: "web" })} className="mt-2 rounded border border-primary px-4 py-2 disabled:opacity-50">Recarregar outro valor</button>
+          </div>
           <div className="bg-card rounded-2xl card-shadow p-5 space-y-3">
             <div>
               <p className="text-ui text-xs text-muted-foreground">PLANO</p>

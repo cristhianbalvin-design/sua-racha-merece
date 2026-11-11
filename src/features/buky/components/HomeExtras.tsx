@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Trophy } from "lucide-react";
 import { pt } from "../i18n";
-import { useCityRanking, useSponsorshipWinners } from "../lib/hooks";
+import { useCityRanking, useNationalRanking, useSponsorshipWinners } from "../lib/hooks";
 import type { SponsorWinner } from "../lib/api";
 
 const I = pt.inicio;
@@ -13,7 +14,10 @@ const MEDAL = ["#ffd54a", "#c9d1d9", "#d39058"];
  */
 export default function HomeExtras({ cityCode }: { cityCode?: number | null }) {
   const { data: winners = [] } = useSponsorshipWinners();
-  const { data: ranking } = useCityRanking(cityCode);
+  const [scope, setScope] = useState<"city" | "national">("city");
+  const { data: cityRanking } = useCityRanking(cityCode);
+  const { data: nationalRanking } = useNationalRanking();
+  const ranking = scope === "city" ? cityRanking : nationalRanking;
 
   return (
     <div className="space-y-7 pt-2">
@@ -32,8 +36,12 @@ export default function HomeExtras({ cityCode }: { cityCode?: number | null }) {
       )}
 
       {ranking && (
-        <section aria-label={I.ranking(ranking.city ?? "")} className="px-6">
-          <h2 className="buky-label text-[var(--buky-neon)]">{I.ranking(ranking.city ?? "")}</h2>
+        <section aria-label="Ranking mensal" className="px-6">
+          <h2 className="buky-label text-[var(--buky-neon)]">Top 3 de {new Date(`${ranking.period}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long" })}</h2>
+          <div className="mt-3 flex gap-3" aria-label="Âmbito do ranking">
+            <button type="button" aria-pressed={scope === "city"} onClick={() => setScope("city")}>Cidade</button>
+            <button type="button" aria-pressed={scope === "national"} onClick={() => setScope("national")}>Brasil</button>
+          </div>
           {ranking.top.length === 0 ? (
             <p className="mt-3 text-sm text-[var(--buky-muted)]">{I.rankingVazio}</p>
           ) : (
@@ -49,7 +57,7 @@ export default function HomeExtras({ cityCode }: { cityCode?: number | null }) {
                   </span>
                   <Avatar url={r.avatar_url} name={r.initials} />
                   <span className="min-w-0 flex-1 truncate text-[16px] font-semibold">
-                    {r.initials}{r.nickname && <span className="text-[var(--buky-neon)]"> · {r.nickname}</span>}
+                    {r.initials}{r.nickname && <span className="text-[var(--buky-neon)]"> · @{r.nickname}</span>}
                     {r.me && <span className="ml-1 text-[12px] font-normal text-[var(--buky-muted)]">({I.voce})</span>}
                   </span>
                   <span className="font-buky shrink-0 text-[22px] leading-none">{r.bukys}</span>
@@ -58,9 +66,9 @@ export default function HomeExtras({ cityCode }: { cityCode?: number | null }) {
             </ol>
           )}
           {ranking.me && !ranking.top.some((r) => r.me) && (
-            <p className="mt-2 rounded-xl bg-[#111] px-3 py-2.5 text-[13px] text-[var(--buky-muted)]">{I.suaPosicao(ranking.me.pos, ranking.me.bukys)}</p>
+            <p className="mt-2 rounded-xl bg-[#111] px-3 py-2.5 text-[13px] text-[var(--buky-muted)]">Você · {ranking.me.pos}º · {ranking.me.bukys} Bukys</p>
           )}
-          <p className="mt-2 text-[12px] text-[var(--buky-faint)]">{I.rankingNota}</p>
+          <p className="mt-2 text-[12px] text-[var(--buky-faint)]">Bukys coletados correndo neste mês.</p>
         </section>
       )}
     </div>

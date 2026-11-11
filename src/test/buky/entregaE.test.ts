@@ -7,11 +7,11 @@ describe("perfil da entrega E", () => {
     expect(initials("ana")).toBe("A");
     expect(initials("  ")).toBe("");
   });
-  it("valida apelidos opcionais e rejeita ofensas", () => {
-    expect(isValidNickname("Capitão 10")).toBe(true);
+  it("valida apelidos opcionais no formato de usuário", () => {
+    expect(isValidNickname("BukyRunner_10")).toBe(true);
     expect(isValidNickname("")).toBe(true);
     expect(isValidNickname("x")).toBe(false);
-    expect(isValidNickname("Porra")).toBe(false);
+    expect(isValidNickname("Capitão 10")).toBe(false);
     expect(isValidNickname("nome!" )).toBe(false);
   });
   it("formata e normaliza números brasileiros", () => {

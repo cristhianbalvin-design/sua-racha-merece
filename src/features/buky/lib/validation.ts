@@ -25,9 +25,7 @@ export function initials(name: string): string {
 }
 
 export function isValidNickname(value: string): boolean {
-  const name = value.trim();
-  return !name || (name.length >= 2 && name.length <= 20 && /^[A-Za-zÀ-ÖØ-öø-ÿ0-9 .-]+$/.test(name)
-    && !/(puta|porra|caralho|merda|buceta)/i.test(name));
+  return !value || /^[A-Za-z0-9_.]{3,20}$/.test(value);
 }
 
 export function phoneDigits(value: string): string {

@@ -1,3 +1,4 @@
+import { topupCents } from "@/lib/walletApi";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +18,7 @@ const W = pt.saldo;
 export default function Saldo() {
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
+  const [otherAmount, setOtherAmount] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [terms, setTerms] = useState(false);
   const wallet = useQuery({ queryKey: ["wallet"], queryFn: apiGetMyWallet });
@@ -92,6 +94,11 @@ export default function Saldo() {
             </button>
           ))}
         </div>
+        <label className="mt-4 block text-sm">Outro valor (R$)
+          <input type="number" min="10" max="200" step="1" value={otherAmount} onChange={(e) => setOtherAmount(e.target.value)} className="mt-2 block w-full rounded border border-gray-600 bg-black p-2" />
+        </label>
+        <p className="mt-1 text-xs text-[var(--buky-muted)]">Informe um valor inteiro de R$10 a R$200.</p>
+        <button type="button" className="buky-btn mt-2" disabled={busy !== null || topupCents(otherAmount) === null} onClick={() => void pay("other", { product: "wallet_topup", amountCents: topupCents(otherAmount)! })}>Recarregar outro valor</button>
         <p className="mt-2 text-[12px] text-[var(--buky-faint)]">{W.devolucao}</p>
       </section>
 

@@ -21,7 +21,7 @@ export default function StartSheet({
   return (
     <Sheet open={open} onClose={onClose} label={pt.aviso.titulo}>
       <p className="buky-label text-[var(--buky-neon)]">{routeName}</p>
-      <h2 className="font-buky mt-2 text-[44px]">{pt.aviso.titulo}</h2>
+      <h2 className="font-buky mt-2 text-[44px]">Tem certeza de que deseja iniciar seu treino?</h2>
       <div className="mt-4 space-y-4 text-[15px] leading-snug text-[var(--buky-muted)]">
         <p className="flex gap-3">
           <MoonStar className="mt-0.5 shrink-0 text-[var(--buky-neon)]" size={20} />
@@ -33,10 +33,10 @@ export default function StartSheet({
         </p>
       </div>
       <button type="button" className="buky-btn mt-7" onClick={onStart} disabled={busy}>
-        {busy ? pt.comum.carregando : pt.aviso.comecar}
+        {busy ? pt.comum.carregando : "VAMOS"}
       </button>
       <button type="button" className="mt-3 w-full py-3 text-sm text-[var(--buky-muted)]" onClick={onClose}>
-        {pt.aviso.cancelar}
+        NÃO
       </button>
     </Sheet>
   );

@@ -45,6 +45,7 @@ export default function Inicio() {
   const { data: status, refetch: refetchStatus } = useMyStatus();
   const { pos, error: geoError } = useGeolocation();
   // Ronda 3: solo la app instalada recolecta; en la web se ve todo menos el botón de iniciar (los testadores sí)
+  const sessionsFull = Boolean(status && !status.tester && status.sessions_today >= status.sessions_max);
   const canTrain = getGpsSource().kind === "native" || Boolean(status?.tester);
   const [appOnly, setAppOnly] = useState(false);
   const { coupons, away } = useCouponsHere(pos);
@@ -109,7 +110,7 @@ export default function Inicio() {
     }
     setStarting(true);
     try {
-      await training.start(user.id, route, city?.name ?? "", status?.rules);
+      await training.start(user.id, route, city?.name ?? "", status ? { ...status.rules, daily_cap: status.bukys_max, bukys_today: status.bukys_today } : undefined);
       setAskStart(false);
       navigate("/app/treino");
     } catch (e) {
@@ -117,6 +118,10 @@ export default function Inicio() {
       if (code === "app_required") {
         setAskStart(false);
         setAppOnly(true);
+      } else if (code === "daily_sessions_limit") {
+        setAskStart(false);
+        void refetchStatus();
+        toast.error("Você atingiu o limite de treinos de hoje.");
       } else if (code === "blocked_today") {
         setAskStart(false);
         void refetchStatus();
@@ -175,7 +180,7 @@ export default function Inicio() {
             <button
               type="button"
               onClick={() => (canTrain ? setAskStart(true) : setAppOnly(true))}
-              disabled={!route}
+              disabled={!route || sessionsFull}
               aria-label={pt.inicio.iniciar}
               className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[var(--buky-neon)] text-[#050505] shadow-[0_0_0_7px_rgba(57,255,20,0.14),0_10px_30px_rgba(0,0,0,0.6)] transition active:scale-95 disabled:opacity-40"
             >
@@ -186,11 +191,12 @@ export default function Inicio() {
               )}
             </button>
             <span className="font-buky mt-2 text-[13px] drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)]">
-              {pt.inicio.iniciar}
+              {sessionsFull ? "Limite de treinos atingido" : pt.inicio.iniciar}
             </span>
           </div>
 
           <div>
+            {status && <p className="mb-2 max-w-[210px] text-xs text-white">Treinos hoje {status.sessions_today}/{status.sessions_max} · Bukys hoje {status.bukys_today}/{status.bukys_max}</p>}
             <div className="min-w-0">
               {zone && (
                 <p className="buky-label truncate pr-28 text-[var(--buky-neon)]">

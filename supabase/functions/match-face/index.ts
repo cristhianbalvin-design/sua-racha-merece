@@ -104,6 +104,14 @@ serve(async (req) => {
       throw new Error("Failed to match event photos in database");
     }
 
+    if (matches?.length) {
+      const { error: saveError } = await supabaseAdmin.from("photo_face_matches").upsert(
+        matches.map((match) => ({ user_id: user.id, photo_id: match.id, similarity: match.similarity, matched_at: new Date().toISOString() })),
+        { onConflict: "user_id,photo_id" },
+      );
+      if (saveError) throw new Error("Failed to save recognized photos");
+    }
+
     let enrichedMatches = matches || [];
     if (enrichedMatches.length > 0) {
       const campaignIds = [...new Set(enrichedMatches.map(m => m.campaign_id).filter(Boolean))];
