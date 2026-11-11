@@ -34,13 +34,13 @@ export default function Bolsa() {
     <div className="pb-4">
       <ScreenHeader title={pt.bolsa.titulo} />
 
-      <div className="relative h-[clamp(170px,48vw,200px)]">
-        <img src={mascote} alt="Buky" className="absolute -right-1 top-0 h-[clamp(160px,46vw,192px)] w-auto" />
-        <p className="buky-label absolute left-6 top-3 text-[var(--buky-neon)]">{pt.bolsa.saldo}</p>
-        <p className="font-buky-xcond absolute left-[18px] top-7 text-[clamp(96px,32vw,128px)] leading-none">{s.balance}</p>
-        <p className="absolute bottom-3 left-[26px] text-[12px] font-bold tracking-[0.2em] text-[var(--buky-muted)]">
-          {pt.bolsa.bukys.toUpperCase()}
-        </p>
+      <div className="flex min-h-[155px] items-center justify-between gap-4 px-7">
+        <div className="min-w-0">
+          <p className="buky-label text-[var(--buky-neon)]">{pt.bolsa.saldo}</p>
+          <p className="font-buky-xcond text-[clamp(68px,22vw,90px)] leading-none">{s.balance}</p>
+          <p className="text-[11px] font-bold tracking-[0.2em] text-[var(--buky-muted)]">{pt.bolsa.bukys.toUpperCase()}</p>
+        </div>
+        <img src={mascote} alt="Buky" className="h-[clamp(125px,36vw,150px)] w-auto shrink-0" />
       </div>
 
       <div className="px-7">

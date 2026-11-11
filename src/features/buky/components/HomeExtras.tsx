@@ -39,7 +39,7 @@ export default function HomeExtras({ cityCode }: { cityCode?: number | null }) {
           ) : (
             <ol className="mt-2">
               {ranking.top.map((r) => (
-                <li key={`${r.pos}-${r.name}`} className={`buky-row flex items-center gap-3 py-3 ${r.me ? "text-[var(--buky-neon)]" : ""}`}>
+                <li key={`${r.pos}-${r.initials}`} className={`buky-row flex items-center gap-3 py-3 ${r.me ? "text-[var(--buky-neon)]" : ""}`}>
                   <span
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[14px] font-bold text-[#050505]"
                     style={{ background: MEDAL[r.pos - 1] ?? "#555" }}
@@ -47,9 +47,9 @@ export default function HomeExtras({ cityCode }: { cityCode?: number | null }) {
                   >
                     {r.pos}
                   </span>
-                  <Avatar url={r.avatar_url} name={r.name} />
+                  <Avatar url={r.avatar_url} name={r.initials} />
                   <span className="min-w-0 flex-1 truncate text-[16px] font-semibold">
-                    {r.name}
+                    {r.initials}{r.nickname && <span className="text-[var(--buky-neon)]"> · {r.nickname}</span>}
                     {r.me && <span className="ml-1 text-[12px] font-normal text-[var(--buky-muted)]">({I.voce})</span>}
                   </span>
                   <span className="font-buky shrink-0 text-[22px] leading-none">{r.bukys}</span>
@@ -81,14 +81,20 @@ function WinnerCard({ w }: { w: SponsorWinner }) {
   const img = w.media.find((u) => !isVideo(u));
   const video = !img ? w.media.find(isVideo) : undefined;
   return (
-    <li className="w-[68%] max-w-[260px] shrink-0 snap-start overflow-hidden rounded-[20px] border border-[var(--buky-line)] bg-[#111]">
-      <div className="relative aspect-[4/5] bg-[#1a1a1a]">
+    <li className="w-[80%] max-w-[340px] shrink-0 snap-start overflow-hidden rounded-[20px] border border-[var(--buky-line)] bg-[#111]">
+      <div className="relative aspect-[4/3] overflow-hidden bg-[#1a1a1a]">
         {img ? (
-          <img src={img} alt="" loading="lazy" className="h-full w-full object-cover" />
+          <>
+            <img src={img} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-lg" />
+            <img src={img} alt="" loading="lazy" className="relative h-full w-full object-contain" />
+          </>
         ) : video ? (
-          <video src={video} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+          <video src={video} muted playsInline preload="metadata" className="h-full w-full object-contain" />
         ) : w.avatar_url ? (
-          <img src={w.avatar_url} alt="" loading="lazy" className="h-full w-full object-cover" />
+          <>
+            <img src={w.avatar_url} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-lg" />
+            <img src={w.avatar_url} alt="" loading="lazy" className="relative h-full w-full object-contain" />
+          </>
         ) : (
           <span className="flex h-full items-center justify-center text-[var(--buky-neon)]">
             <Trophy size={40} />
@@ -97,12 +103,10 @@ function WinnerCard({ w }: { w: SponsorWinner }) {
         <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-[var(--buky-neon)] px-2 py-0.5 text-[11px] font-bold text-[#050505]">
           <Trophy size={12} /> {I.patrocinado}
         </span>
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-3 pt-10">
-          <p className="truncate text-[16px] font-semibold">{w.name}</p>
-          {w.city && <p className="truncate text-[12px] text-[#cfcfcf]">{w.city}</p>}
-        </div>
       </div>
       <div className="p-3">
+        <p className="truncate text-[16px] font-semibold">{w.name}</p>
+        {w.city && <p className="truncate text-[12px] text-[#cfcfcf]">{w.city}</p>}
         <p className="line-clamp-2 text-[13px] font-semibold leading-snug">{w.prize ?? w.campaign}</p>
         <p className="mt-0.5 truncate text-[11px] text-[var(--buky-muted)]">{w.campaign}</p>
       </div>

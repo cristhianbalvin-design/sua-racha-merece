@@ -50,7 +50,7 @@ export default function CityPicker({
   };
 
   return (
-    <div className="grid grid-cols-[1fr_96px] gap-5">
+    <div className="grid grid-cols-1 gap-5">
       <div className="relative">
         <label className="buky-field" data-invalid={invalid ? "true" : undefined}>
           <span>{pt.cadastro.cidade}</span>
@@ -154,7 +154,7 @@ export default function CityPicker({
             </option>
             {states.map((s) => (
               <option key={s.code} value={s.code} className="bg-[#111]">
-                {s.uf}
+                {s.uf} · {s.name}
               </option>
             ))}
           </select>

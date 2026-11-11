@@ -20,6 +20,9 @@ export interface BukyProfile {
   state_code: number | null;
   instagram: string | null;
   neighborhood: string | null;
+  nickname: string | null;
+  phone: string | null;
+  whatsapp: string | null;
   campaigns_participated: number | null;
 }
 
@@ -205,7 +208,7 @@ function fail(error: { message?: string; code?: string } | null): never {
 // ------------------------------------------------------------------ perfil y ciudades
 
 const PROFILE_COLUMNS =
-  "id, name, email, avatar_url, city, country, city_code, state_code, instagram, neighborhood, campaigns_participated";
+  "id, name, email, avatar_url, city, country, city_code, state_code, instagram, neighborhood, nickname, phone, whatsapp, campaigns_participated";
 
 export async function getProfile(userId: string): Promise<BukyProfile> {
   const { data, error } = await supabase.from("users").select(PROFILE_COLUMNS).eq("id", userId).single();
@@ -215,7 +218,7 @@ export async function getProfile(userId: string): Promise<BukyProfile> {
 
 export async function updateProfile(
   userId: string,
-  patch: Partial<Pick<BukyProfile, "name" | "city_code" | "instagram" | "neighborhood" | "avatar_url">>,
+  patch: Partial<Pick<BukyProfile, "name" | "city_code" | "instagram" | "neighborhood" | "avatar_url" | "nickname" | "phone" | "whatsapp">>,
 ): Promise<BukyProfile> {
   const { data, error } = await supabase.from("users").update(patch).eq("id", userId).select(PROFILE_COLUMNS).single();
   if (error) fail(error);
@@ -623,7 +626,7 @@ export async function getSessionTrack(trackPath: string): Promise<{ lat: number;
 
 export interface CityRanking {
   city: string | null;
-  top: { pos: number; name: string; avatar_url: string | null; bukys: number; me: boolean }[];
+  top: { pos: number; initials: string; nickname: string | null; avatar_url: string | null; bukys: number; me: boolean }[];
   me: { pos: number; bukys: number } | null;
   total: number;
 }

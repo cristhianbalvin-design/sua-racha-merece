@@ -12,7 +12,7 @@ import type { City } from "../lib/api";
 import { getCity } from "../lib/api";
 import { isProfileComplete, useBukyProfile, useUpdateProfile } from "../lib/hooks";
 import { clearPendingProfile, takePendingProfile } from "../lib/pendingProfile";
-import { cleanInstagram, isValidInstagram, isValidName, isValidNeighborhood } from "../lib/validation";
+import { cleanInstagram, isValidInstagram, isValidName, isValidNeighborhood, isValidNickname, maskPhone, normalizePhone } from "../lib/validation";
 
 /**
  * Completar o editar el perfil: ciudad (catálogo IBGE), barrio, Instagram, nombre y foto.
@@ -26,7 +26,8 @@ export default function CompletarPerfil() {
   const { data: p, isLoading } = useBukyProfile();
   const save = useUpdateProfile();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [f, setF] = useState({ nome: "", instagram: "", bairro: "" });
+  const [f, setF] = useState({ nome: "", instagram: "", bairro: "", nickname: "", phone: "", whatsapp: "" });
+  const [sameWhatsapp, setSameWhatsapp] = useState(true);
   const [city, setCity] = useState<City | null>(null);
   const [touched, setTouched] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -41,7 +42,11 @@ export default function CompletarPerfil() {
       nome: p.name && p.name !== "Atleta" ? p.name : pending?.name ?? p.name ?? "",
       instagram: p.instagram ?? pending?.instagram ?? "",
       bairro: p.neighborhood ?? pending?.neighborhood ?? "",
+      nickname: p.nickname ?? "",
+      phone: maskPhone(p.phone ?? ""),
+      whatsapp: maskPhone(p.whatsapp ?? ""),
     });
+    setSameWhatsapp(!p.whatsapp || p.whatsapp === p.phone);
     const code = p.city_code ?? pending?.city_code;
     if (code) void getCity(code).then(setCity);
   }, [p]);
@@ -55,6 +60,9 @@ export default function CompletarPerfil() {
     instagram: f.instagram.trim() && !isValidInstagram(f.instagram) ? E.instagram : null,
     bairro: f.bairro.trim() && !isValidNeighborhood(f.bairro) ? E.bairro : null,
     cidade: !city ? E.cidade : null,
+    nickname: !isValidNickname(f.nickname) ? "Apelido inválido ou ofensivo." : null,
+    phone: f.phone && !normalizePhone(f.phone) ? "Confira o número de celular." : null,
+    whatsapp: !sameWhatsapp && f.whatsapp && !normalizePhone(f.whatsapp) ? "Confira o número de WhatsApp." : null,
   };
   const firstError = Object.values(errs).find(Boolean);
 
@@ -70,6 +78,9 @@ export default function CompletarPerfil() {
         name: f.nome.trim(),
         instagram: cleanInstagram(f.instagram) || null,
         neighborhood: f.bairro.trim() || null,
+        nickname: f.nickname.trim() || null,
+        phone: normalizePhone(f.phone),
+        whatsapp: normalizePhone(sameWhatsapp ? f.phone : f.whatsapp),
         city_code: city!.code,
       });
       clearPendingProfile();
@@ -128,6 +139,27 @@ export default function CompletarPerfil() {
           <span>{pt.cadastro.nome}</span>
           <input autoComplete="name" value={f.nome} onChange={(e) => setF((s) => ({ ...s, nome: e.target.value }))} />
         </label>
+        <label className="buky-field" data-invalid={inv("nickname")}>
+          <span>Apelido (aparece no ranking) · {f.nickname.length}/20</span>
+          <input maxLength={20} value={f.nickname} onChange={(e) => setF((s) => ({ ...s, nickname: e.target.value }))} />
+        </label>
+        <label className="buky-field">
+          <span>E-mail</span>
+          <input value={user?.email ?? p.email ?? ""} readOnly />
+          <small>Para mudar o e-mail, fale com a 3buk</small>
+        </label>
+        <label className="buky-field" data-invalid={inv("phone")}>
+          <span>Celular</span>
+          <div className="flex gap-2"><span>+55</span><input type="tel" value={f.phone} placeholder="(21) 99999-9999" onChange={(e) => setF((s) => ({ ...s, phone: maskPhone(e.target.value) }))} /></div>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={sameWhatsapp} onChange={(e) => setSameWhatsapp(e.target.checked)} /> Meu WhatsApp é o mesmo número
+        </label>
+        {!sameWhatsapp && <label className="buky-field" data-invalid={inv("whatsapp")}>
+          <span>WhatsApp</span>
+          <div className="flex gap-2"><span>+55</span><input type="tel" value={f.whatsapp} placeholder="(21) 99999-9999" onChange={(e) => setF((s) => ({ ...s, whatsapp: maskPhone(e.target.value) }))} /></div>
+        </label>}
+        <p className="text-xs text-[var(--buky-muted)]">Usamos seu celular e WhatsApp só para avisos de prêmios e da sua conta.</p>
         <label className="buky-field" data-invalid={inv("instagram")}>
           <span>{pt.cadastro.instagram} <em className="not-italic font-normal opacity-70">· {pt.cadastro.opcional}</em></span>
           <div className="flex items-center gap-1">

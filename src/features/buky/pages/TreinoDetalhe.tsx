@@ -6,6 +6,8 @@ import { pt } from "../i18n";
 import BukyMap from "../components/BukyMap";
 import { ErrorBox, fmtDate, fmtDuration, Spinner } from "../components/ui";
 import { getSessionDetail, getSessionTrack } from "../lib/api";
+import ShareButton from "../share/ShareButton";
+import { useMySessions } from "../lib/hooks";
 import { LiveStats } from "../training/liveStats";
 
 const H = pt.historico;
@@ -26,6 +28,7 @@ function pace(v: number | null) {
  */
 export default function TreinoDetalhe() {
   const { id = "" } = useParams();
+  const { data: sessions } = useMySessions();
   const { data: s, isLoading, isError, refetch } = useQuery({ queryKey: ["buky", "session", id], queryFn: () => getSessionDetail(id), staleTime: Infinity });
   const { data: readings, isError: trackError } = useQuery({
     queryKey: ["buky", "track", s?.track_path],
@@ -79,6 +82,8 @@ export default function TreinoDetalhe() {
         <p className="mt-1 text-[13px] text-[var(--buky-muted)]">
           {valid ? H.bukysConfirmados(s.bukys_awarded, s.route?.points.length ?? 0) : pt.resumo.invalido}
         </p>
+
+        <ShareButton data={{ date: s.started_at, city: sessions?.find(x => x.id === id)?.start_city ?? s.route?.city ?? "", bukys: s.bukys_awarded, shape: sessions?.find(x => x.id === id)?.shape ?? s.route?.path ?? s.route?.points ?? [], distance: s.distance_m, duration: s.duration_s, speed: s.avg_speed_kmh }} />
 
         {!valid && (
           <p className="mt-3 flex gap-2 rounded-2xl border border-[var(--buky-line)] p-3.5 text-sm text-[var(--buky-muted)]">
