@@ -50,7 +50,7 @@ serve(async (req) => {
       .select("id, amount_cents, currency, status, premium_applied_at")
       .eq("user_id", user.id)
       .eq("provider", "mercadopago")
-      .in("product", ["premium_annual", "wallet_topup"])
+      .in("product", ["premium_annual", "wallet_topup", "shop_order"])
       .is("premium_applied_at", null)
       .in("status", ["pending", "approved"])
       .gte("created_at", since)

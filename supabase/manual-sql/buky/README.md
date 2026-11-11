@@ -21,6 +21,8 @@ Scripts para correr **a mano en el SQL Editor de Supabase**, en orden y uno por 
 | 29 | `29_reenvio_acceso.sql` | Límite atómico de tres reenvíos de acceso por correo y hora. |
 | 30 | `30_entrega_e.sql` | Privacidad del ranking, contacto y contador de sorteos |
 | 31 | `31_limites_ranking_fotos.sql` | Límites por plan, ranking mensual y CPF privado para descargas reconocidas |
+| 32 | `32_marketplace.sql` | Tienda, reservas, pagos (saldo o Mercado Pago, pago tardío), envío con Melhor Envio y descuentos de marcas. Tienda apagada (`shop_enabled`). |
+| 33 | `33_descargas_solo_reconocidas.sql` | Fin de la transición: solo se descargan fotos reconocidas para el usuario |
 
 Después de los SQL se despliega la Edge Function (verify_jwt activado; no necesita secrets nuevos):
 

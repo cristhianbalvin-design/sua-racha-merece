@@ -10,7 +10,7 @@ export const PREMIUM_PRICE_CENTS = 5000;
 export interface WalletMovement {
   id: number;
   delta_cents: number;
-  reason: 'premium_bonus' | 'topup' | 'photo_purchase' | 'payment_reverted' | 'admin_refund' | 'admin_adjustment';
+  reason: 'premium_bonus' | 'topup' | 'photo_purchase' | 'payment_reverted' | 'admin_refund' | 'admin_adjustment' | 'shop_purchase' | 'shop_refund';
   note: string | null;
   ref_type: string | null;
   created_at: string;
@@ -34,6 +34,8 @@ export const walletReasonLabel = (r: WalletMovement['reason'] | string): string 
     payment_reverted: 'Pagamento estornado',
     admin_refund: 'Devolução',
     admin_adjustment: 'Ajuste da 3buk',
+    shop_purchase: 'Compra na loja',
+    shop_refund: 'Devolução da loja',
   })[r] ?? 'Movimento';
 
 export const formatCents = (delta: number) => `${delta > 0 ? '+' : '−'}${brl(Math.abs(delta))}`;

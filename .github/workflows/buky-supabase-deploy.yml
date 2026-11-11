@@ -75,7 +75,7 @@ jobs:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -e
-          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql supabase/manual-sql/buky/23_*.sql supabase/manual-sql/buky/24_*.sql supabase/manual-sql/buky/25_*.sql supabase/manual-sql/buky/26_*.sql supabase/manual-sql/buky/27_*.sql supabase/manual-sql/buky/28_*.sql supabase/manual-sql/buky/29_*.sql supabase/manual-sql/buky/30_*.sql supabase/manual-sql/buky/31_*.sql; do
+          for f in supabase/manual-sql/buky/15_*.sql supabase/manual-sql/buky/16_*.sql supabase/manual-sql/buky/17_*.sql supabase/manual-sql/buky/19_*.sql supabase/manual-sql/buky/20_*.sql supabase/manual-sql/buky/21_*.sql supabase/manual-sql/buky/22_*.sql supabase/manual-sql/buky/23_*.sql supabase/manual-sql/buky/24_*.sql supabase/manual-sql/buky/25_*.sql supabase/manual-sql/buky/26_*.sql supabase/manual-sql/buky/27_*.sql supabase/manual-sql/buky/28_*.sql supabase/manual-sql/buky/29_*.sql supabase/manual-sql/buky/30_*.sql supabase/manual-sql/buky/31_*.sql supabase/manual-sql/buky/32_*.sql supabase/manual-sql/buky/33_*.sql; do
             psql "$DB" -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null
             echo "::notice title=SQL aplicado::$(basename "$f") · sha256 $(sha256sum "$f" | cut -c1-12)"
           done
@@ -134,7 +134,7 @@ jobs:
           for f in $FUNCIONES; do
             [ -d "supabase/functions/$f" ] || { echo "::error::No existe la función $f"; exit 1; }
             case "$f" in mercadopago-webhook|send-notifications|invite-sponsor) extra="--no-verify-jwt" ;; *) extra="" ;; esac
-            npx --yes supabase@2 functions deploy "$f" --project-ref "$PROJECT_REF" --use-api $extra 2>&1 | tail -3
+            npx --yes supabase@2 functions deploy "$f" --project-ref "$PROJECT_REF" --use-api $extra
             echo "::notice title=Edge Function::$f publicada en $PROJECT_REF"
           done
 
@@ -144,7 +144,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           for f in create-premium-checkout sync-premium-payment; do
-            npx --yes supabase@2 functions deploy "$f" --project-ref "$PROJECT_REF" --use-api 2>&1 | tail -3
+            npx --yes supabase@2 functions deploy "$f" --project-ref "$PROJECT_REF" --use-api
             echo "::notice title=Edge Function::$f publicada en $PROJECT_REF"
           done
 
@@ -155,3 +155,4 @@ jobs:
         run: |
           npx --yes supabase@2 functions deploy send-notifications --project-ref "$PROJECT_REF" --use-api --no-verify-jwt
           npx --yes supabase@2 functions deploy invite-sponsor --project-ref "$PROJECT_REF" --use-api --no-verify-jwt
+
