@@ -46,6 +46,7 @@ type Option = {
   days: number;
 };
 type Order = {
+  shipping_service?: string | null;
   id: string;
   status: string;
   total_cents: number;
