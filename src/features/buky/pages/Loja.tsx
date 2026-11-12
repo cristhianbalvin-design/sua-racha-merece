@@ -11,6 +11,7 @@ import {
   exchangeAvailable,
   maskCep,
   shopStatusLabels as orderLabels,
+  shopOrderTimeline,
 } from "../lib/shop";
 
 type Variant = {
@@ -49,6 +50,9 @@ type Order = {
   status: string;
   total_cents: number;
   shipping_cents: number;
+  freight_cents: number | null;
+  freight_carrier: string | null;
+  freight_due_at: string | null;
   created_at: string;
   delivered_at: string | null;
   tracking_code: string | null;
@@ -415,6 +419,15 @@ export function Carrinho() {
   const [option, setOption] = useState("");
   const [busy, setBusy] = useState(false);
   const wallet = useQuery({ queryKey: ["wallet"], queryFn: apiGetMyWallet });
+  const mode = useQuery({
+    queryKey: ["shop-shipping-mode"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("shop_shipping_mode");
+      if (error) throw error;
+      return data as "arrange" | "quote";
+    },
+  });
+  const arrange = mode.data === "arrange";
   const subtotal = cartTotal(cart);
   const selected = quote?.options.find((o) => o.id === option);
   const total = subtotal + (selected?.price_cents ?? 0);
@@ -470,13 +483,15 @@ export function Carrinho() {
     }
   };
   const pay = async (method: "wallet" | "mercadopago") => {
-    if (!quote || !selected || busy) return;
+    if (busy || !mode.data || (!arrange && (!quote || !selected))) return;
     setBusy(true);
     try {
       const { data: id, error } = await supabase.rpc("shop_create_order", {
         p_items: itemsPayload(cart),
         p_address: address,
-        p_shipping: { quote_id: quote.quote_id, option_id: selected.id },
+        p_shipping: arrange
+          ? null
+          : { quote_id: quote!.quote_id, option_id: selected!.id },
       });
       if (error || !id) throw error ?? new Error();
       updateCart([]);
@@ -540,13 +555,21 @@ export function Carrinho() {
               onBlur={() => void lookup()}
             />
           </label>
-          <button
-            className={button}
-            disabled={busy || address.cep.replace(/\D/g, "").length !== 8}
-            onClick={() => void shipping()}
-          >
-            Calcular frete
-          </button>
+          {arrange ? (
+            <p className={panel}>
+              Frete a combinar: depois do pagamento dos produtos, a 3buk entra
+              em contato pelo WhatsApp ou e-mail para combinar o envio. O valor
+              do frete é cobrado aqui no app.
+            </p>
+          ) : (
+            <button
+              className={button}
+              disabled={busy || address.cep.replace(/\D/g, "").length !== 8}
+              onClick={() => void shipping()}
+            >
+              Calcular frete
+            </button>
+          )}
           {quote?.options.map((o) => (
             <label className="block" key={o.id}>
               <input
@@ -580,7 +603,11 @@ export function Carrinho() {
           ))}
           <p>
             Produtos: {brl(subtotal)} · Frete:{" "}
-            {selected ? brl(selected.price_cents) : "—"}
+            {arrange
+              ? "a combinar"
+              : selected
+                ? brl(selected.price_cents)
+                : "—"}
           </p>
           <p className="text-xl">Total: {brl(total)}</p>
           <p className="text-sm">
@@ -590,7 +617,7 @@ export function Carrinho() {
           <div className="flex flex-wrap gap-3">
             <button
               className={button}
-              disabled={!selected || busy}
+              disabled={!mode.data || (!arrange && !selected) || busy}
               onClick={() => void pay("mercadopago")}
             >
               Pagar com Mercado Pago
@@ -598,7 +625,10 @@ export function Carrinho() {
             <button
               className={button}
               disabled={
-                !selected || busy || (wallet.data?.balance_cents ?? 0) < total
+                !mode.data ||
+                (!arrange && !selected) ||
+                busy ||
+                (wallet.data?.balance_cents ?? 0) < total
               }
               onClick={() => void pay("wallet")}
             >
@@ -662,18 +692,21 @@ export function Pedido() {
   const o = order.data;
   const canExchange =
     o && exchangeAvailable(o.status, o.delivered_at, Date.now());
-  const retry = async (method: "wallet" | "mercadopago") => {
+  const retry = async (method: "wallet" | "mercadopago", freight = false) => {
     setBusy(true);
     try {
       if (method === "wallet") {
-        const r = await supabase.rpc("shop_pay_with_wallet", {
-          p_order_id: id,
-        });
+        const r = await supabase.rpc(
+          freight ? "shop_pay_freight_with_wallet" : "shop_pay_with_wallet",
+          {
+            p_order_id: id,
+          },
+        );
         if (r.error) throw r.error;
         await order.refetch();
       } else {
         const r = await supabase.functions.invoke("create-shop-checkout", {
-          body: { order_id: id },
+          body: { order_id: id, kind: freight ? "freight" : "order" },
         });
         if (r.error || !r.data?.checkout_url) throw r.error ?? new Error();
         window.location.assign(r.data.checkout_url);
@@ -704,13 +737,44 @@ export function Pedido() {
       {o && (
         <>
           <p>{orderLabels[o.status] ?? o.status}</p>
-          <p>Pagamento → Preparando → Enviado → Entregue</p>
+          <p className="text-[var(--buky-muted)]">
+            {o.shipping_service === "A combinar"
+              ? "Pagamento → Frete → Preparando → Enviado → Entregue"
+              : "Pagamento → Preparando → Enviado → Entregue"}
+          </p>
           {o.shop_order_items.map((i) => (
             <p key={i.variant_id}>
               {i.product_name} · {i.color} · {i.size} · {i.qty}×
             </p>
           ))}
           <p>Total: {brl(o.total_cents)}</p>
+          {o.status === "freight_pending" && (
+            <div className={`${panel} space-y-3`}>
+              <p>
+                Frete: {brl(o.freight_cents ?? 0)} via {o.freight_carrier} ·
+                pagar até{" "}
+                {o.freight_due_at &&
+                  new Date(o.freight_due_at).toLocaleDateString("pt-BR")}
+              </p>
+              <button
+                className={button}
+                disabled={
+                  busy ||
+                  (wallet.data?.balance_cents ?? 0) < (o.freight_cents ?? 0)
+                }
+                onClick={() => void retry("wallet", true)}
+              >
+                Pagar com saldo
+              </button>{" "}
+              <button
+                className={button}
+                disabled={busy}
+                onClick={() => void retry("mercadopago", true)}
+              >
+                Pagar com Mercado Pago
+              </button>
+            </div>
+          )}
           {o.status === "pending_payment" && (
             <div className="flex gap-2">
               <button

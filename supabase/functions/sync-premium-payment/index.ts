@@ -14,7 +14,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 const json = (body: unknown, status = 200) =>
@@ -24,24 +25,37 @@ const json = (body: unknown, status = 200) =>
   });
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Missing Authorization header" }, 401);
+    if (!authHeader)
+      return json({ error: "Missing Authorization header" }, 401);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: authError } = await callerClient.auth.getUser(authHeader.replace("Bearer ", ""));
+    const callerClient = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      {
+        global: { headers: { Authorization: authHeader } },
+      },
+    );
+    const {
+      data: { user },
+      error: authError,
+    } = await callerClient.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authError || !user) return json({ error: "Unauthorized" }, 401);
 
     const mpToken = Deno.env.get("MP_ACCESS_TOKEN") ?? "";
-    if (!mpToken) return json({ error: "Payment provider not configured" }, 500);
+    if (!mpToken)
+      return json({ error: "Payment provider not configured" }, 500);
 
-    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+    const admin = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    );
 
     // Pagos del usuario aún no aplicados (pendientes, o aprobados sin aplicar), últimos 7 días
     const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
@@ -50,7 +64,12 @@ serve(async (req) => {
       .select("id, amount_cents, currency, status, premium_applied_at")
       .eq("user_id", user.id)
       .eq("provider", "mercadopago")
-      .in("product", ["premium_annual", "wallet_topup", "shop_order"])
+      .in("product", [
+        "premium_annual",
+        "wallet_topup",
+        "shop_order",
+        "shop_freight",
+      ])
       .is("premium_applied_at", null)
       .in("status", ["pending", "approved"])
       .gte("created_at", since)
@@ -60,28 +79,34 @@ serve(async (req) => {
       console.error("sync list failed:", listError);
       return json({ error: "Internal error" }, 500);
     }
-    if (!payments || payments.length === 0) return json({ checked: 0, applied: false });
+    if (!payments || payments.length === 0)
+      return json({ checked: 0, applied: false });
 
     let appliedAny = false;
     let premiumUntil: string | null = null;
 
     for (const payment of payments) {
-      let approved: { id: number | string; date_approved?: string } | null = null;
+      let approved: { id: number | string; date_approved?: string } | null =
+        null;
 
       if (payment.status === "approved") {
         approved = { id: "" }; // ya aprobado por el webhook, solo falta aplicar
       } else {
         const url = `https://api.mercadopago.com/v1/payments/search?external_reference=${payment.id}&sort=date_created&criteria=desc`;
-        const res = await fetch(url, { headers: { Authorization: `Bearer ${mpToken}` } });
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${mpToken}` },
+        });
         if (!res.ok) {
           console.error("MP search failed:", res.status);
           continue;
         }
         const body = await res.json();
-        const hit = (body?.results ?? []).find((p: Record<string, unknown>) =>
-          p.status === "approved" &&
-          Math.round(Number(p.transaction_amount) * 100) === payment.amount_cents &&
-          p.currency_id === payment.currency
+        const hit = (body?.results ?? []).find(
+          (p: Record<string, unknown>) =>
+            p.status === "approved" &&
+            Math.round(Number(p.transaction_amount) * 100) ===
+              payment.amount_cents &&
+            p.currency_id === payment.currency,
         );
         if (!hit) continue;
         approved = { id: hit.id, date_approved: hit.date_approved };
@@ -103,7 +128,10 @@ serve(async (req) => {
         }
       }
 
-      const { data: applied, error: applyError } = await admin.rpc("apply_premium_payment", { p_payment_id: payment.id });
+      const { data: applied, error: applyError } = await admin.rpc(
+        "apply_premium_payment",
+        { p_payment_id: payment.id },
+      );
       if (applyError) {
         console.error("apply_premium_payment failed:", applyError);
         continue;
@@ -114,7 +142,11 @@ serve(async (req) => {
       }
     }
 
-    return json({ checked: payments.length, applied: appliedAny, premium_until: premiumUntil });
+    return json({
+      checked: payments.length,
+      applied: appliedAny,
+      premium_until: premiumUntil,
+    });
   } catch (err) {
     console.error("sync-premium-payment error:", err);
     return json({ error: "Internal error" }, 500);

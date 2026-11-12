@@ -27,10 +27,11 @@ serve(async (req) => {
       error: authError,
     } = await caller.auth.getUser();
     if (authError || !user) return json({ error: "unauthorized" }, 401);
-    const { order_id } = await req.json();
+    const { order_id, kind } = await req.json();
+    const freight = kind === "freight";
     const { data: order } = await caller
       .from("shop_orders")
-      .select("id,total_cents,reserved_until")
+      .select("id,total_cents,freight_cents,freight_due_at,reserved_until")
       .eq("id", order_id)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -39,10 +40,13 @@ serve(async (req) => {
       url,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
-    const { data: paymentId, error } = await admin.rpc("shop_begin_checkout", {
-      p_order_id: order.id,
-      p_user_id: user.id,
-    });
+    const { data: paymentId, error } = await admin.rpc(
+      freight ? "shop_begin_freight_checkout" : "shop_begin_checkout",
+      {
+        p_order_id: order.id,
+        p_user_id: user.id,
+      },
+    );
     if (error || !paymentId) return json({ error: "order_not_payable" }, 409);
     const site = (Deno.env.get("SITE_URL") ?? "https://www.3buk.com").replace(
       /\/+$/,
@@ -65,10 +69,14 @@ serve(async (req) => {
               title: "Loja 3buk",
               quantity: 1,
               currency_id: "BRL",
-              unit_price: order.total_cents / 100,
+              unit_price:
+                (freight ? order.freight_cents : order.total_cents) / 100,
             },
           ],
-          metadata: { product: "shop_order", order_id: order.id },
+          metadata: {
+            product: freight ? "shop_freight" : "shop_order",
+            order_id: order.id,
+          },
           external_reference: paymentId,
           payer: user.email ? { email: user.email } : undefined,
           back_urls: {
@@ -78,8 +86,8 @@ serve(async (req) => {
           },
           auto_return: "approved",
           notification_url: `${url}/functions/v1/mercadopago-webhook`,
-          expiration_date_to: order.reserved_until,
-          expires: true,
+          expiration_date_to: freight ? undefined : order.reserved_until,
+          expires: !freight,
           statement_descriptor: "3BUK",
           payment_methods: { excluded_payment_types: [{ id: "ticket" }] },
         }),
@@ -93,10 +101,14 @@ serve(async (req) => {
         .eq("id", paymentId);
       await admin
         .from("shop_orders")
-        .update({ payment_id: null, payment_method: null })
+        .update(
+          freight
+            ? { freight_payment_id: null, freight_payment_method: null }
+            : { payment_id: null, payment_method: null },
+        )
         .eq("id", order.id)
-        .eq("payment_id", paymentId)
-        .eq("status", "pending_payment");
+        .eq(freight ? "freight_payment_id" : "payment_id", paymentId)
+        .eq("status", freight ? "freight_pending" : "pending_payment");
       return json({ error: "payment_unavailable" }, 502);
     }
     await admin
