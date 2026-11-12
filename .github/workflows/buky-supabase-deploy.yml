@@ -37,6 +37,10 @@ on:
         description: "Cargar los datos de prueba de sorteos (premios con imágenes, próximo y pasado)"
         type: boolean
         default: false
+      datos_loja:
+        description: "Cargar 2 productos de ejemplo [TESTE] en la Loja (boné y squeeze)"
+        type: boolean
+        default: false
       premio_teste_email:
         description: "E-mail de un atleta para darle un premio [TESTE] con QR (prueba del canje)"
         type: string
@@ -99,6 +103,12 @@ jobs:
         env:
           DB: ${{ secrets.SUPABASE_DB_URL }}
         run: psql "$DB" -q -v ON_ERROR_STOP=1 -At -F ' · ' -f supabase/manual-sql/buky/datos_prueba_sorteios.sql | tail -3 | sed 's/^/::notice title=Datos de sorteos::/'
+
+      - name: Productos de ejemplo de la Loja
+        if: inputs.datos_loja
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+        run: psql "$DB" -q -v ON_ERROR_STOP=1 -At -f supabase/manual-sql/buky/datos_loja_demo.sql | sed 's/^/::notice title=Loja::/'
 
       - name: Premio de prueba para un atleta
         if: inputs.premio_teste_email != ''
