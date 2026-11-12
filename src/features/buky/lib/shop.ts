@@ -35,3 +35,29 @@ export const exchangeAvailable = (
   status === "delivered" &&
   deliveredAt !== null &&
   now <= new Date(deliveredAt).getTime() + days * 86400000;
+
+// Solo presentación: el estado del pedido sigue siendo la fuente de verdad.
+export function shopStep(status: string, arrange: boolean): number {
+  if (status === "pending_payment" || status === "cancelled") return 0;
+  if (
+    arrange &&
+    (status === "awaiting_freight" || status === "freight_pending")
+  )
+    return 1;
+  if (status === "shipped") return arrange ? 3 : 2;
+  if (["delivered", "exchange_requested", "exchanged"].includes(status))
+    return arrange ? 4 : 3;
+  return arrange ? 2 : 1;
+}
+export const variantAvailable = (
+  variants: { active: boolean; color: string; size: string; stock: number }[],
+  color: string,
+  size?: string,
+) =>
+  variants.some(
+    (v) =>
+      v.active &&
+      v.color === color &&
+      (!size || v.size === size) &&
+      v.stock > 0,
+  );

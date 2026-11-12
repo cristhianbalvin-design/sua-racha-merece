@@ -66,18 +66,44 @@
   font-size: 18px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  transition: transform 120ms ease, opacity 120ms ease;
+  transition:
+    transform 120ms ease,
+    opacity 120ms ease;
 }
-.buky .buky-btn:active { transform: scale(0.98); }
-.buky .buky-btn:disabled { opacity: 0.45; }
-.buky .buky-btn-light { background: #ffffff; }
-.buky .buky-btn-ghost { background: transparent; color: var(--buky-text); border: 1px solid var(--buky-line); }
+.buky .buky-btn:active {
+  transform: scale(0.98);
+}
+.buky .buky-btn:disabled {
+  opacity: 0.45;
+}
+.buky .buky-btn-light {
+  background: #ffffff;
+}
+.buky .buky-btn-ghost {
+  background: transparent;
+  color: var(--buky-text);
+  border: 1px solid var(--buky-line);
+}
 
 /* Campo de formulario: rótulo arriba, línea abajo */
-.buky .buky-field { display: block; border-bottom: 1px solid var(--buky-line); padding-bottom: 8px; }
-.buky .buky-field:focus-within { border-color: var(--buky-neon); }
-.buky .buky-field > span { display: block; font-size: 12px; font-weight: 600; color: var(--buky-muted); margin-bottom: 6px; }
-.buky .buky-field:focus-within > span { color: var(--buky-neon); }
+.buky .buky-field {
+  display: block;
+  border-bottom: 1px solid var(--buky-line);
+  padding-bottom: 8px;
+}
+.buky .buky-field:focus-within {
+  border-color: var(--buky-neon);
+}
+.buky .buky-field > span {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--buky-muted);
+  margin-bottom: 6px;
+}
+.buky .buky-field:focus-within > span {
+  color: var(--buky-neon);
+}
 .buky .buky-field input,
 .buky .buky-field select {
   width: 100%;
@@ -88,17 +114,51 @@
   font-size: 17px;
   padding: 0;
 }
-.buky .buky-field input::placeholder { color: var(--buky-faint); }
-.buky .buky-field[data-invalid="true"] { border-color: var(--buky-danger); }
-.buky .buky-field[data-invalid="true"] > span { color: var(--buky-danger); }
+.buky .buky-field input::placeholder {
+  color: var(--buky-faint);
+}
+.buky .buky-field[data-invalid="true"] {
+  border-color: var(--buky-danger);
+}
+.buky .buky-field[data-invalid="true"] > span {
+  color: var(--buky-danger);
+}
 
-.buky .buky-row { border-top: 1px solid var(--buky-line); }
+.buky .buky-row {
+  border-top: 1px solid var(--buky-line);
+}
 
 /* Pulso del punto "en curso" */
-@keyframes buky-pulse { 0% { box-shadow: 0 0 0 0 rgba(57,255,20,.6); } 70% { box-shadow: 0 0 0 10px rgba(57,255,20,0); } 100% { box-shadow: 0 0 0 0 rgba(57,255,20,0); } }
-.buky .buky-pulse { animation: buky-pulse 1.6s infinite; }
+@keyframes buky-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(57, 255, 20, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(57, 255, 20, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(57, 255, 20, 0);
+  }
+}
+.buky .buky-pulse {
+  animation: buky-pulse 1.6s infinite;
+}
 
 /* MapLibre dentro del tema */
-.buky .maplibregl-ctrl-attrib { background: rgba(5,5,5,.6) !important; color: #8a8a8a; font-size: 10px; }
-.buky .maplibregl-ctrl-top-right { top: calc(env(safe-area-inset-top, 0px) + 96px); }
-.buky .maplibregl-ctrl-attrib a { color: #a5a5a5 !important; }
+.buky .maplibregl-ctrl-attrib {
+  background: rgba(5, 5, 5, 0.6) !important;
+  color: #8a8a8a;
+  font-size: 10px;
+}
+.buky .maplibregl-ctrl-top-right {
+  top: calc(env(safe-area-inset-top, 0px) + 96px);
+}
+.buky .maplibregl-ctrl-attrib a {
+  color: #a5a5a5 !important;
+}
+
+/* Foco visible para navegación con teclado en la tienda. */
+.buky main :is(a, button, input, textarea, summary):focus-visible {
+  outline: 2px solid var(--buky-neon);
+  outline-offset: 3px;
+}
