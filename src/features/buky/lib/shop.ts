@@ -12,9 +12,13 @@ export const cartTotal = (
     (total, item) => total + item.unit_cents * item.qty,
     shippingCents,
   );
+export const shopOrderTimeline =
+  "Pagamento → Frete → Preparando → Enviado → Entregue";
 export const shopStatusLabels: Record<string, string> = {
   pending_payment: "Aguardando pagamento",
   paid: "Pagamento confirmado",
+  awaiting_freight: "Aguardando frete",
+  freight_pending: "Frete aguardando pagamento",
   preparing: "Preparando",
   shipped: "Enviado",
   delivered: "Entregue",
