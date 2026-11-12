@@ -3,8 +3,109 @@
  * Centralizados para que el cliente los revise en un solo lugar.
  */
 export const pt = {
+  loja: {
+    erroSalvar: "Não foi possível salvar o carrinho neste aparelho.",
+    erroLoja: "Não foi possível carregar a loja.",
+    lojaEmBreve: "A loja abre em breve",
+    erroCodigo: "Não foi possível revelar o código.",
+    erroEstoque: "Quantidade acima do estoque disponível.",
+    erroCep: "Não foi possível consultar o CEP.",
+    erroFrete: "Envio indisponível no momento",
+    erroFinalizar:
+      "Não foi possível concluir o pagamento. Confira seus pedidos.",
+    erroPagamento: "Pagamento indisponível para este pedido.",
+    erroTroca: "Não foi possível solicitar a troca.",
+    trocaSolicitada: "Troca solicitada",
+    produtoNaoEncontrado: "Produto não encontrado.",
+    titulo: "Loja 3buk",
+    produto: "Produto",
+    carrinho: "Carrinho",
+    pedidos: "Meus pedidos",
+    pedido: "Pedido",
+    voltar: "Voltar",
+    unidades: "unidades",
+    produtos: "Produtos",
+    descontos: "Descontos",
+    novidades: "Novidades em breve",
+    esgotado: "Esgotado",
+    carregar: "Carregando…",
+    erroProdutos: "Não foi possível carregar os produtos.",
+    semDescontos: "Nenhum desconto disponível no momento.",
+    validade: "Válido até",
+    condicoes: "Ver condições",
+    verCodigo: "Ver código",
+    copiar: "Copiar",
+    copiado: "Copiado!",
+    abrirSite: "Abrir site",
+    entrarDesconto: "Entre para ver o código.",
+    entrar: "Entrar",
+    cor: "Cor",
+    tamanho: "Tamanho",
+    quantidade: "Quantidade",
+    ultimas: (n: number) => `Últimas ${n} ${n === 1 ? "unidade" : "unidades"}`,
+    adicionar: "Adicionar ao carrinho",
+    adicionado: "Adicionado ao carrinho",
+    freteCombinar:
+      "Frete a combinar: a 3buk entra em contato depois do pagamento.",
+    freteCotado: "Frete calculado no carrinho.",
+    vazio: "Seu carrinho está vazio.",
+    verProdutos: "Ver produtos",
+    remover: "Remover",
+    endereco: "Endereço de entrega",
+    cep: "CEP",
+    destinatario: "Destinatário",
+    celular: "Celular +55",
+    rua: "Rua",
+    numero: "Número",
+    complemento: "Complemento",
+    bairro: "Bairro",
+    cidade: "Cidade",
+    uf: "UF",
+    campoObrigatorio: "Preencha este campo.",
+    cepInvalido: "Informe um CEP válido.",
+    calcularFrete: "Calcular frete",
+    frete: "Frete",
+    combinar: "a combinar",
+    total: "Total",
+    pagamento: "Forma de pagamento",
+    saldo: "Saldo 3buk",
+    saldoDisponivel: "Saldo disponível",
+    mercadoPago: "Mercado Pago (Pix ou cartão)",
+    finalizar: "Finalizar pedido",
+    semPedidos: "Você ainda não fez pedidos.",
+    itens: "Itens",
+    rastreio: "Rastreio",
+    acompanhar: "Acompanhar entrega",
+    fretePendente: "Frete aguardando pagamento",
+    pagarSaldo: "Pagar com saldo",
+    pagarMP: "Pagar com Mercado Pago",
+    troca: "Solicitar troca de tamanho",
+    trocaPlaceholder: "Conte qual tamanho precisa",
+    trocaNota: "O envio de volta fica por conta do comprador.",
+    pedidoNaoEncontrado: "Pedido não encontrado.",
+    pagamentoEtapa: "Pagamento",
+    freteEtapa: "Frete",
+    preparando: "Preparando",
+    enviado: "Enviado",
+    entregue: "Entregue",
+    diminuir: "Diminuir quantidade",
+    aumentar: "Aumentar quantidade",
+    descricao: "Descrição",
+    selecionarImagem: "Selecionar imagem",
+    semImagem: "Imagem indisponível",
+    erroPedidos: "Não foi possível carregar os pedidos.",
+    prazo: "Pagar até",
+    envioNota:
+      "Envio para todo o Brasil. Troca de tamanho até 7 dias após a entrega; envio de volta por conta do comprador.",
+  },
   appName: "3buk",
-  tabs: { inicio: "Início", bolsa: "Bolsa", fotos: "Fotos", patrocinio: "Patrocínio", perfil: "Perfil" },
+  tabs: {
+    inicio: "Início",
+    bolsa: "Bolsa",
+    fotos: "Fotos",
+    patrocinio: "Patrocínio",
+    perfil: "Perfil",
+  },
 
   entrar: {
     title1: "Pegue bukys.",
@@ -57,7 +158,8 @@ export const pt = {
     },
     completarTitulo1: "Falta",
     completarTitulo2: "pouco",
-    completarTexto: "Para jogar Buky só precisamos da sua cidade. Bairro e Instagram são opcionais.",
+    completarTexto:
+      "Para jogar Buky só precisamos da sua cidade. Bairro e Instagram são opcionais.",
     opcional: "opcional",
     salvar: "Salvar e continuar",
   },
@@ -68,14 +170,17 @@ export const pt = {
     patrocinado: "PATROCINADO",
     ranking: (c: string) => (c ? `Top 3 de ${c}` : "Top 3 da sua cidade"),
     rankingVazio: "Ninguém coletou Bukys na sua cidade ainda. Seja o primeiro!",
-    rankingNota: "Bukys coletados correndo, desde o início. Os presentes da 3buk não contam.",
+    rankingNota:
+      "Bukys coletados correndo, desde o início. Os presentes da 3buk não contam.",
     voce: "você",
-    suaPosicao: (pos: number, n: number) => `Você está em ${pos}º lugar com ${n} ${n === 1 ? "Buky" : "Bukys"}.`,
+    suaPosicao: (pos: number, n: number) =>
+      `Você está em ${pos}º lugar com ${n} ${n === 1 ? "Buky" : "Bukys"}.`,
     soApp: "Colete Bukys pelo app",
     soAppTexto:
       "Os Bukys só são coletados no app 3buk instalado no celular (Android ou iPhone), com a permissão de atividade física. Aqui na web você acompanha sua bolsa, sorteios, histórico e perfil.",
     bukys: "Bukys",
-    pertoDeVoce: (n: number) => (n === 1 ? "waypoint perto de você" : "waypoints perto de você"),
+    pertoDeVoce: (n: number) =>
+      n === 1 ? "waypoint perto de você" : "waypoints perto de você",
     iniciar: "Iniciar",
     semRotas: "Ainda não há rotas na sua cidade.",
     criarRota: "Criar minha rota",
@@ -87,7 +192,8 @@ export const pt = {
 
   aviso: {
     titulo: "Não feche o app",
-    texto: "Apenas desligue a tela. Se você fechar o app, o treino para de contar os Bukys.",
+    texto:
+      "Apenas desligue a tela. Se você fechar o app, o treino para de contar os Bukys.",
     caminhar: "Caminhar não conta: os Bukys valem correndo.",
     web: "No navegador, mantenha esta tela aberta e ligada durante o treino.",
     comecar: "Começar",
@@ -108,25 +214,32 @@ export const pt = {
     fisico: "Físico · na loja",
     digital: "Digital · no app",
     gpsFraco: "Sinal de GPS fraco",
-    semPermissao: "Permita o acesso à localização “o tempo todo” para contar seus Bukys com a tela desligada.",
+    semPermissao:
+      "Permita o acesso à localização “o tempo todo” para contar seus Bukys com a tela desligada.",
     abrirAjustes: "Abrir ajustes",
     enviando: "Validando seu treino…",
-    semConexao: "Sem conexão. Vamos enviar seu treino assim que a internet voltar.",
+    semConexao:
+      "Sem conexão. Vamos enviar seu treino assim que a internet voltar.",
     confirmarTerminar: "Terminar o treino agora?",
     distancia: "Distância",
     tempo: "Tempo",
     velocidade: "Velocidade",
     devagar: "devagar",
     rapido: "rápido demais",
-    acelere: (min: number) => `Acelere: abaixo de ${min} km/h o Buky não conta.`,
+    acelere: (min: number) =>
+      `Acelere: abaixo de ${min} km/h o Buky não conta.`,
     // Paso 24: límite de tiempo y bicicleta
-    restante: (min: number) => `Faltam ${min} min · o treino termina sozinho em ${min === 1 ? "1 minuto" : `${min} minutos`}`,
+    restante: (min: number) =>
+      `Faltam ${min} min · o treino termina sozinho em ${min === 1 ? "1 minuto" : `${min} minutos`}`,
     limite: (min: number) => `Limite de ${min} min por treino`,
-    bikeAviso: (n: number, de: number) => `Aviso ${n} de ${de}: parece que você não está correndo`,
+    bikeAviso: (n: number, de: number) =>
+      `Aviso ${n} de ${de}: parece que você não está correndo`,
     bikeAvisoTexto: (de: number) =>
       `Detectamos velocidade de bicicleta ou veículo sem passos. No aviso ${de} o treino termina sozinho; os Bukys que você já coletou correndo ficam com você.`,
-    semPassos: "Sem contador de passos: a detecção de bicicleta usa só a velocidade.",
-    bloqueado: "Seu treino foi interrompido por bicicleta duas vezes hoje. Você pode voltar a treinar amanhã a partir das 00:00.",
+    semPassos:
+      "Sem contador de passos: a detecção de bicicleta usa só a velocidade.",
+    bloqueado:
+      "Seu treino foi interrompido por bicicleta duas vezes hoje. Você pode voltar a treinar amanhã a partir das 00:00.",
   },
 
   resumo: {
@@ -140,8 +253,10 @@ export const pt = {
       session_invalid: "O treino não pôde ser validado.",
     } as Record<string, string>,
     fim: {
-      time_limit: (min: number) => `O treino terminou sozinho ao completar ${min} minutos. Seus Bukys ficaram na bolsa.`,
-      bike: () => "O treino foi interrompido: detectamos 3 vezes velocidade de bicicleta ou veículo sem passos. Os Bukys que você coletou correndo antes ficaram na bolsa.",
+      time_limit: (min: number) =>
+        `O treino terminou sozinho ao completar ${min} minutos. Seus Bukys ficaram na bolsa.`,
+      bike: () =>
+        "O treino foi interrompido: detectamos 3 vezes velocidade de bicicleta ou veículo sem passos. Os Bukys que você coletou correndo antes ficaram na bolsa.",
     } as Record<string, (min: number) => string>,
     bikeBloqueio: "Se acontecer de novo hoje, você só poderá treinar amanhã.",
     rejeicoes: {
@@ -169,7 +284,8 @@ export const pt = {
     bukys: "Bukys",
     enviar: "Enviar ao sorteio",
     regra: "Escolha o sorteio e quantos Bukys enviar · 1 Buky = 1 chance",
-    confirmar: (n: number) => `Enviar ${n} ${n === 1 ? "Buky" : "Bukys"} ao sorteio? Seu saldo fica em 0.`,
+    confirmar: (n: number) =>
+      `Enviar ${n} ${n === 1 ? "Buky" : "Bukys"} ao sorteio? Seu saldo fica em 0.`,
     enviado: (t: string) => `Pronto! Seu ticket é ${t}.`,
     semPeriodo: "Não há sorteio aberto agora.",
     semCidade: "Complete sua cidade no perfil para participar.",
@@ -183,7 +299,8 @@ export const pt = {
     presenteados: "Presentes da 3buk",
     // Fase 1: progreso histórico (solo cuentan los Bukys coletados correndo)
     progresso: "Seu progresso",
-    progressoTexto: "Contam só os Bukys coletados correndo. Os presentes da 3buk não entram.",
+    progressoTexto:
+      "Contam só os Bukys coletados correndo. Os presentes da 3buk não entram.",
     metaPatrocinio: "Patrocínio · Kit 3buk",
     metaFoto: "Foto grátis no ano",
     faltam: (n: number) => `faltam ${n}`,
@@ -195,10 +312,12 @@ export const pt = {
     premios: "Meus prêmios",
     emJogo: "Prêmios em jogo",
     proximoSorteio: (d: string) => `Próximo sorteio · encerra ${d}`,
-    emJogoTexto: "Cada Buky enviado é uma chance a mais em todos estes prêmios.",
+    emJogoTexto:
+      "Cada Buky enviado é uma chance a mais em todos estes prêmios.",
     ganhadores: (n: number) => `${n} ${n === 1 ? "ganhador" : "ganhadores"}`,
     semPremios: "Os prêmios deste sorteio ainda não foram anunciados.",
-    concorre: (n: number) => `Você concorre a ${n} ${n === 1 ? "prêmio" : "prêmios"}.`,
+    concorre: (n: number) =>
+      `Você concorre a ${n} ${n === 1 ? "prêmio" : "prêmios"}.`,
     fisicoLoja: "Físico · retire na loja",
     digitalApp: "Digital · use no app",
     codigo: "Código",
@@ -250,8 +369,10 @@ export const pt = {
     cancelado: "Cancelado · Bukys devolvidos",
     sorteado: (d: string) => `Sorteado ${d}`,
     premiosN: (n: number) => `${n} ${n === 1 ? "prêmio" : "prêmios"}`,
-    participantes: (n: number) => `${n} ${n === 1 ? "participante" : "participantes"}`,
-    ganhadoresEm: (n: number, cidades: string) => `${n} ${n === 1 ? "ganhador" : "ganhadores"} em ${cidades}`,
+    participantes: (n: number) =>
+      `${n} ${n === 1 ? "participante" : "participantes"}`,
+    ganhadoresEm: (n: number, cidades: string) =>
+      `${n} ${n === 1 ? "ganhador" : "ganhadores"} em ${cidades}`,
     semGanhador: "Sem ganhador",
     voceGanhou: "Você ganhou!",
     resultadoTexto: "Por privacidade mostramos só a cidade de quem ganhou.",
@@ -267,41 +388,63 @@ export const pt = {
     todosDoSorteio: "Todos os participantes do sorteio",
     ganhadores: (n: number) => `${n} ${n === 1 ? "ganhador" : "ganhadores"}`,
     comoResgatar: "Como resgatar",
-    jaConcorre: (n: number) => `Seus ${n} Bukys já concorrem a este prêmio e a todos os outros do sorteio. Não é preciso escolher.`,
-    concorreEnviando: "Envie seus Bukys ao sorteio e concorra a este prêmio e a todos os outros. Não é preciso escolher.",
+    jaConcorre: (n: number) =>
+      `Seus ${n} Bukys já concorrem a este prêmio e a todos os outros do sorteio. Não é preciso escolher.`,
+    concorreEnviando:
+      "Envie seus Bukys ao sorteio e concorra a este prêmio e a todos os outros. Não é preciso escolher.",
     enviarMais: (n: number) => `Enviar mais ${n} ${n === 1 ? "Buky" : "Bukys"}`,
-    proximoAviso: (d: string) => `Este prêmio entra em jogo quando o sorteio abrir (${d}).`,
+    proximoAviso: (d: string) =>
+      `Este prêmio entra em jogo quando o sorteio abrir (${d}).`,
     // Bolsa
     cardAtual: (t: string) => `Sorteio atual · encerra em ${t}`,
-    cardPremios: (n: number) => `${n} ${n === 1 ? "prêmio" : "prêmios"} em jogo`,
-    cardEnviados: (n: number) => (n > 0 ? `Você já enviou ${n} Bukys` : "Você ainda não enviou Bukys"),
+    cardPremios: (n: number) =>
+      `${n} ${n === 1 ? "prêmio" : "prêmios"} em jogo`,
+    cardEnviados: (n: number) =>
+      n > 0 ? `Você já enviou ${n} Bukys` : "Você ainda não enviou Bukys",
     cardSemAberto: "Sorteios",
     cardSemAbertoSub: "Veja os próximos e os resultados",
-    premioParaResgatar: (n: number) => `Você tem ${n} ${n === 1 ? "prêmio" : "prêmios"} para resgatar`,
+    premioParaResgatar: (n: number) =>
+      `Você tem ${n} ${n === 1 ? "prêmio" : "prêmios"} para resgatar`,
     // Paso 25: varios sorteos, ubicación, reglamento, % y suplente
     vocePerto: (c: string) => `Você está em ${c}`,
-    semLocal: "Ative a localização para ver em quais sorteios você pode participar.",
-    foraBrasil: "Você está fora das cidades com sorteio. Seus Bukys continuam guardados.",
-    cadencia: { weekly: "Semanal", biweekly: "Quinzenal", monthly: "Mensal", none: "Especial" } as Record<string, string>,
-    cidades: (c: string[], nacional: boolean) => (nacional ? "Todo o Brasil" : c.join(" · ")),
-    participantesMin: (n: number, min: number) => `${n} ${n === 1 ? "participante" : "participantes"} · mínimo ${min}`,
+    semLocal:
+      "Ative a localização para ver em quais sorteios você pode participar.",
+    foraBrasil:
+      "Você está fora das cidades com sorteio. Seus Bukys continuam guardados.",
+    cadencia: {
+      weekly: "Semanal",
+      biweekly: "Quinzenal",
+      monthly: "Mensal",
+      none: "Especial",
+    } as Record<string, string>,
+    cidades: (c: string[], nacional: boolean) =>
+      nacional ? "Todo o Brasil" : c.join(" · "),
+    participantesMin: (n: number, min: number) =>
+      `${n} ${n === 1 ? "participante" : "participantes"} · mínimo ${min}`,
     soEm: (c: string) => `Para enviar, você precisa estar em ${c}.`,
     enviarAqui: "Enviar Bukys",
-    seusBukysAqui: (n: number) => `Você enviou ${n} ${n === 1 ? "Buky" : "Bukys"}`,
-    sorteiosAbertos: (n: number) => `${n} ${n === 1 ? "sorteio aberto" : "sorteios abertos"}`,
-    valemAqui: (n: number) => `${n} ${n === 1 ? "vale" : "valem"} onde você está`,
+    seusBukysAqui: (n: number) =>
+      `Você enviou ${n} ${n === 1 ? "Buky" : "Bukys"}`,
+    sorteiosAbertos: (n: number) =>
+      `${n} ${n === 1 ? "sorteio aberto" : "sorteios abertos"}`,
+    valemAqui: (n: number) =>
+      `${n} ${n === 1 ? "vale" : "valem"} onde você está`,
     escolhaQuantos: "Quantos Bukys enviar?",
     tudo: "Tudo",
     metade: "Metade",
-    consumidos: "Os Bukys enviados são usados neste sorteio, ganhe ou não. Cada Buky é uma chance.",
+    consumidos:
+      "Os Bukys enviados são usados neste sorteio, ganhe ou não. Cada Buky é uma chance.",
     regulamento: "Regulamento",
     regulamentoProvisorio: "Versão de teste",
     aceito: "Li e aceito o regulamento deste sorteio",
-    regulamentoNovo: "O regulamento mudou desde o seu último envio. Leia e aceite de novo.",
+    regulamentoNovo:
+      "O regulamento mudou desde o seu último envio. Leia e aceite de novo.",
     confirmarEnvio: (n: number) => `Enviar ${n} ${n === 1 ? "Buky" : "Bukys"}`,
-    enviado: (n: number, t: string) => `Pronto! ${n} ${n === 1 ? "Buky enviado" : "Bukys enviados"} · ticket ${t}`,
+    enviado: (n: number, t: string) =>
+      `Pronto! ${n} ${n === 1 ? "Buky enviado" : "Bukys enviados"} · ticket ${t}`,
     erros: {
-      location_required: "Ative a localização para enviar: o sorteio depende da cidade onde você está.",
+      location_required:
+        "Ative a localização para enviar: o sorteio depende da cidade onde você está.",
       outside_area: "Este sorteio não vale para a cidade onde você está agora.",
       rules_not_accepted: "Aceite o regulamento para enviar.",
       period_not_open: "Este sorteio já fechou.",
@@ -309,11 +452,14 @@ export const pt = {
       invalid_amount: "Quantidade inválida.",
     } as Record<string, string>,
     ordemPct: "Sorteados do maior para o menor desconto",
-    suplenteTexto: (d: string) => `Você é suplente: se o ganhador não resgatar até ${d}, o prêmio passa para você.`,
-    suplenteAguarde: "Você é suplente: se o ganhador não resgatar no prazo, o prêmio passa para você.",
+    suplenteTexto: (d: string) =>
+      `Você é suplente: se o ganhador não resgatar até ${d}, o prêmio passa para você.`,
+    suplenteAguarde:
+      "Você é suplente: se o ganhador não resgatar no prazo, o prêmio passa para você.",
     resgateAte: (d: string) => `Resgate até ${d}`,
     vencido: "O prazo para resgatar terminou.",
-    aguardandoMinimo: "Aguardando a decisão da 3buk (não atingiu o mínimo de participantes)",
+    aguardandoMinimo:
+      "Aguardando a decisão da 3buk (não atingiu o mínimo de participantes)",
   },
 
   fotos: {
@@ -321,16 +467,22 @@ export const pt = {
     sub: "Encontre-se no evento com uma selfie.",
     evento: "Evento",
     escolherEvento: "Escolha o evento",
-    gratis: (n: number, total: number) => `${n} de ${total} fotos grátis neste ano`,
+    gratis: (n: number, total: number) =>
+      `${n} de ${total} fotos grátis neste ano`,
     comprarTitulo: "Comprar esta foto",
-    comprarTexto: (preco: string, saldo: string) => `Você não tem fotos grátis disponíveis. Esta foto custa ${preco} do seu saldo (saldo atual: ${saldo}).`,
+    comprarTexto: (preco: string, saldo: string) =>
+      `Você não tem fotos grátis disponíveis. Esta foto custa ${preco} do seu saldo (saldo atual: ${saldo}).`,
     comprar: (preco: string) => `Comprar por ${preco}`,
-    semSaldoTexto: (preco: string, saldo: string) => `Esta foto custa ${preco} e seu saldo é ${saldo}. Recarregue para continuar.`,
+    semSaldoTexto: (preco: string, saldo: string) =>
+      `Esta foto custa ${preco} e seu saldo é ${saldo}. Recarregue para continuar.`,
     recarregar: "Recarregar saldo",
     comprada: "Foto comprada e baixada.",
     mesAnterior: "Mês anterior",
     mesSeguinte: "Mês seguinte",
-    diasComFotos: (n: number) => (n === 0 ? "Sem eventos neste mês" : `${n} ${n === 1 ? "dia com fotos" : "dias com fotos"}`),
+    diasComFotos: (n: number) =>
+      n === 0
+        ? "Sem eventos neste mês"
+        : `${n} ${n === 1 ? "dia com fotos" : "dias com fotos"}`,
     eventosNoDia: (n: number) => `${n} ${n === 1 ? "evento" : "eventos"}`,
     escolhaDia: "Toque num dia marcado para ver os eventos.",
     semEventos: "Ainda não há eventos com fotos.",
@@ -338,11 +490,17 @@ export const pt = {
     trocarSelfie: "Trocar selfie",
     selfieSub: "Só é usada para buscar você",
     galeria: "ou escolha uma foto da galeria",
-    buscando: ["Analisando sua selfie…", "Comparando com as fotos do evento…", "Só mais um instante…"],
+    buscando: [
+      "Analisando sua selfie…",
+      "Comparando com as fotos do evento…",
+      "Só mais um instante…",
+    ],
     suasFotos: "Suas fotos",
-    encontradas: (n: number) => `${n} ${n === 1 ? "encontrada" : "encontradas"}`,
+    encontradas: (n: number) =>
+      `${n} ${n === 1 ? "encontrada" : "encontradas"}`,
     nenhuma: "Não encontramos você neste evento.",
-    nenhumaDica: "Tente outra selfie, de frente e com boa luz, ou outro evento.",
+    nenhumaDica:
+      "Tente outra selfie, de frente e com boa luz, ou outro evento.",
     baixar: "Baixar foto",
     baixando: "Baixando…",
     baixada: "Foto salva!",
@@ -391,7 +549,12 @@ export const pt = {
     enviada: "Participação enviada!",
     emAvaliacao: "Em avaliação. A 3buk avisa os vencedores.",
     jaParticipou: "Você já participou desta campanha.",
-    status: { "Concluído": "Em avaliação", "Qualificado": "Qualificado", "Ganhador": "Ganhador!", "Não concluído": "Não concluído" } as Record<string, string>,
+    status: {
+      Concluído: "Em avaliação",
+      Qualificado: "Qualificado",
+      Ganhador: "Ganhador!",
+      "Não concluído": "Não concluído",
+    } as Record<string, string>,
     encerrada: "Esta campanha não está mais aberta.",
     voltar: "Voltar ao Patrocínio",
   },
@@ -399,22 +562,29 @@ export const pt = {
   saldo: {
     titulo: "Meu saldo",
     saldo: "Saldo",
-    saldoTexto: (preco: string) => `Use para comprar fotos (${preco} cada) quando acabarem as grátis. O saldo não vence.`,
+    saldoTexto: (preco: string) =>
+      `Use para comprar fotos (${preco} cada) quando acabarem as grátis. O saldo não vence.`,
     recarregar: "Recarregar",
     devolucao: "Para pedir devolução de uma recarga, fale com a 3buk.",
     fotosGratis: "Fotos grátis neste ano",
     deTotal: (n: number) => `de ${n} disponíveis`,
-    precisaBukys: (min: number, tem: number) => `No Freemium, a foto grátis libera com ${min} Bukys coletados correndo (você tem ${tem}).`,
+    precisaBukys: (min: number, tem: number) =>
+      `No Freemium, a foto grátis libera com ${min} Bukys coletados correndo (você tem ${tem}).`,
     renovam: (d: string) => `Renovam em ${d}.`,
     premiumAtivo: "Premium ativo",
     sejaPremium: "Seja Premium",
     vence: (d: string) => `Vence em ${d}`,
-    beneficios: ["R$ 50 de saldo na hora", "3 fotos grátis por ano", "Campanhas de patrocínio Premium"],
+    beneficios: [
+      "R$ 50 de saldo na hora",
+      "3 fotos grátis por ano",
+      "Campanhas de patrocínio Premium",
+    ],
     aceito: "Li e aceito os",
     termos: "Termos de Compra do Premium",
     assinar: (p: string) => `Assinar · ${p}/ano`,
     renovar: (p: string) => `Renovar · ${p}/ano`,
-    semSaldo: "Pagamento único por cartão ou Pix. O Premium não pode ser pago com saldo.",
+    semSaldo:
+      "Pagamento único por cartão ou Pix. O Premium não pode ser pago com saldo.",
     movimentos: "Movimentos",
     semMovimentos: "Você ainda não tem movimentos de saldo.",
     confirmado: "Pagamento confirmado! Seu saldo foi atualizado.",
@@ -462,19 +632,22 @@ export const pt = {
     velMax: "Máxima",
     passagens: "Passagens",
     validas: "válidas",
-    bukysConfirmados: (n: number, total: number) => `${n} ${n === 1 ? "Buky confirmado" : "Bukys confirmados"} de ${total} na rota`,
+    bukysConfirmados: (n: number, total: number) =>
+      `${n} ${n === 1 ? "Buky confirmado" : "Bukys confirmados"} de ${total} na rota`,
     rotaRemovida: "Rota removida",
     legendaRecorrido: "Seu percurso",
     legendaRota: "Rota",
     legendaPego: "Buky pego",
-    semRecorrido: "O percurso deste treino não foi guardado; os números continuam valendo.",
+    semRecorrido:
+      "O percurso deste treino não foi guardado; os números continuam valendo.",
     erroRecorrido: "Não foi possível carregar o percurso agora.",
   },
 
   rota: {
     titulo: "Nova rota",
     nome: "Nome da rota",
-    instrucao: "Desenhe o percurso pelas ruas. Os Bukys aparecem sozinhos ao longo do caminho.",
+    instrucao:
+      "Desenhe o percurso pelas ruas. Os Bukys aparecem sozinhos ao longo do caminho.",
     dicas: [
       "Toque no mapa para ir marcando o caminho; nas curvas, marque pontos pertinho.",
       "Arraste um ponto para ajustá-lo à rua.",
@@ -493,10 +666,12 @@ export const pt = {
     minhaPosicao: "Minha posição",
     ponto: (n: number) => `Ponto ${n} do caminho`,
     remover: "Remover",
-    inserirDepois: (n: number) => `Toque no mapa para inserir um ponto depois do ${n}.`,
+    inserirDepois: (n: number) =>
+      `Toque no mapa para inserir um ponto depois do ${n}.`,
     fechar: "Fechar",
     modoTeste: "Modo teste: você pode desenhar fora da sua cidade.",
-    longaDemais: (n: number) => `A rota passa de ${n} Bukys: encurte o caminho.`,
+    longaDemais: (n: number) =>
+      `A rota passa de ${n} Bukys: encurte o caminho.`,
     salvar: "Salvar rota",
     salva: "Rota criada!",
     limiteDiario: (n: number) => `Rotas próprias dão até ${n} Bukys por dia.`,

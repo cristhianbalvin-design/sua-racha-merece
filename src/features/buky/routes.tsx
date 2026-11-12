@@ -20,11 +20,21 @@ const CompletarPerfil = lazy(() => import("./pages/CompletarPerfil"));
 const CriarRota = lazy(() => import("./pages/CriarRota"));
 const Entrar = lazy(() => import("./pages/Entrar"));
 const Cadastro = lazy(() => import("./pages/Cadastro"));
-const Loja = lazy(() => import("./pages/Loja").then(m => ({ default: m.Loja })));
-const Produto = lazy(() => import("./pages/Loja").then(m => ({ default: m.Produto })));
-const Carrinho = lazy(() => import("./pages/Loja").then(m => ({ default: m.Carrinho })));
-const Pedidos = lazy(() => import("./pages/Loja").then(m => ({ default: m.Pedidos })));
-const Pedido = lazy(() => import("./pages/Loja").then(m => ({ default: m.Pedido })));
+const Loja = lazy(() =>
+  import("./pages/loja/LojaHome").then((m) => ({ default: m.Loja })),
+);
+const Produto = lazy(() =>
+  import("./pages/loja/Produto").then((m) => ({ default: m.Produto })),
+);
+const Carrinho = lazy(() =>
+  import("./pages/loja/Carrinho").then((m) => ({ default: m.Carrinho })),
+);
+const Pedidos = lazy(() =>
+  import("./pages/loja/Pedidos").then((m) => ({ default: m.Pedidos })),
+);
+const Pedido = lazy(() =>
+  import("./pages/loja/Pedido").then((m) => ({ default: m.Pedido })),
+);
 const AdminBuky = lazy(() => import("./admin/AdminBuky"));
 
 const Loading = () => (
@@ -33,14 +43,32 @@ const Loading = () => (
   </div>
 );
 
-const S = ({ children }: { children: ReactNode }) => <Suspense fallback={<Loading />}>{children}</Suspense>;
+const S = ({ children }: { children: ReactNode }) => (
+  <Suspense fallback={<Loading />}>{children}</Suspense>
+);
 
 /** Rutas de la app del atleta. Se insertan dentro de <Routes> en App.tsx. */
 export const bukyRoutes = (
   <>
-    <Route path="/app/loja" element={<div className="buky"><S><Loja /></S></div>} />
-    <Route path="/entrar" element={<S><Entrar /></S>} />
-    <Route path="/cadastro" element={<S><Cadastro /></S>} />
+    <Route
+      path="/entrar"
+      element={
+        <S>
+          <Entrar />
+        </S>
+      }
+    />
+    <Route
+      path="/cadastro"
+      element={
+        <S>
+          <Cadastro />
+        </S>
+      }
+    />
+    <Route path="/app/loja" element={<S><BukyLayout /></S>}>
+      <Route index element={<S><Loja /></S>} />
+    </Route>
     <Route
       path="/app"
       element={
@@ -51,25 +79,158 @@ export const bukyRoutes = (
         </ProtectedRoute>
       }
     >
-      <Route index element={<S><Inicio /></S>} />
-      <Route path="treino" element={<S><Treino /></S>} />
-      <Route path="treino/resumo" element={<S><Resumo /></S>} />
-      <Route path="bolsa" element={<S><Bolsa /></S>} />
-      <Route path="bolsa/sorteios" element={<S><Sorteios /></S>} />
-      <Route path="fotos" element={<S><Fotos /></S>} />
-      <Route path="patrocinio" element={<S><Patrocinio /></S>} />
-      <Route path="patrocinio/:id" element={<S><Campanha /></S>} />
-      <Route path="avisos" element={<S><Avisos /></S>} />
-      <Route path="sorteios" element={<S><Sorteios /></S>} />
-      <Route path="loja/produto/:slug" element={<S><Produto /></S>} />
-      <Route path="loja/carrinho" element={<S><Carrinho /></S>} />
-      <Route path="loja/pedidos" element={<S><Pedidos /></S>} />
-      <Route path="loja/pedido/:id" element={<S><Pedido /></S>} />
-      <Route path="perfil" element={<S><Perfil /></S>} />
-      <Route path="perfil/treino/:id" element={<S><TreinoDetalhe /></S>} />
-      <Route path="perfil/saldo" element={<S><Saldo /></S>} />
-      <Route path="completar" element={<S><CompletarPerfil /></S>} />
-      <Route path="rotas/nova" element={<S><CriarRota /></S>} />
+      <Route
+        index
+        element={
+          <S>
+            <Inicio />
+          </S>
+        }
+      />
+      <Route
+        path="treino"
+        element={
+          <S>
+            <Treino />
+          </S>
+        }
+      />
+      <Route
+        path="treino/resumo"
+        element={
+          <S>
+            <Resumo />
+          </S>
+        }
+      />
+      <Route
+        path="bolsa"
+        element={
+          <S>
+            <Bolsa />
+          </S>
+        }
+      />
+      <Route
+        path="bolsa/sorteios"
+        element={
+          <S>
+            <Sorteios />
+          </S>
+        }
+      />
+      <Route
+        path="fotos"
+        element={
+          <S>
+            <Fotos />
+          </S>
+        }
+      />
+      <Route
+        path="patrocinio"
+        element={
+          <S>
+            <Patrocinio />
+          </S>
+        }
+      />
+      <Route
+        path="patrocinio/:id"
+        element={
+          <S>
+            <Campanha />
+          </S>
+        }
+      />
+      <Route
+        path="avisos"
+        element={
+          <S>
+            <Avisos />
+          </S>
+        }
+      />
+      <Route
+        path="sorteios"
+        element={
+          <S>
+            <Sorteios />
+          </S>
+        }
+      />
+      <Route
+        path="loja/produto/:slug"
+        element={
+          <S>
+            <Produto />
+          </S>
+        }
+      />
+      <Route
+        path="loja/carrinho"
+        element={
+          <S>
+            <Carrinho />
+          </S>
+        }
+      />
+      <Route
+        path="loja/pedidos"
+        element={
+          <S>
+            <Pedidos />
+          </S>
+        }
+      />
+      <Route
+        path="loja/pedido/:id"
+        element={
+          <S>
+            <Pedido />
+          </S>
+        }
+      />
+      <Route
+        path="perfil"
+        element={
+          <S>
+            <Perfil />
+          </S>
+        }
+      />
+      <Route
+        path="perfil/treino/:id"
+        element={
+          <S>
+            <TreinoDetalhe />
+          </S>
+        }
+      />
+      <Route
+        path="perfil/saldo"
+        element={
+          <S>
+            <Saldo />
+          </S>
+        }
+      />
+      <Route
+        path="completar"
+        element={
+          <S>
+            <CompletarPerfil />
+          </S>
+        }
+      />
+      <Route
+        path="rotas/nova"
+        element={
+          <S>
+            <CriarRota />
+          </S>
+        }
+      />
     </Route>
   </>
 );
