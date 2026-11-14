@@ -48,7 +48,7 @@ serve(async (req) => {
     const mpToken = Deno.env.get("MP_ACCESS_TOKEN") ?? "";
     const siteUrl = (Deno.env.get("SITE_URL") ?? "https://www.3buk.com").replace(/\/+$/, "");
 
-    if (!mpToken) return json({ error: "Payment provider not configured" }, 500);
+
 
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -57,6 +57,10 @@ serve(async (req) => {
     if (authError || !user) return json({ error: "Unauthorized" }, 401);
 
     const admin = createClient(supabaseUrl, serviceKey);
+
+    const { data: config, error: configError } = await callerClient.rpc("app_payments_config");
+    if (configError || config?.mode !== "mercadopago") return json({ error: "payments_manual", contact_email: config?.contact_email ?? "contato@3buk.com" }, 409);
+    if (!mpToken) return json({ error: "Payment provider not configured" }, 500);
 
     // Producto y monto: se validan en el servidor, nunca se confía en el cliente
     const body = await req.json().catch(() => ({})) as { product?: string; amount_cents?: number; return_to?: string };

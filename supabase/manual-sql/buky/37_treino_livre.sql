@@ -19,9 +19,13 @@ ALTER TABLE public.buky_passes ADD CONSTRAINT buky_passes_free_mark_check CHECK 
 CREATE OR REPLACE FUNCTION public.buky_free_km_per_buky() RETURNS numeric LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $$
  SELECT CASE WHEN n BETWEEN 0.5 AND 10 THEN n ELSE 1.5 END FROM (SELECT public.buky_setting_num('buky_free_km_per_buky', 1.5) n) s
 $$;
-CREATE OR REPLACE FUNCTION public.buky_sessions_counted_today(p_uid uuid) RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $$
+-- Entrenamientos que consumen el cupo diario: solo los finalizados con al menos 1 Buky, en el día local dado.
+CREATE OR REPLACE FUNCTION public.buky_sessions_counted_on(p_uid uuid, p_day date) RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $$
  SELECT count(*) FROM public.buky_sessions WHERE user_id = p_uid AND status = 'valid' AND bukys_awarded > 0
- AND (started_at AT TIME ZONE public.buky_tz())::date = (now() AT TIME ZONE public.buky_tz())::date
+ AND (started_at AT TIME ZONE public.buky_tz())::date = p_day
+$$;
+CREATE OR REPLACE FUNCTION public.buky_sessions_counted_today(p_uid uuid) RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $$
+ SELECT public.buky_sessions_counted_on(p_uid, (now() AT TIME ZONE public.buky_tz())::date)
 $$;
 DROP FUNCTION IF EXISTS public.buky_start_session(uuid, uuid, jsonb);
 DROP FUNCTION IF EXISTS public.buky_finalize_session(uuid, uuid, text, text, jsonb, jsonb, text);
@@ -159,7 +163,7 @@ BEGIN
 
   v_sessions_full := NOT EXISTS (SELECT 1 FROM public.buky_route_testers WHERE user_id = p_user_id)
     AND NOT EXISTS (SELECT 1 FROM public.users WHERE id = p_user_id AND role = 'ADMIN')
-    AND public.buky_sessions_counted_today(p_user_id) >= CASE WHEN public.user_is_premium(p_user_id)
+    AND public.buky_sessions_counted_on(p_user_id, (v_session.started_at AT TIME ZONE v_tz)::date) >= CASE WHEN public.user_is_premium(p_user_id)
       THEN public.buky_setting_num('buky_daily_sessions_premium', 1)
       ELSE public.buky_setting_num('buky_daily_sessions_freemium', 1) END;
 
@@ -280,6 +284,7 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.buky_sessions_counted_today(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.buky_sessions_counted_on(uuid, date) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.buky_free_km_per_buky() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.buky_start_session(uuid, uuid, jsonb, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.buky_start_session(uuid, uuid, jsonb, text) TO authenticated;

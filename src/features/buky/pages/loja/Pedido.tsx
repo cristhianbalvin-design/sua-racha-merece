@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { ManualPaymentCard, usePaymentsConfig } from "../../components/PaymentsConfig";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGetMyWallet, brl } from "@/lib/walletApi";
@@ -40,6 +41,8 @@ import { pt } from "../../i18n";
 import mascote from "../../assets/buky-mascote.webp";
 const T = pt.loja;
 export function Pedido() {
+  const payments = usePaymentsConfig();
+  const manual = payments.data?.mode !== "mercadopago";
   const { id } = useParams();
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -167,24 +170,24 @@ export function Pedido() {
               >
                 {T.pagarSaldo}
               </button>
-              <button
+              {manual ? <ManualPaymentCard purpose="shop" /> : <button
                 className="min-h-11 w-full rounded-full border border-[var(--buky-line)]"
                 disabled={busy}
                 onClick={() => void retry("mercadopago", true)}
               >
                 {T.pagarMP}
-              </button>
+              </button>}
             </section>
           )}
           {o.status === "pending_payment" && (
             <div className="space-y-2">
-              <button
+              {manual ? <ManualPaymentCard purpose="shop" /> : <button
                 className={`${button} w-full`}
                 disabled={busy}
                 onClick={() => void retry("mercadopago")}
               >
                 {T.pagarMP}
-              </button>
+              </button>}
               <button
                 className="min-h-11 w-full rounded-full border border-[var(--buky-line)]"
                 disabled={

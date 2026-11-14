@@ -97,4 +97,5 @@ Los pasos 16 y 17 solo agregan objetos nuevos (`buky_*`). Antes del lanzamiento 
 `DROP TABLE … CASCADE` de las tablas `buky_*`, `DROP FUNCTION` de las funciones `buky_*`/`admin_buky_*` y
 `SELECT cron.unschedule('buky-raffle-tick')`. El paso 15 agrega columnas nuevas a `users` sin tocar las existentes.
 
-- **37_treino_livre.sql**: modo «Treino livre» (1 Buky cada N km de recorrido válido, `buky_free_km_per_buky`, editable en Admin → Config), polilínea del recorrido en `buky_sessions.route_polyline` y el cupo diario de entrenamientos cuenta solo sesiones con Bukys. Aplicar después del paso 36; debe ser el último paso (elimina las firmas antiguas de `buky_start_session`/`buky_finalize_session`).
+- **37_treino_livre.sql**: modo «Treino livre» (1 Buky cada N km de recorrido válido, `buky_free_km_per_buky`, editable en Admin → Config), polilínea del recorrido en `buky_sessions.route_polyline` y el cupo diario de entrenamientos cuenta solo sesiones con Bukys. Aplicar después del paso 36; elimina las firmas antiguas de `buky_start_session`/`buky_finalize_session`.
+- **38_pagos_manuales.sql**: pagos manuales, configuración reversible y operaciones administrativas auditadas. Aplicar después del 37.

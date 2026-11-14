@@ -13,9 +13,11 @@ import RouteSketch from "../components/RouteSketch";
 import ShareButton from "../share/ShareButton";
 import type { SessionHistoryItem } from "../lib/api";
 import { useBukyProfile, useCity, useMySessions, useSummary } from "../lib/hooks";
+import { useShopEnabled } from "../components/loja/shared";
 
 /** Perfil (mockup 5): datos, 4 indicadores e historial de entrenamientos. */
 export default function Perfil() {
+  const shop = useShopEnabled();
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const sponsors = useSponsors();
@@ -88,7 +90,7 @@ export default function Perfil() {
         </button>
       </div>
 
-      <Link to="/app/loja" className="mt-4 block rounded-xl border border-[var(--buky-line)] p-4">Loja 3buk ?</Link>
+      {shop.data && <Link to="/app/loja" className="mt-4 block rounded-xl border border-[var(--buky-line)] p-4">Loja 3buk →</Link>}
       <div className="mt-5 flex items-center gap-4">
         <ProfileAvatar size={84} to={null} />
         <div className="min-w-0">

@@ -16,7 +16,7 @@ serve(async (req) => {
   try {
     const url = Deno.env.get("SUPABASE_URL") ?? "";
     const token = Deno.env.get("MP_ACCESS_TOKEN") ?? "";
-    if (!token) return json({ error: "payment_unavailable" }, 503);
+
     const caller = createClient(url, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
       global: {
         headers: { Authorization: req.headers.get("Authorization") ?? "" },
@@ -27,6 +27,9 @@ serve(async (req) => {
       error: authError,
     } = await caller.auth.getUser();
     if (authError || !user) return json({ error: "unauthorized" }, 401);
+    const { data: config, error: configError } = await caller.rpc("app_payments_config");
+    if (configError || config?.mode !== "mercadopago") return json({ error: "payments_manual", contact_email: config?.contact_email ?? "contato@3buk.com" }, 409);
+    if (!token) return json({ error: "payment_unavailable" }, 503);
     const { order_id, kind } = await req.json();
     const freight = kind === "freight";
     const { data: order } = await caller

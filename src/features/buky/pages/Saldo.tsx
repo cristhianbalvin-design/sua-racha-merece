@@ -8,6 +8,7 @@ import { pt } from "../i18n";
 import { ErrorBox, fmtDate, Spinner } from "../components/ui";
 import { apiGetDownloadStatus } from "@/lib/libraryApi";
 import { apiCreateCheckout, apiGetMyWallet, apiSyncPayments, brl, formatCents, walletReasonLabel } from "@/lib/walletApi";
+import { ManualPaymentCard, usePaymentsConfig } from "../components/PaymentsConfig";
 
 const W = pt.saldo;
 
@@ -23,6 +24,8 @@ export default function Saldo() {
   const [terms, setTerms] = useState(false);
   const wallet = useQuery({ queryKey: ["wallet"], queryFn: apiGetMyWallet });
   const photos = useQuery({ queryKey: ["photo-status"], queryFn: apiGetDownloadStatus });
+  const payments = usePaymentsConfig();
+  const manual = payments.data?.mode !== "mercadopago";
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["wallet"] });
@@ -81,6 +84,7 @@ export default function Saldo() {
         <p className="font-buky-xcond mt-2 text-[clamp(48px,15vw,60px)] leading-none">{brl(w.balance_cents)}</p>
         <p className="mt-2 text-[13px] text-[var(--buky-muted)]">{W.saldoTexto(brl(w.photo_price_cents))}</p>
         <p className="buky-label mt-5 text-[var(--buky-muted)]">{W.recarregar}</p>
+        {manual ? <ManualPaymentCard purpose="topup" /> : <>
         <div className="mt-2 grid grid-cols-3 gap-2">
           {w.topup_options.map((c) => (
             <button
@@ -100,6 +104,7 @@ export default function Saldo() {
         <p className="mt-1 text-xs text-[var(--buky-muted)]">Informe um valor inteiro de R$10 a R$200.</p>
         <button type="button" className="buky-btn mt-2" disabled={busy !== null || topupCents(otherAmount) === null} onClick={() => void pay("other", { product: "wallet_topup", amountCents: topupCents(otherAmount)! })}>Recarregar outro valor</button>
         <p className="mt-2 text-[12px] text-[var(--buky-faint)]">{W.devolucao}</p>
+        </>}
       </section>
 
       {s && (
@@ -126,6 +131,7 @@ export default function Saldo() {
             <li key={b}>· {b}</li>
           ))}
         </ul>
+        {manual ? <ManualPaymentCard purpose="premium" /> : <>
         <label className="mt-3 flex min-h-11 cursor-pointer items-center gap-3 text-[13px]">
           <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} className="h-5 w-5 accent-[var(--buky-neon)]" />
           <span>
@@ -139,6 +145,7 @@ export default function Saldo() {
           {busy === "premium" ? pt.comum.carregando : premium?.active ? W.renovar(brl(w.premium_price_cents)) : W.assinar(brl(w.premium_price_cents))}
         </button>
         <p className="mt-2 text-[12px] text-[var(--buky-faint)]">{W.semSaldo}</p>
+        </>}
       </section>
 
       <section className="mt-6">
@@ -150,7 +157,7 @@ export default function Saldo() {
             {w.movements.map((m) => (
               <li key={m.id} className="buky-row flex items-center justify-between gap-3 py-3">
                 <span className="min-w-0">
-                  <span className="block truncate text-[15px]">{walletReasonLabel(m.reason)}</span>
+                  <span className="block truncate text-[15px]">{walletReasonLabel(m.reason, m.ref_type)}</span>
                   <span className="block truncate text-[12px] text-[var(--buky-faint)]">
                     {fmtDate(m.created_at)}
                     {m.note ? ` · ${m.note}` : ""}

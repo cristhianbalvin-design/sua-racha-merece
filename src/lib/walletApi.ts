@@ -26,7 +26,8 @@ export interface MyWallet {
   movements: WalletMovement[];
 }
 
-export const walletReasonLabel = (r: WalletMovement['reason'] | string): string =>
+export const walletReasonLabel = (r: WalletMovement['reason'] | string, refType?: string | null): string =>
+  refType === 'manual_payment' ? 'Recarga manual' :
   ({
     premium_bonus: 'Saldo do Premium',
     topup: 'Recarga',

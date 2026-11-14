@@ -7,6 +7,7 @@ import { brl } from "@/lib/walletApi";
 import AdminDescontosLoja from "./AdminDescontosLoja";
 import AdminProdutosLoja from "./AdminProdutosLoja";
 import { btnPrimary, card, inputCls } from "./ui";
+import { usePaymentsConfig } from "../components/PaymentsConfig";
 
 type Item = {
   product_name: string;
@@ -66,6 +67,9 @@ export default function AdminLoja() {
   const [code, setCode] = useState("");
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const payments = usePaymentsConfig();
+  const [paymentMode, setPaymentMode] = useState<string | null>(null);
+  const [paymentEmail, setPaymentEmail] = useState<string | null>(null);
   const orders = useQuery({
     queryKey: ["admin-shop-orders"],
     queryFn: async () => {
@@ -163,6 +167,20 @@ export default function AdminLoja() {
     <div className="space-y-4">
       {confirmDialog}
       <h2 className="text-xl font-bold">Loja</h2>
+      <label className="block">Modo de pagamento
+        <select className={inputCls} value={paymentMode ?? payments.data?.mode ?? "manual"} onChange={(e) => setPaymentMode(e.target.value)}>
+          <option value="manual">Manual (e-mail)</option>
+          <option value="mercadopago">Mercado Pago</option>
+        </select>
+      </label>
+      <label className="block">E-mail de contato
+        <input className={inputCls} type="email" value={paymentEmail ?? payments.data?.contact_email ?? "contato@3buk.com"} onChange={(e) => setPaymentEmail(e.target.value)} />
+      </label>
+      <button className={btnPrimary} onClick={async () => {
+        const { error } = await supabase.rpc("admin_set_payments_config", { p_mode: paymentMode ?? payments.data?.mode ?? "manual", p_email: paymentEmail ?? payments.data?.contact_email ?? "contato@3buk.com" });
+        if (error) toast.error("Não foi possível salvar as configurações de pagamento.");
+        else { toast.success("Configurações de pagamento salvas."); await payments.refetch(); }
+      }}>Salvar pagamentos</button>
       <label>
         Modo de frete
         <select

@@ -26,7 +26,7 @@ run "$HERE/check_prueba_entrega_c.sql"
 run "$HERE/check_loja_demo.sql"
 # Contrato Edge Function → SQL (si Deno está instalado)
 if command -v deno >/dev/null 2>&1; then
-  deno run --quiet "$HERE/contract_close_session.ts" > "$DATA/contract.sql" && run "$DATA/contract.sql" && echo "ok  contrato buky-close-session"
+  deno run --quiet "$HERE/contract_close_session.ts" > "$DATA/contract.sql" && run "$DATA/contract.sql" && echo "ok  contrato buky-close-session" || { echo "FALLA contrato buky-close-session"; exit 1; }
 else
   echo "--  contrato buky-close-session omitido (sin Deno)"
 fi
