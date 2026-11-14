@@ -11,11 +11,13 @@ const TESTERS = "Testadores";
 // Orden y agrupación de las claves buky_* para el admin
 const GROUPS: { title: string; keys: string[] }[] = [
   { title: "Velocidade e antifraude", keys: ["buky_speed_min_kmh", "buky_speed_max_kmh", "buky_vehicle_window_s", "buky_speed_window_s", "buky_max_accuracy_m", "buky_mock_max_ratio"] },
+  { title: "Treino livre", keys: ["buky_free_km_per_buky"] },
   { title: "Rotas dos atletas", keys: ["buky_athlete_route_min_point_gap_m", "buky_athlete_route_min_length_m", "buky_athlete_route_min_points", "buky_athlete_route_max_points", "buky_athlete_route_max_active", "buky_athlete_route_daily_cap", "buky_athlete_route_max_city_km", "buky_point_radius_default_m"] },
   { title: "Sorteios e horário", keys: ["buky_raffle_draw_delay_min", "buky_timezone"] },
 ];
 
 const LABELS: Record<string, string> = {
+  buky_free_km_per_buky: "Km por Buky (treino livre)",
   buky_speed_min_kmh: "Velocidade mínima para a passagem contar (km/h) — caminhar não conta",
   buky_speed_max_kmh: "Velocidade máxima para a passagem contar (km/h)",
   buky_vehicle_window_s: "Segundos seguidos acima da máxima que anulam o treino (veículo)",
@@ -46,7 +48,8 @@ export default function AdminConfig() {
   const save = async (s: Setting) => {
     const raw = draft[s.key];
     if (raw === undefined) return;
-    const value = typeof s.value === "number" ? Number(raw) : raw;
+    const value = typeof s.value === "number" || s.key === "buky_free_km_per_buky" ? Number(raw) : raw;
+    if (s.key === "buky_free_km_per_buky" && (!Number.isFinite(value as number) || (value as number) < 0.5 || (value as number) > 10)) return toast.error("Informe um valor entre 0,5 e 10 km.");
     if (typeof s.value === "number" && !Number.isFinite(value as number)) return toast.error("Valor inválido.");
     try {
       await saveSetting(s.key, value);
@@ -65,10 +68,15 @@ export default function AdminConfig() {
       <div key={s.key} className="flex items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-bold">{LABELS[s.key] ?? s.description ?? s.key}</p>
+          {s.key === "buky_free_km_per_buky" && <p className="text-xs text-muted-foreground">Distância válida para ganhar cada Buky no treino livre.</p>}
           {/* "notranslate": el traductor del navegador no debe cambiar el nombre técnico */}
           <p className="notranslate font-mono text-[11px] text-muted-foreground" translate="no">{s.key}</p>
         </div>
         <input
+          type={s.key === "buky_free_km_per_buky" ? "number" : "text"}
+          step={s.key === "buky_free_km_per_buky" ? 0.1 : undefined}
+          min={s.key === "buky_free_km_per_buky" ? 0.5 : undefined}
+          max={s.key === "buky_free_km_per_buky" ? 10 : undefined}
           className={inputCls.replace("w-full", "") + " w-36 shrink-0"}
           value={draft[s.key] ?? String(s.value ?? "")}
           onChange={(e) => setDraft({ ...draft, [s.key]: e.target.value })}

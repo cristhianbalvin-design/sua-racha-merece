@@ -14,9 +14,10 @@ const META_KEY = "buky.training.v1";
 export interface TrainingMeta {
   sessionId: string;
   userId: string;
-  routeId: string;
+  routeId: string | null;
   routeName: string;
-  routeKind: "official" | "athlete";
+  routeKind: "official" | "athlete" | null;
+  mode?: "route" | "free";
   cityName: string;
   points: RoutePoint[];
   /** Trazo de la ruta (para dibujarlo en el mapa del entrenamiento). */

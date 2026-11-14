@@ -3,6 +3,8 @@
  * Las reglas viven en el servidor (SQL 15–17 y la Edge Function buky-close-session);
  * aquí solo se leen datos y se llaman funciones.
  */
+import { decodePolyline } from "./polyline";
+export { decodePolyline };
 import { supabase } from "@/lib/supabase";
 import type { BukyPoint } from "@/features/buky/engine";
 import { normalizeName } from "./validation";
@@ -150,7 +152,8 @@ export interface CloseResult {
   passes_valid?: number;
   passes_rejected?: number;
   duplicate?: boolean;
-  passes?: { point_id: string; at: string; speed_kmh: number | null; valid: boolean; awarded?: boolean; reject_reason: string | null }[];
+  route_polyline?: string | null;
+  passes?: { point_id: string; km_mark?: number | null; at: string; speed_kmh: number | null; valid: boolean; awarded?: boolean; reject_reason: string | null }[];
   stats?: { distanceM: number; durationS: number; maxSpeedKmh: number; avgSpeedKmh: number; bikeWarnings?: number };
   /** Por qué terminó: el atleta, el límite de tiempo o la bicicleta (paso 24). */
   stop_reason?: StopReason | null;
@@ -198,7 +201,7 @@ interface CityRow { code: number; name: string; state_code: number; lat: number;
 interface PointRow { id: string; seq: number; label: string | null; lat: number; lon: number; radius_m: number }
 interface RouteRow { id: string; name: string; city_code: number; kind: "official" | "athlete"; owner_id: string | null; active: boolean; length_m: number | null; path: { lat: number; lon: number }[] | null; buky_points: PointRow[] | null }
 interface SessionRow {
-  id: string; status: string; started_at: string; ended_at: string | null; bukys_awarded: number; passes_valid: number;
+  id: string; status: string; mode: "route" | "free"; route_polyline: string | null; started_at: string; ended_at: string | null; bukys_awarded: number; passes_valid: number;
   distance_m: number | null; invalid_reason: string | null; duration_s: number | null; avg_speed_kmh: number | null;
   start_city: One<{ name: string }>;
   buky_routes: One<{ name: string; path: { lat: number; lon: number }[] | null; buky_points: { lat: number; lon: number; seq: number }[]; br_cities: One<{ name: string }> }>;
@@ -341,11 +344,12 @@ export async function getSettings(keys: string[]): Promise<Record<string, number
 
 // ------------------------------------------------------------------ entrenamiento
 
-export async function startSession(sessionId: string, routeId: string, client: Record<string, unknown>): Promise<void> {
+export async function startSession(sessionId: string, routeId: string | null, client: Record<string, unknown>, mode: "route" | "free" = "route"): Promise<void> {
   const { error } = await supabase.rpc("buky_start_session", {
     p_session_id: sessionId,
     p_route_id: routeId,
     p_client: client,
+    p_mode: mode,
   });
   if (error) fail(error);
 }
@@ -388,7 +392,7 @@ export async function listMySessions(userId: string, limit = 20): Promise<Sessio
   const { data, error } = await supabase
     .from("buky_sessions")
     .select(
-      "id, status, started_at, ended_at, bukys_awarded, passes_valid, distance_m, invalid_reason, duration_s, avg_speed_kmh, start_city:br_cities!buky_sessions_start_city_code_fkey(name), buky_routes(name, path, buky_points(lat, lon, seq), br_cities(name))",
+      "id, status, mode, route_polyline, started_at, ended_at, bukys_awarded, passes_valid, distance_m, invalid_reason, duration_s, avg_speed_kmh, start_city:br_cities!buky_sessions_start_city_code_fkey(name), buky_routes(name, path, buky_points(lat, lon, seq), br_cities(name))",
     )
     .eq("user_id", userId)
     .in("status", ["valid", "invalid"])
@@ -404,13 +408,13 @@ export async function listMySessions(userId: string, limit = 20): Promise<Sessio
     passes_valid: s.passes_valid,
     distance_m: s.distance_m,
     invalid_reason: s.invalid_reason,
-    route_name: one(s.buky_routes)?.name ?? "",
+    route_name: s.mode === "free" ? "Treino livre" : one(s.buky_routes)?.name ?? "",
     city_name: one(one(s.buky_routes)?.br_cities ?? null)?.name ?? null,
     duration_s: s.duration_s,
     avg_speed_kmh: s.avg_speed_kmh,
     start_city: one(s.start_city)?.name ?? null,
     shape:
-      one(s.buky_routes)?.path ??
+      (s.route_polyline ? decodePolyline(s.route_polyline) : null) ?? one(s.buky_routes)?.path ??
       [...(one(s.buky_routes)?.buky_points ?? [])].sort((a, b) => a.seq - b.seq).map((p) => ({ lat: p.lat, lon: p.lon })),
   }));
 }
@@ -556,6 +560,7 @@ export const isToRedeem = (p: Pick<MyPrize, "delivery_status">) => p.delivery_st
 
 export interface SessionPass {
   point_id: string;
+  km_mark: number | null;
   passed_at: string;
   speed_kmh: number | null;
   valid: boolean;
@@ -577,6 +582,8 @@ export interface SessionDetail {
   bukys_awarded: number;
   invalid_reason: string | null;
   track_path: string | null;
+  mode: "route" | "free";
+  route_polyline: string | null;
   route: { id: string; name: string; kind: "official" | "athlete"; path: { lat: number; lon: number }[] | null; city: string | null; points: RoutePoint[] } | null;
   passes: SessionPass[];
 }
@@ -585,9 +592,9 @@ export async function getSessionDetail(id: string): Promise<SessionDetail> {
   const { data, error } = await supabase
     .from("buky_sessions")
     .select(
-      "id, status, started_at, ended_at, distance_m, duration_s, avg_speed_kmh, max_speed_kmh, passes_valid, passes_rejected, bukys_awarded, invalid_reason, track_path, " +
+      "id, status, started_at, ended_at, distance_m, duration_s, avg_speed_kmh, max_speed_kmh, passes_valid, passes_rejected, bukys_awarded, invalid_reason, track_path, mode, route_polyline, " +
         "buky_routes(id, name, kind, path, br_cities(name), buky_points(id, seq, label, lat, lon, radius_m)), " +
-        "buky_passes(point_id, passed_at, speed_kmh, valid, awarded, reject_reason)",
+        "buky_passes(point_id, km_mark, passed_at, speed_kmh, valid, awarded, reject_reason)",
     )
     .eq("id", id)
     .single();
@@ -666,3 +673,4 @@ export async function getSponsorshipWinners(): Promise<SponsorWinner[]> {
   if (error) fail(error);
   return (data ?? []) as SponsorWinner[];
 }
+

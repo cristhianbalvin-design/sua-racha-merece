@@ -5,6 +5,7 @@ import fontExtUrl from "../assets/share/barlow-800-latin-ext.woff2";
 import { bukysLabel, fitRoute, stickerLayout, type Point, type ShareFormat } from "./stickerLayout";
 
 export type StickerData = {
+  label?: string;
   date: string | number;
   city: string;
   bukys: number;
@@ -87,7 +88,7 @@ export async function drawSticker(canvas: HTMLCanvasElement, data: StickerData, 
   ctx.fillText(bukysLabel(data.date), 202, 99, 120);
   ctx.fillText("TOTAL", 202, 211);
   ctx.textAlign = "right";
-  ctx.fillText(data.city.toLocaleUpperCase("pt-BR"), 158, 211, 135);
+  ctx.fillText((data.label ?? data.city).toLocaleUpperCase("pt-BR"), 158, 211, 135);
   ctx.textAlign = "left";
   ctx.font = 'italic 800 76px "Sticker Barlow"';
   ctx.fillText(String(data.bukys), 202, 166, 125);

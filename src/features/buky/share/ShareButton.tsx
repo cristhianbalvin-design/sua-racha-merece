@@ -9,14 +9,14 @@ export default function ShareButton({ data }: { data: Omit<StickerData, "total">
   const { data: summary, isError, refetch } = useSummary();
   const { data: profile } = useBukyProfile();
   const { data: city } = useCity(profile?.city_code);
-  const { date, bukys, shape, distance, duration, speed } = data;
+  const { date, bukys, shape, distance, duration, speed, label } = data;
   const place =
     data.city && city?.name.toLocaleLowerCase("pt-BR") === data.city.toLocaleLowerCase("pt-BR")
       ? `${data.city}, ${city.uf}`
       : data.city;
   const sticker = useMemo(
-    () => ({ date, bukys, shape, distance, duration, speed, city: place, total: summary?.found_total ?? 0 }),
-    [date, bukys, shape, distance, duration, speed, place, summary?.found_total],
+    () => ({ date, bukys, shape, distance, duration, speed, label, city: place, total: summary?.found_total ?? 0 }),
+    [date, bukys, shape, distance, duration, speed, label, place, summary?.found_total],
   );
   return (
     <>
