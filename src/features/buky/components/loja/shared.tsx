@@ -141,7 +141,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     </main>
   );
 }
-function useShopEnabled() {
+export function useShopEnabled() {
   const { isAdmin } = useAuth();
   return useQuery({
     queryKey: ["shop-enabled", isAdmin],
@@ -158,9 +158,10 @@ export function Gate({ children }: { children: React.ReactNode }) {
   if (enabled.isError) return <Shell>{pt.loja.erroLoja}</Shell>;
   if (!enabled.data)
     return (
-      <Shell>
+      <main className="space-y-5 px-6 pb-10 pt-[calc(env(safe-area-inset-top,0px)+20px)]">
         <h1 className="font-buky text-3xl">{pt.loja.lojaEmBreve}</h1>
-      </Shell>
+        <Link to="/app" className="mt-4 inline-block underline">Voltar ao início</Link>
+      </main>
     );
   return <Shell>{children}</Shell>;
 }

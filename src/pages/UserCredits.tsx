@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { SHOW_FACE_SEARCH } from '@/config/features';
 import { apiGetDownloadStatus, type DownloadStatus } from '@/lib/libraryApi';
 import { apiCreateCheckout, apiGetMyWallet, apiSyncPayments, brl, formatCents, walletReasonLabel, type MyWallet } from '@/lib/walletApi';
+import { ManualPaymentCard, usePaymentsConfig } from '@/features/buky/components/PaymentsConfig';
 
 /**
  * Meu saldo (paso 27; antes "Meus créditos"). Saldo en reales, fotos gratis del año, Premium y
@@ -14,6 +15,8 @@ import { apiCreateCheckout, apiGetMyWallet, apiSyncPayments, brl, formatCents, w
  */
 const UserWalletPage = () => {
   const { user } = useAuth();
+  const payments = usePaymentsConfig();
+  const manual = payments.data?.mode !== 'mercadopago';
   const [wallet, setWallet] = useState<MyWallet | null>(null);
   const [photos, setPhotos] = useState<DownloadStatus | undefined>();
   const [loading, setLoading] = useState(true);
@@ -132,6 +135,7 @@ const UserWalletPage = () => {
             </div>
           )}
 
+          {manual ? <ManualPaymentCard purpose="topup" variant="web" /> : <>
           <div className="bg-card rounded-2xl card-shadow p-5 space-y-3">
             <div>
               <p className="text-ui text-xs text-muted-foreground">RECARREGAR SALDO</p>
@@ -157,6 +161,7 @@ const UserWalletPage = () => {
             <p className="text-sm text-muted-foreground">Informe um valor inteiro de R$10 a R$200.</p>
             <button type="button" disabled={busy !== null || topupCents(otherAmount) === null} onClick={() => void checkout("other", { product: "wallet_topup", amountCents: topupCents(otherAmount)!, returnTo: "web" })} className="mt-2 rounded border border-primary px-4 py-2 disabled:opacity-50">Recarregar outro valor</button>
           </div>
+          </>}
           <div className="bg-card rounded-2xl card-shadow p-5 space-y-3">
             <div>
               <p className="text-ui text-xs text-muted-foreground">PLANO</p>
@@ -171,10 +176,11 @@ const UserWalletPage = () => {
                 </p>
               )}
               <p className="text-sm text-muted-foreground mt-2">
-                {brl(wallet.premium_price_cents)} por 12 meses, pagamento único (cartão ou Pix). Inclui {brl(5000)} de saldo e 3 fotos grátis por ano.
+                {brl(wallet.premium_price_cents)} por 12 meses, pagamento único{manual ? '' : ' (cartão ou Pix)'}. Inclui {brl(5000)} de saldo e 3 fotos grátis por ano.
                 {premium?.active ? ' A renovação soma 12 meses ao final do período atual.' : ''} O Premium não pode ser pago com saldo.
               </p>
             </div>
+            {manual ? <ManualPaymentCard purpose="premium" variant="web" /> : <>
             <label className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]" />
               <span className="text-sm text-foreground">
@@ -193,6 +199,7 @@ const UserWalletPage = () => {
             >
               {busy === 'premium' ? 'Abrindo…' : premium?.active ? `Renovar · ${brl(wallet.premium_price_cents)}/ano` : `Ser Premium · ${brl(wallet.premium_price_cents)}/ano`}
             </button>
+            </>}
           </div>
 
           <div className="bg-card rounded-2xl card-shadow overflow-hidden">
@@ -204,7 +211,7 @@ const UserWalletPage = () => {
                 {wallet.movements.map((r) => (
                   <li key={r.id} className="px-5 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-sm text-foreground">{walletReasonLabel(r.reason)}</p>
+                      <p className="text-sm text-foreground">{walletReasonLabel(r.reason, r.ref_type)}</p>
                       <p className="text-xs text-muted-foreground">
                         {fmtDate(r.created_at)}
                         {r.note ? ` · ${r.note}` : ''}

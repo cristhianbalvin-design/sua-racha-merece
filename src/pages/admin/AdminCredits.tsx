@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2, Search, User as UserIcon } from 'lucide-react';
-import { SHOW_FACE_SEARCH } from '@/config/features';
 import { apiSearchAthletes, type AthleteSummary } from '@/lib/creditsApi';
 import {
   apiAdminGetWallet,
@@ -16,6 +14,7 @@ import {
 } from '@/lib/walletApi';
 import { formatDateTime } from '@/lib/photoStatus';
 import { useConfirm } from '@/hooks/useConfirm';
+import { supabase } from '@/lib/supabase';
 
 const fieldClass = 'w-full bg-input text-foreground rounded-lg px-3 py-2.5 input-shadow focus:ring-2 focus:ring-ring outline-none text-sm';
 const isPremiumActive = (u: AthleteSummary) => !!u.premium_until && new Date(u.premium_until).getTime() > Date.now();
@@ -48,6 +47,8 @@ const AdminWalletPage = () => {
   const [formError, setFormError] = useState('');
   const [price, setPrice] = useState<number | null>(null);
   const [priceInput, setPriceInput] = useState('');
+  const [manualAmount, setManualAmount] = useState('');
+  const [manualNote, setManualNote] = useState('');
   const [confirm, confirmDialog] = useConfirm();
   const searchSeq = useRef(0);
 
@@ -139,6 +140,32 @@ const AdminWalletPage = () => {
     }
   };
 
+  const manualAction = async (premium: boolean) => {
+    if (!athlete || busy) return;
+    const cents = parseReais(manualAmount);
+    if (!premium && (cents === null || cents < 100 || cents > 100000 || !manualNote.trim())) {
+      toast.error('Informe um valor de R$ 1 a R$ 1.000 e uma observação.');
+      return;
+    }
+    if (!(await confirm({ description: premium ? `Ativar Premium por um ano para ${athlete.name || athlete.email}?` : `Adicionar ${brl(cents!)} ao saldo de ${athlete.name || athlete.email}?`, confirmLabel: 'Confirmar' }))) return;
+    setBusy(true);
+    try {
+      const { error } = premium
+        ? await supabase.rpc('admin_grant_premium', { p_user_id: athlete.id, p_months: 12, p_note: manualNote.trim() || null })
+        : await supabase.rpc('admin_wallet_credit', { p_user_id: athlete.id, p_amount_cents: cents!, p_note: manualNote.trim() });
+      if (error) throw error;
+      toast.success(premium ? 'Premium ativado.' : 'Saldo adicionado.');
+      setManualAmount('');
+      setManualNote('');
+      const updated = await apiSearchAthletes(athlete.email);
+      await loadAthlete(updated.find((u) => u.id === athlete.id) || athlete);
+    } catch {
+      toast.error('Não foi possível concluir a operação.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {confirmDialog}
@@ -197,6 +224,12 @@ const AdminWalletPage = () => {
             <p className="text-2xl font-bold text-primary">{balance === null ? '…' : brl(balance)}</p>
           </div>
 
+          <div className="grid gap-3">
+            <label>Observação <input className={fieldClass} value={manualNote} onChange={(e) => setManualNote(e.target.value)} placeholder="Ex.: Pago Pix 14/11" /></label>
+            <button type="button" disabled={busy} onClick={() => void manualAction(true)} className="rounded-full bg-primary px-5 py-2 text-primary-foreground">Ativar Premium (1 ano)</button>
+            <label>Valor (R$) <input className={fieldClass} inputMode="decimal" value={manualAmount} onChange={(e) => setManualAmount(e.target.value)} placeholder="25,00" /></label>
+            <button type="button" disabled={busy} onClick={() => void manualAction(false)} className="rounded-full bg-primary px-5 py-2 text-primary-foreground">Adicionar saldo</button>
+          </div>
           <form onSubmit={submit} className="grid gap-3 md:grid-cols-[160px_160px_1fr_auto] md:items-end">
             <label className="text-xs text-muted-foreground">
               Tipo
@@ -249,6 +282,6 @@ const AdminWalletPage = () => {
   );
 };
 
-const AdminCredits = () => (SHOW_FACE_SEARCH ? <AdminWalletPage /> : <Navigate to="/admin" replace />);
+const AdminCredits = () => <AdminWalletPage />;
 
 export default AdminCredits;

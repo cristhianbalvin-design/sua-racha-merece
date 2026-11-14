@@ -30,10 +30,12 @@ import type { BukyApiError } from "../lib/api";
 import { useGeolocation } from "../lib/useGeolocation";
 import { training } from "../training/useTraining";
 import { getGpsSource } from "../training/gpsSource";
+import { useShopEnabled } from "../components/loja/shared";
 
 const NEAR_M = 1000;
 
 export default function Inicio() {
+  const shop = useShopEnabled();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: profile } = useBukyProfile();
@@ -286,7 +288,7 @@ export default function Inicio() {
           </div>
         </div>
       </div>
-      <Link to="/app/loja" className="mx-6 mb-5 block rounded-2xl border border-[var(--buky-line)] bg-[#111] p-5 text-lg font-semibold">Loja 3buk →</Link>
+      {shop.data && <Link to="/app/loja" className="mx-6 mb-5 block rounded-2xl border border-[var(--buky-line)] bg-[#111] p-5 text-lg font-semibold">Loja 3buk →</Link>}
       <HomeExtras cityCode={profile?.city_code} />
 
       <Sheet

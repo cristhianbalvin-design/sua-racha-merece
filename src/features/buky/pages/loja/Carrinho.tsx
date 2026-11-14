@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { ManualPaymentCard, usePaymentsConfig } from "../../components/PaymentsConfig";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiGetMyWallet, brl } from "@/lib/walletApi";
@@ -39,6 +40,8 @@ import { pt } from "../../i18n";
 import mascote from "../../assets/buky-mascote.webp";
 const T = pt.loja;
 export function Carrinho() {
+  const payments = usePaymentsConfig();
+  const manual = payments.data?.mode !== "mercadopago";
   const navigate = useNavigate();
   const [cart, setCart] = useState(readCart);
   const [address, setAddress] = useState({
@@ -342,7 +345,8 @@ export function Carrinho() {
           </section>
           <section className={`${panel} space-y-3`}>
             <h2 className="text-lg font-bold">{T.pagamento}</h2>
-            {(["wallet", "mercadopago"] as const).map((m) => (
+            {manual && <ManualPaymentCard purpose="shop" />}
+            {(["wallet", "mercadopago"] as const).filter((m) => !manual || m === "wallet").map((m) => (
               <button
                 key={m}
                 type="button"
@@ -390,6 +394,7 @@ export function Carrinho() {
                 !mode.data ||
                 (!arrange && !selected) ||
                 busy ||
+                (manual && method === "mercadopago") ||
                 (method === "wallet" &&
                   (wallet.data?.balance_cents ?? 0) < total)
               }
