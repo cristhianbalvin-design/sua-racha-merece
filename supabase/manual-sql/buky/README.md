@@ -24,6 +24,7 @@ Scripts para correr **a mano en el SQL Editor de Supabase**, en orden y uno por 
 | 32 | `32_marketplace.sql` | Tienda, reservas, pagos (saldo o Mercado Pago, pago tardío), envío con Melhor Envio y descuentos de marcas. Tienda apagada (`shop_enabled`). |
 | 34 | `34_frete_a_combinar.sql` | Frete a combinar, cobro y recordatorios. |
 | 35 | `35_activar_tienda.sql` | Abre la tienda una sola vez (frete a combinar); después se controla desde el admin. |
+| 36 | `36_un_entrenamiento_por_dia.sql` | 1 entrenamiento por día para todos los planes |
 | 33 | `33_descargas_solo_reconocidas.sql` | Fin de la transición: solo se descargan fotos reconocidas para el usuario |
 
 Después de los SQL se despliega la Edge Function (verify_jwt activado; no necesita secrets nuevos):
