@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 const assertEquals = (a: unknown, b: unknown) => assert.deepEqual(a, b);
 const assertThrows = (fn: () => unknown, cls: new (...args: never[]) => Error, msg?: string) =>
   assert.throws(fn, (e: Error) => e instanceof cls && (msg === undefined || e.message === msg));
-import { BadRequest, buildFinalize, gzipJson, parseCloseRequest, rulesFromSettings } from "./logic.ts";
+import { BadRequest, buildFinalize, encodeTrack, gzipJson, parseCloseRequest, rulesFromSettings } from "./logic.ts";
 
 const SID = "5e000000-0000-0000-0000-000000000001";
 const M = 1 / 111_320;
@@ -86,4 +86,21 @@ Deno.test("paso 24: lo que pasa después del límite de tiempo no cuenta y se in
   assertEquals(stats.stop_reason, "time_limit");
   assertEquals(stats.bike_warnings, 1);
   assertEquals(typeof stats.start_lat, "number");
+});
+
+Deno.test("entrenamiento libre produce marcas y usa distancia decimal", () => {
+  const { readings } = parseCloseRequest({ session_id: SID, readings: compactTrack(10, 1200) });
+  const rules = rulesFromSettings([{ key: "buky_free_km_per_buky", value: 1.5 }]);
+  const { params } = buildFinalize({ sessionId: SID, userId: "u", startedAt: T0, now: T0 + 1200000, points: [], readings, rules, trackPath: null, mode: "free" });
+  const marks = params.p_passes as { km_mark: number; valid: boolean }[];
+  assertEquals(marks.length, 2);
+  assertEquals(marks.map((m) => m.km_mark), [1.5, 3]);
+  assertEquals(marks.every((m) => m.valid), true);
+  assertEquals(typeof params.p_polyline, "string");
+  assertEquals(rulesFromSettings([{ key: "buky_free_km_per_buky", value: 0.1 }]).freeKmPerBuky, 1.5);
+});
+
+Deno.test("polyline codifica puntos conocidos", () => {
+  const { readings } = parseCloseRequest({ session_id: SID, readings: [[0,T0,T0,38.5,-120.2,5,0],[1,T0+1000,T0+1000,40.7,-120.95,5,0],[2,T0+2000,T0+2000,43.252,-126.453,5,0]] });
+  assertEquals(encodeTrack(readings), "_p~iF~ps|U_ulLnnqC_mqNvxq`@");
 });

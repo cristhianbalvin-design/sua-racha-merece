@@ -5,6 +5,7 @@ import { CircleAlert } from "lucide-react";
 import mascote from "../assets/buky-mascote.webp";
 import { pt } from "../i18n";
 import { fmtDuration, fmtKm } from "../components/ui";
+import { decodePolyline } from "../lib/api";
 import ShareButton from "../share/ShareButton";
 import { training, useTraining } from "../training/useTraining";
 
@@ -27,7 +28,7 @@ export default function Resumo() {
   return (
     <div className="px-6 pt-[calc(env(safe-area-inset-top,0px)+28px)]">
       <p className="buky-label text-[var(--buky-neon)]">
-        {pt.resumo.titulo} · {t.routeName}
+        {t.mode === "free" ? "Treino livre" : `${pt.resumo.titulo} · ${t.routeName}`}
       </p>
       <div className="relative mt-4 min-h-[220px]">
         <img src={mascote} alt="" className="absolute -right-4 top-0 h-[210px] w-auto opacity-95" />
@@ -36,6 +37,8 @@ export default function Resumo() {
           +{r.bukys}
         </p>
       </div>
+
+      {r.bukys === 0 && t.rules.sessions_limited && <p className="mt-2 text-sm text-[var(--buky-muted)]">Este treino não contou no seu limite diário — você pode treinar de novo hoje.</p>}
 
       {!valid && (
         <p className="mt-2 flex gap-2 rounded-2xl border border-[var(--buky-line)] p-4 text-sm text-[var(--buky-muted)]">
@@ -77,7 +80,7 @@ export default function Resumo() {
           <ul className="mt-2">
             {r.passes.map((p, i) => (
               <li key={i} className="buky-row flex items-center justify-between py-3 text-[15px]">
-                <span>{labels.get(p.point_id) ?? "Waypoint"}</span>
+                <span>{p.km_mark != null ? `${Number(p.km_mark).toLocaleString("pt-BR")} km` : labels.get(p.point_id) ?? "Waypoint"}</span>
                 {(p.awarded ?? p.valid) ? (
                   <span className="font-buky text-[22px] text-[var(--buky-neon)]">+1</span>
                 ) : (
@@ -89,7 +92,7 @@ export default function Resumo() {
         </section>
       )}
 
-      <ShareButton data={{ date: t.startedAt ?? Date.now(), city: t.cityName, bukys: r.bukys, shape: t.path ?? t.points, distance: r.stats?.distanceM ?? null, duration: r.stats?.durationS ?? null, speed: r.stats?.avgSpeedKmh ?? null }} />
+      <ShareButton data={{ label: t.mode === "free" ? "Treino livre" : undefined, date: t.startedAt ?? Date.now(), city: t.cityName, bukys: r.bukys, shape: r.route_polyline ? decodePolyline(r.route_polyline) : t.mode === "free" ? t.track : t.path ?? t.points, distance: r.stats?.distanceM ?? null, duration: r.stats?.durationS ?? null, speed: r.stats?.avgSpeedKmh ?? null }} />
 
       <div className="mt-8 space-y-3">
         <Link to="/app/bolsa" className="buky-btn">

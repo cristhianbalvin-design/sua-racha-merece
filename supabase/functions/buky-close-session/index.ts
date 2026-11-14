@@ -56,14 +56,20 @@ serve(async (req) => {
 
     const { data: session, error: sErr } = await admin
       .from("buky_sessions")
-      .select("id, user_id, route_id, status, started_at, bukys_awarded, invalid_reason")
+      .select("id, user_id, route_id, mode, status, started_at, bukys_awarded, invalid_reason, route_polyline")
       .eq("id", sessionId)
       .maybeSingle();
     if (sErr) throw sErr;
     if (!session || session.user_id !== user.id) return json({ error: "session_not_found" }, 404);
     if (session.status === "valid" || session.status === "invalid") {
       const { data: bal } = await admin.from("buky_balances").select("balance").eq("user_id", user.id).maybeSingle();
+      const { data: saved } = await admin.from("buky_passes")
+        .select("point_id, km_mark, passed_at, speed_kmh, valid, awarded, reject_reason")
+        .eq("session_id", sessionId).order("passed_at");
       return json({
+        passes: (saved ?? []).map((p) => ({ ...p, at: p.passed_at })),
+        route_polyline: session.route_polyline,
+        mode: session.mode,
         status: session.status,
         reason: session.invalid_reason,
         bukys: session.bukys_awarded,
@@ -73,7 +79,7 @@ serve(async (req) => {
     }
 
     const [{ data: pointRows, error: pErr }, { data: settingRows, error: cErr }] = await Promise.all([
-      admin.from("buky_points").select("id, label, lat, lon, radius_m").eq("route_id", session.route_id).order("seq"),
+      session.mode === "free" ? Promise.resolve({ data: [], error: null }) : admin.from("buky_points").select("id, label, lat, lon, radius_m").eq("route_id", session.route_id).order("seq"),
       admin.from("app_settings").select("key, value").in("key", SETTINGS_KEYS),
     ]);
     if (pErr) throw pErr;
@@ -94,6 +100,7 @@ serve(async (req) => {
 
     const { evaluation, params } = buildFinalize({
       sessionId,
+      mode: session.mode,
       userId: user.id,
       startedAt: Date.parse(session.started_at),
       now: Date.now(),
@@ -110,13 +117,15 @@ serve(async (req) => {
     // Pasadas tal como quedaron en la base: incluye los topes por punto (paso 24), que decide el SQL
     const { data: saved } = await admin
       .from("buky_passes")
-      .select("point_id, passed_at, speed_kmh, valid, awarded, reject_reason")
+      .select("point_id, km_mark, passed_at, speed_kmh, valid, awarded, reject_reason")
       .eq("session_id", sessionId)
       .order("passed_at");
     return json({
       ...result,
+      mode: session.mode,
+      route_polyline: params.p_polyline,
       passes: saved
-        ? saved.map((p) => ({ point_id: p.point_id, at: p.passed_at, speed_kmh: p.speed_kmh, valid: p.valid, awarded: p.awarded, reject_reason: p.reject_reason }))
+        ? saved.map((p) => ({ point_id: p.point_id, km_mark: p.km_mark, at: p.passed_at, speed_kmh: p.speed_kmh, valid: p.valid, awarded: p.awarded, reject_reason: p.reject_reason }))
         : evaluation.passes.map((p) => ({
             point_id: p.pointId,
             at: new Date(p.at).toISOString(),

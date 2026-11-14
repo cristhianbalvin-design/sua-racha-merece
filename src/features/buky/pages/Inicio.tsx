@@ -56,6 +56,7 @@ export default function Inicio() {
       return null;
     }
   });
+  const [mode, setMode] = useState<"route" | "free">("route");
   const [pickRoute, setPickRoute] = useState(false);
   // Al elegir una ruta a mano, el mapa va a ella (aunque estés lejos, p. ej. probando desde otro país)
   const [focusRoute, setFocusRoute] = useState(false);
@@ -102,7 +103,7 @@ export default function Inicio() {
   const zone = [profile?.neighborhood, city?.name].filter(Boolean).join(" · ");
 
   const start = async () => {
-    if (!route || !user) return;
+    if (!user || (mode === "route" && !route)) return;
     if (status?.blocked_today) {
       setAskStart(false);
       toast.error(pt.treino.bloqueado, { duration: 8000 });
@@ -110,7 +111,7 @@ export default function Inicio() {
     }
     setStarting(true);
     try {
-      await training.start(user.id, route, city?.name ?? "", status ? { ...status.rules, daily_cap: status.bukys_max, bukys_today: status.bukys_today } : undefined);
+      await training.start(user.id, mode === "free" ? null : route, city?.name ?? "", status ? { ...status.rules, sessions_limited: !status.tester, daily_cap: status.bukys_max, bukys_today: status.bukys_today } : undefined);
       setAskStart(false);
       navigate("/app/treino");
     } catch (e) {
@@ -144,11 +145,11 @@ export default function Inicio() {
           center={center}
           zoom={13.4}
           points={
-            route
+            mode === "route" && route
               ? route.points.map((p) => ({ ...p, state: "idle" as const }))
               : []
           }
-          path={route?.path}
+          path={mode === "route" ? route?.path : null}
           showPath
           user={pos}
           nearRadiusM={pos ? NEAR_M : undefined}
@@ -180,7 +181,7 @@ export default function Inicio() {
             <button
               type="button"
               onClick={() => (canTrain ? setAskStart(true) : setAppOnly(true))}
-              disabled={!route || sessionsFull}
+              disabled={(mode === "route" && !route) || sessionsFull}
               aria-label={pt.inicio.iniciar}
               className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[var(--buky-neon)] text-[#050505] shadow-[0_0_0_7px_rgba(57,255,20,0.14),0_10px_30px_rgba(0,0,0,0.6)] transition active:scale-95 disabled:opacity-40"
             >
@@ -196,6 +197,19 @@ export default function Inicio() {
           </div>
 
           <div>
+            <div className="mb-3 inline-flex rounded-full border border-[var(--buky-line)] bg-[#0d0d0d] p-1" role="group" aria-label="Modo de treino">
+              {(["route", "free"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMode(m)}
+                  aria-pressed={mode === m}
+                  className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${mode === m ? "bg-[var(--buky-neon)] text-[#050505]" : "text-[var(--buky-muted)]"}`}
+                >
+                  {m === "route" ? "Rota" : "Livre"}
+                </button>
+              ))}
+            </div>
             {status && <p className="mb-2 max-w-[210px] text-xs text-white">Treinos hoje {status.sessions_today}/{status.sessions_max} · Bukys hoje {status.bukys_today}/{status.bukys_max}</p>}
             <div className="min-w-0">
               {zone && (
@@ -203,7 +217,16 @@ export default function Inicio() {
                   {zone}
                 </p>
               )}
-              {loadingRoutes ? null : routes.length === 0 ? (
+              {mode === "free" ? (
+                <div className="mt-1 max-w-[230px]">
+                  <p className="font-buky-xcond text-[clamp(52px,16vw,64px)] leading-none">
+                    {(status?.rules.free_km_per_buky ?? 1.5).toLocaleString("pt-BR")} km
+                  </p>
+                  <p className="mt-2 text-[15px] text-[var(--buky-muted)]">
+                    = 1 Buky. Corra por onde quiser, sem rota.
+                  </p>
+                </div>
+              ) : loadingRoutes ? null : routes.length === 0 ? (
                 <div className="mt-2 max-w-[220px]">
                   <p className="text-[15px] text-[var(--buky-muted)]">
                     {pt.inicio.semRotas}
@@ -263,7 +286,7 @@ export default function Inicio() {
           </div>
         </div>
       </div>
-      <Link to="/app/loja" className="mx-6 mb-5 block rounded-2xl border border-[var(--buky-line)] bg-[#111] p-5 text-lg font-semibold">Loja 3buk ?</Link>
+      <Link to="/app/loja" className="mx-6 mb-5 block rounded-2xl border border-[var(--buky-line)] bg-[#111] p-5 text-lg font-semibold">Loja 3buk →</Link>
       <HomeExtras cityCode={profile?.city_code} />
 
       <Sheet
@@ -291,7 +314,7 @@ export default function Inicio() {
         onClose={() => setAskStart(false)}
         onStart={start}
         busy={starting}
-        routeName={route?.name ?? ""}
+        routeName={mode === "free" ? "Treino livre" : route?.name ?? ""}
       />
       <Sheet
         open={pickRoute}

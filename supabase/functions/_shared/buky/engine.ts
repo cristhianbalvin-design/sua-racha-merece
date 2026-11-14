@@ -411,6 +411,76 @@ export function evaluateSession(
   };
 }
 
+/** Marca alcanzada durante un entrenamiento libre. */
+export interface FreeMark {
+  kmMark: number;
+  at: number;
+  accuracyM: number;
+  speedKmh: number;
+  valid: boolean;
+  rejectReason: SessionInvalidReason | null;
+}
+
+export interface FreeSessionEvaluation {
+  status: "valid" | "invalid";
+  reason: SessionInvalidReason | null;
+  marks: FreeMark[];
+  stats: SessionStats;
+  /** Lecturas que pertenecen a segmentos válidos, para dibujar el recorrido. */
+  validSegments: [GpsReading, GpsReading][];
+}
+
+/** Calcula marcas a partir de segmentos válidos, con las mismas reglas GPS de las rutas. */
+export function evaluateFreeSession(
+  readings: GpsReading[],
+  rules: Partial<SessionRules> = {},
+  window: { from?: number; to?: number } = {},
+  kmPerBuky = 1.5,
+): FreeSessionEvaluation {
+  const r = { ...DEFAULT_SESSION_RULES, ...rules };
+  const interval = Number.isFinite(kmPerBuky) && kmPerBuky >= 0.5 && kmPerBuky <= 10 ? kmPerBuky : 1.5;
+  const base = evaluateSession([], readings, r, window);
+  const inWindow = readings.filter((x) => x.fixTime >= (window.from ?? -Infinity) && x.fixTime <= (window.to ?? Infinity));
+  const ordered = [...inWindow].sort((a, b) => a.seq - b.seq);
+  const { accepted } = replayPasses([], ordered, { maxAccuracyM: r.maxAccuracyM });
+  const speeds = windowedSpeedsKmh(accepted, r.speedWindowS);
+  const positions = new Map(ordered.map((reading, i) => [reading, i]));
+  const validSegments: [GpsReading, GpsReading][] = [];
+  const marks: FreeMark[] = [];
+  let distanceM = 0;
+  let nextM = interval * 1000;
+  for (let i = 1; i < accepted.length; i++) {
+    const a = accepted[i - 1];
+    const b = accepted[i];
+    const speed = speeds[i];
+    // Nunca unir lecturas a través de una lectura rechazada o simulada.
+    if (positions.get(b)! !== positions.get(a)! + 1 || a.simulated || b.simulated ||
+        speed === null || speed < r.speedMinKmh || speed > r.speedMaxKmh) continue;
+    const segmentM = haversineMeters(a.lat, a.lon, b.lat, b.lon);
+    validSegments.push([a, b]);
+    while (segmentM > 0 && distanceM + segmentM >= nextM) {
+      const fraction = (nextM - distanceM) / segmentM;
+      marks.push({
+        kmMark: Math.round(nextM / 10) / 100,
+        at: Math.round(a.fixTime + fraction * (b.fixTime - a.fixTime)),
+        accuracyM: round1(a.accuracy + fraction * (b.accuracy - a.accuracy)),
+        speedKmh: round1(speed),
+        valid: base.status === "valid",
+        rejectReason: base.reason,
+      });
+      nextM += interval * 1000;
+    }
+    distanceM += segmentM;
+  }
+  return {
+    status: base.status,
+    reason: base.reason,
+    marks,
+    stats: { ...base.stats, distanceM: Math.round(distanceM) },
+    validSegments,
+  };
+}
+
 // ---------------------------------------------------------------- bicicleta
 
 export interface BikeRules {

@@ -17,7 +17,7 @@
  *  - bicicleta: avisos con BikeDetector (velocidad + podómetro si lo hay); al 3.º se corta;
  *  - en vivo solo se cuenta "+1" si el punto no superó 2 Bukys en el entrenamiento y pasaron 3 min.
  */
-import { BikeDetector, CollectionEngine, type GpsReading } from "@/features/buky/engine";
+import { BikeDetector, CollectionEngine, evaluateFreeSession, type GpsReading } from "@/features/buky/engine";
 import * as api from "../lib/api";
 import type { BukyRoute, CloseResult, CompactReading, StopReason } from "../lib/api";
 import { DEFAULT_TRAINING_RULES, type TrainingRules } from "./rules";
@@ -38,6 +38,7 @@ export interface TrainingState {
   status: TrainingStatus;
   sessionId: string | null;
   routeId: string | null;
+  mode: "route" | "free";
   routeName: string;
   routeKind: "official" | "athlete" | null;
   cityName: string;
@@ -73,6 +74,7 @@ const INITIAL: TrainingState = {
   status: "idle",
   sessionId: null,
   routeId: null,
+  mode: "route",
   routeName: "",
   routeKind: null,
   cityName: "",
@@ -125,6 +127,7 @@ class TrainingController {
   /** Bukys contados en vivo por punto (para no mostrar "+1" que el servidor no va a dar). */
   private livePerPoint = new Map<string, number[]>();
   private finishing = false;
+  private freeReadings: GpsReading[] = [];
 
   // ---------------------------------------------------------------- store
   subscribe = (fn: () => void) => {
@@ -148,19 +151,19 @@ class TrainingController {
   }
 
   // ---------------------------------------------------------------- ciclo de vida
-  async start(userId: string, route: BukyRoute, cityName: string, rules: TrainingRules = DEFAULT_TRAINING_RULES): Promise<void> {
+  async start(userId: string, route: BukyRoute | null, cityName: string, rules: TrainingRules = DEFAULT_TRAINING_RULES): Promise<void> {
     if (this.state.status === "running" || this.state.status === "starting") return;
-    if (route.points.length === 0) throw new Error("route_without_points");
+    if (route && route.points.length === 0) throw new Error("route_without_points");
     this.userId = userId;
     const sessionId = crypto.randomUUID();
-    this.set({ ...INITIAL, status: "starting", routeName: route.name, cityName });
+    this.set({ ...INITIAL, status: "starting", routeName: route?.name ?? "Treino livre", cityName });
 
     try {
-      await api.startSession(sessionId, route.id, {
+      await api.startSession(sessionId, route?.id ?? null, {
         platform: getGpsSource().kind,
         ua: navigator.userAgent.slice(0, 200),
         app: "buky-web-1",
-      });
+      }, route ? "route" : "free");
     } catch (e) {
       this.set({ ...INITIAL, status: "error", error: isNetworkError(e) ? "offline" : (e as Error).message });
       throw e;
@@ -169,12 +172,13 @@ class TrainingController {
     const meta: storage.TrainingMeta = {
       sessionId,
       userId,
-      routeId: route.id,
-      routeName: route.name,
-      routeKind: route.kind,
+      routeId: route?.id ?? null,
+      routeName: route?.name ?? "Treino livre",
+      routeKind: route?.kind ?? null,
+      mode: route ? "route" : "free",
       cityName,
-      points: route.points,
-      path: route.path ?? null,
+      points: route?.points ?? [],
+      path: route?.path ?? null,
       startedAt: Date.now(),
       phase: "running",
       rules,
@@ -196,13 +200,14 @@ class TrainingController {
         status: "pending",
         sessionId: meta.sessionId,
         routeId: meta.routeId,
+        mode: meta.mode ?? "route",
         routeName: meta.routeName,
         routeKind: meta.routeKind,
         cityName: meta.cityName,
         points: meta.points,
         path: meta.path ?? null,
         startedAt: meta.startedAt,
-        rules: meta.rules ?? DEFAULT_TRAINING_RULES,
+        rules: { ...DEFAULT_TRAINING_RULES, ...meta.rules },
         bikeWarnings: meta.bikeWarnings ?? 0,
         stopReason: meta.stopReason ?? null,
       });
@@ -214,11 +219,12 @@ class TrainingController {
   }
 
   private async beginTracking(meta: storage.TrainingMeta, previous: CompactReading[]) {
-    const rules = meta.rules ?? DEFAULT_TRAINING_RULES;
+    const rules = { ...DEFAULT_TRAINING_RULES, ...meta.rules };
     this.engine = new CollectionEngine(meta.points);
     const labels = new Map(meta.points.map((p) => [p.id, p.label]));
     const passes: LivePass[] = [];
     this.live = new LiveStats();
+    this.freeReadings = previous.map((r) => toReading(meta.sessionId, r));
     this.livePerPoint = new Map();
     this.bike = new BikeDetector({ speedKmh: rules.bike_speed_kmh, windowS: rules.bike_window_s, windowNoStepsS: rules.bike_window_nosteps_s });
     this.bike.warnings = meta.bikeWarnings ?? 0;
@@ -230,6 +236,10 @@ class TrainingController {
         if (this.countsLive(p.pointId, p.at, rules)) passes.push({ pointId: p.pointId, label: labels.get(p.pointId) ?? "", at: p.at });
       }
     }
+    if (meta.mode === "free") {
+      const free = evaluateFreeSession(this.freeReadings, engineRules(rules), { from: meta.startedAt - 60_000, to: meta.startedAt + rules.session_max_min * 60_000 }, rules.free_km_per_buky);
+      passes.splice(0, passes.length, ...free.marks.slice(0, Math.max(0, rules.daily_cap - rules.bukys_today)).map((m) => ({ pointId: "", label: `${m.kmMark} km`, at: m.at })));
+    }
     this.seq = previous.length ? previous[previous.length - 1][0] + 1 : 0;
     this.buffer = [];
     const source = getGpsSource();
@@ -238,6 +248,7 @@ class TrainingController {
       status: "running",
       sessionId: meta.sessionId,
       routeId: meta.routeId,
+      mode: meta.mode ?? "route",
       routeName: meta.routeName,
       routeKind: meta.routeKind,
       cityName: meta.cityName,
@@ -252,6 +263,7 @@ class TrainingController {
       bikeWarnings: this.bike.warnings,
       steps: null,
       ...this.live.snapshot(),
+      ...(meta.mode === "free" ? { distanceM: evaluateFreeSession(this.freeReadings, engineRules(rules), { from: meta.startedAt - 60_000, to: meta.startedAt + rules.session_max_min * 60_000 }, rules.free_km_per_buky).stats.distanceM } : {}),
     });
 
     this.stopGps = await source.start(
@@ -324,6 +336,15 @@ class TrainingController {
       error: null,
     };
     const rules = this.state.rules;
+    if (this.state.mode === "free") {
+      this.freeReadings.push(toReading(sessionId, compact));
+      const free = evaluateFreeSession(this.freeReadings, engineRules(rules), { from: (this.state.startedAt ?? 0) - 60_000, to: (this.state.startedAt ?? 0) + rules.session_max_min * 60_000 }, rules.free_km_per_buky);
+      const marks = free.marks.filter((m) => m.valid).slice(0, Math.max(0, rules.daily_cap - rules.bukys_today));
+      const newPasses = marks.map((m) => ({ pointId: "", label: `${m.kmMark} km`, at: m.at }));
+      newPasses.slice(this.state.passes.length).forEach((p) => this.onPass?.(p));
+      patch.distanceM = free.stats.distanceM;
+      patch.passes = newPasses;
+    }
     const counted = res.passes.filter((p) => this.countsLive(p.pointId, p.at, rules));
     if (counted.length) {
       const newPasses = counted.map((p) => ({ pointId: p.pointId, label: labels.get(p.pointId) ?? "", at: p.at }));
@@ -419,6 +440,12 @@ class TrainingController {
   reset() {
     if (this.state.status === "done" || this.state.status === "error") this.set(INITIAL);
   }
+}
+
+function engineRules(r: TrainingRules) {
+  return { speedMinKmh: r.speed_min_kmh, speedMaxKmh: r.speed_max_kmh, speedWindowS: r.speed_window_s,
+    vehicleWindowS: r.vehicle_window_s, maxAccuracyM: r.max_accuracy_m, mockMaxRatio: r.mock_max_ratio,
+    bikeSpeedKmh: r.bike_speed_kmh, bikeWindowNoStepsS: r.bike_window_nosteps_s };
 }
 
 function round6(x: number) {

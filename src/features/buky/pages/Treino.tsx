@@ -137,7 +137,7 @@ export default function Treino() {
             <p className="font-buky-xcond mt-1 text-[clamp(72px,22vw,92px)] leading-none text-[var(--buky-neon)]" aria-live="polite">
               {confirmedToday + live}
             </p>
-            {confirmedToday + live >= t.rules.daily_cap && <p className="text-sm">Limite de Bukys de hoje atingido.</p>}
+            {confirmedToday + live >= t.rules.daily_cap && <p className="text-sm">Limite diário de Bukys atingido — o treino continua, mas não soma Bukys.</p>}
           </div>
           <div className="mt-2 flex flex-col items-center">
             <button
@@ -171,6 +171,12 @@ export default function Treino() {
             </p>
           </div>
         </div>
+        {t.mode === "free" && confirmedToday + live < t.rules.daily_cap && <div className="mt-3">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[#1c1c1c]" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((t.distanceM % (t.rules.free_km_per_buky * 1000)) / (t.rules.free_km_per_buky * 10))}>
+            <div className="h-full rounded-full bg-[var(--buky-neon)]" style={{ width: `${(t.distanceM % (t.rules.free_km_per_buky * 1000)) / (t.rules.free_km_per_buky * 10)}%` }} />
+          </div>
+          <p className="mt-1.5 text-sm text-[var(--buky-muted)]">Faltam {((t.rules.free_km_per_buky * 1000 - t.distanceM % (t.rules.free_km_per_buky * 1000)) / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 })} km para o próximo Buky</p>
+        </div>}
         {zone === "slow" && <p className="mt-2 text-[13px] text-[#ffb020]">{pt.treino.acelere(min)}</p>}
         {(bikeWarn > 0 || t.bikeWarnings > 0) && (
           <div className="mt-3 rounded-2xl border border-[var(--buky-danger)]/60 bg-[var(--buky-danger)]/10 p-3.5" role="alert">
@@ -186,7 +192,7 @@ export default function Treino() {
         </p>
 
         <p className="mt-4 text-[15px] text-[var(--buky-muted)]">
-          {[pt.treino.coletados(live), pt.treino.perto(remaining), profile?.neighborhood].filter(Boolean).join(" · ")}
+          {[pt.treino.coletados(live), t.mode === "route" ? pt.treino.perto(remaining) : null, profile?.neighborhood].filter(Boolean).join(" · ")}
         </p>
         <p className="mt-1 text-xs text-[var(--buky-faint)]">{t.routeName}</p>
         {t.error === "permission_denied" && (

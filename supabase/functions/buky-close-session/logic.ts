@@ -4,6 +4,7 @@ import {
   type BukyPoint,
   DEFAULT_SESSION_RULES,
   evaluateSession,
+  evaluateFreeSession,
   type GpsReading,
   type SessionEvaluation,
   type SessionRules,
@@ -76,6 +77,7 @@ export interface CloseRules extends SessionRules {
   sessionMaxMin: number;
   /** Avisos de bicicleta que cortan el entrenamiento. */
   bikeWarningsToStop: number;
+  freeKmPerBuky: number;
 }
 
 /** Lee las reglas desde las filas de app_settings (value jsonb). */
@@ -96,6 +98,7 @@ export function rulesFromSettings(rows: { key: string; value: unknown }[]): Clos
     bikeWindowNoStepsS: get("buky_bike_window_nosteps_s", d.bikeWindowNoStepsS),
     sessionMaxMin: get("buky_session_max_min", 60),
     bikeWarningsToStop: get("buky_bike_warnings_to_stop", 3),
+    freeKmPerBuky: (() => { const n = get("buky_free_km_per_buky", 1.5); return n >= 0.5 && n <= 10 ? n : 1.5; })(),
   };
 }
 
@@ -110,6 +113,7 @@ export const SETTINGS_KEYS = [
   "buky_bike_window_nosteps_s",
   "buky_session_max_min",
   "buky_bike_warnings_to_stop",
+  "buky_free_km_per_buky",
 ];
 
 export interface PointRow {
@@ -136,6 +140,7 @@ export function buildFinalize(
     rules: SessionRules | CloseRules;
     trackPath: string | null;
     info?: CloseInfo;
+    mode?: "route" | "free";
   },
 ): { evaluation: SessionEvaluation; params: Record<string, unknown> } {
   const maxMin = "sessionMaxMin" in args.rules ? args.rules.sessionMaxMin : Infinity;
@@ -146,7 +151,10 @@ export function buildFinalize(
     from: args.startedAt - 60_000, // tolerancia de reloj del teléfono
     to: limit + 120_000,
   });
-  const s = evaluation.stats;
+  const free = evaluateFreeSession(args.readings, args.rules, { from: args.startedAt - 60_000, to: limit + 120_000 },
+    "freeKmPerBuky" in args.rules ? args.rules.freeKmPerBuky : 1.5);
+  const selected = args.mode === "free" ? free : evaluation;
+  const s = selected.stats;
   const maxAcc = args.rules.maxAccuracyM;
   const first = [...args.readings].sort((a, b) => a.seq - b.seq).find((r) => r.accuracy <= maxAcc && !r.simulated);
   const bikeWarnings = Math.max(args.info?.bikeWarnings ?? 0, s.bikeWarnings);
@@ -154,8 +162,8 @@ export function buildFinalize(
   const params = {
     p_session_id: args.sessionId,
     p_user_id: args.userId,
-    p_status: evaluation.status,
-    p_reason: evaluation.reason,
+    p_status: selected.status,
+    p_reason: selected.reason,
     p_stats: {
       ended_at: new Date(s.endedAt ?? args.now).toISOString(),
       distance_m: s.distanceM,
@@ -166,8 +174,9 @@ export function buildFinalize(
       start_lon: first?.lon ?? null,
       stop_reason: stopReason,
       bike_warnings: bikeWarnings,
+      free_km_per_buky: "freeKmPerBuky" in args.rules ? args.rules.freeKmPerBuky : 1.5,
     },
-    p_passes: evaluation.passes.map((p) => ({
+    p_passes: args.mode === "free" ? free.marks.map((p) => ({ km_mark: p.kmMark, passed_at: new Date(p.at).toISOString(), accuracy_m: p.accuracyM, speed_kmh: p.speedKmh, valid: p.valid, reject_reason: p.rejectReason })) : evaluation.passes.map((p) => ({
       point_id: p.pointId,
       passed_at: new Date(p.at).toISOString(),
       distance_m: p.distanceM,
@@ -177,12 +186,41 @@ export function buildFinalize(
       reject_reason: p.rejectReason,
     })),
     p_track_path: args.trackPath,
+    p_polyline: encodeTrack(free.validSegments.flatMap(([a, b]) => [a, b])),
   };
-  return { evaluation, params };
+  return { evaluation: args.mode === "free" ? { ...evaluation, status: free.status, reason: free.reason, stats: free.stats } : evaluation, params };
 }
 
 /** Comprime el recorrido completo para guardarlo en el bucket privado. */
 export async function gzipJson(value: unknown): Promise<Uint8Array> {
   const stream = new Blob([JSON.stringify(value)]).stream().pipeThrough(new CompressionStream("gzip"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+/** Simplifica el trazado a cinco metros y lo codifica con precisión 5. */
+export function encodeTrack(readings: GpsReading[]): string | null {
+  const points = readings.filter((p, i) => i === 0 || p !== readings[i - 1]);
+  if (points.length < 2) return null;
+  const keep = new Set([0, points.length - 1]);
+  const stack: [number, number][] = [[0, points.length - 1]];
+  while (stack.length) {
+    const [start, end] = stack.pop()!;
+    const a = points[start], b = points[end];
+    const scale = Math.cos((a.lat + b.lat) * Math.PI / 360);
+    const dx = (b.lon - a.lon) * scale, dy = b.lat - a.lat;
+    let best = 0, index = -1;
+    for (let i = start + 1; i < end; i++) {
+      const x = (points[i].lon - a.lon) * scale, y = points[i].lat - a.lat;
+      const t = Math.max(0, Math.min(1, (x * dx + y * dy) / (dx * dx + dy * dy || 1)));
+      const distance = Math.hypot(x - t * dx, y - t * dy) * 111_320;
+      if (distance > best) { best = distance; index = i; }
+    }
+    if (best > 5 && index > start) { keep.add(index); stack.push([start, index], [index, end]); }
+  }
+  let chosen = [...keep].sort((a, b) => a - b);
+  if (chosen.length > 2000) chosen = Array.from({ length: 2000 }, (_, i) => chosen[Math.round(i * (chosen.length - 1) / 1999)]);
+  let lat = 0, lon = 0, result = "";
+  const encode = (delta: number) => { let n = delta < 0 ? ~(delta << 1) : delta << 1; let out = ""; while (n >= 0x20) { out += String.fromCharCode((0x20 | (n & 0x1f)) + 63); n >>= 5; } return out + String.fromCharCode(n + 63); };
+  for (const i of chosen) { const x = Math.round(points[i].lat * 1e5), y = Math.round(points[i].lon * 1e5); result += encode(x - lat) + encode(y - lon); lat = x; lon = y; }
+  return result;
 }

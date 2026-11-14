@@ -1,5 +1,13 @@
 /** Reglas del entrenamiento y progreso histórico (paso 24, buky_my_status). */
 export interface TrainingRules {
+  speed_min_kmh: number;
+  speed_max_kmh: number;
+  speed_window_s: number;
+  vehicle_window_s: number;
+  max_accuracy_m: number;
+  mock_max_ratio: number;
+  free_km_per_buky: number;
+  sessions_limited: boolean;
   daily_cap: number;
   bukys_today: number;
   session_max_min: number;
@@ -13,6 +21,14 @@ export interface TrainingRules {
 }
 
 export const DEFAULT_TRAINING_RULES: TrainingRules = {
+  speed_min_kmh: 6,
+  speed_max_kmh: 25,
+  speed_window_s: 30,
+  vehicle_window_s: 60,
+  max_accuracy_m: 25,
+  mock_max_ratio: 0.05,
+  free_km_per_buky: 1.5,
+  sessions_limited: true,
   daily_cap: 12,
   bukys_today: 0,
   session_max_min: 60,

@@ -5,7 +5,7 @@ import { ChevronLeft, CircleAlert } from "lucide-react";
 import { pt } from "../i18n";
 import BukyMap from "../components/BukyMap";
 import { ErrorBox, fmtDate, fmtDuration, Spinner } from "../components/ui";
-import { getSessionDetail, getSessionTrack } from "../lib/api";
+import { decodePolyline, getSessionDetail, getSessionTrack } from "../lib/api";
 import ShareButton from "../share/ShareButton";
 import { useMySessions } from "../lib/hooks";
 import { LiveStats } from "../training/liveStats";
@@ -33,18 +33,19 @@ export default function TreinoDetalhe() {
   const { data: readings, isError: trackError } = useQuery({
     queryKey: ["buky", "track", s?.track_path],
     queryFn: () => getSessionTrack(s!.track_path!),
-    enabled: Boolean(s?.track_path),
+    enabled: Boolean(s?.track_path && !s?.route_polyline),
     staleTime: Infinity,
     retry: false,
   });
 
   // Recorrido limpio (solo lecturas precisas, sin el temblor de estar quieto)
   const track = useMemo(() => {
+    if (s?.route_polyline) return decodePolyline(s.route_polyline);
     if (!readings) return [];
     const live = new LiveStats();
     for (const r of readings) if (r.acc <= 25) live.add(r.lat, r.lon, r.t);
     return live.snapshot().track;
-  }, [readings]);
+  }, [readings, s?.route_polyline]);
 
   if (isLoading) return <Spinner label={pt.comum.carregando} />;
   if (isError || !s) return <ErrorBox message={pt.comum.erro} onRetry={() => refetch()} />;
@@ -76,14 +77,14 @@ export default function TreinoDetalhe() {
           {s.ended_at ? `–${time(s.ended_at)}` : ""}
         </p>
         <div className="mt-1 flex items-end justify-between gap-3">
-          <h1 className="min-w-0 truncate text-[22px] font-bold">{s.route?.name ?? H.rotaRemovida}</h1>
+          <h1 className="min-w-0 truncate text-[22px] font-bold">{s.mode === "free" ? "Treino livre" : s.route?.name ?? H.rotaRemovida}</h1>
           <p className={`font-buky shrink-0 text-[40px] leading-none ${valid ? "text-[var(--buky-neon)]" : "text-[var(--buky-faint)]"}`}>+{s.bukys_awarded}</p>
         </div>
         <p className="mt-1 text-[13px] text-[var(--buky-muted)]">
-          {valid ? H.bukysConfirmados(s.bukys_awarded, s.route?.points.length ?? 0) : pt.resumo.invalido}
+          {!valid ? pt.resumo.invalido : s.mode === "free" ? `${s.bukys_awarded} ${s.bukys_awarded === 1 ? "Buky confirmado" : "Bukys confirmados"} por distância percorrida` : H.bukysConfirmados(s.bukys_awarded, s.route?.points.length ?? 0)}
         </p>
 
-        <ShareButton data={{ date: s.started_at, city: sessions?.find(x => x.id === id)?.start_city ?? s.route?.city ?? "", bukys: s.bukys_awarded, shape: sessions?.find(x => x.id === id)?.shape ?? s.route?.path ?? s.route?.points ?? [], distance: s.distance_m, duration: s.duration_s, speed: s.avg_speed_kmh }} />
+        <ShareButton data={{ label: s.mode === "free" ? "Treino livre" : undefined, date: s.started_at, city: sessions?.find(x => x.id === id)?.start_city ?? s.route?.city ?? "", bukys: s.bukys_awarded, shape: track.length ? track : sessions?.find(x => x.id === id)?.shape ?? s.route?.path ?? s.route?.points ?? [], distance: s.distance_m, duration: s.duration_s, speed: s.avg_speed_kmh }} />
 
         {!valid && (
           <p className="mt-3 flex gap-2 rounded-2xl border border-[var(--buky-line)] p-3.5 text-sm text-[var(--buky-muted)]">
@@ -118,7 +119,7 @@ export default function TreinoDetalhe() {
             <span className="h-3 w-3 rounded-full bg-[var(--buky-neon)]" /> {H.legendaPego}
           </span>
         </div>
-        {s.track_path == null ? (
+        {s.track_path == null && !s.route_polyline ? (
           <p className="mt-2 text-xs text-[var(--buky-faint)]">{H.semRecorrido}</p>
         ) : trackError ? (
           <p className="mt-2 text-xs text-[var(--buky-faint)]">{H.erroRecorrido}</p>
@@ -131,7 +132,7 @@ export default function TreinoDetalhe() {
               {s.passes.map((p, i) => (
                 <li key={i} className="buky-row flex items-center justify-between gap-3 py-3 text-[15px]">
                   <span className="min-w-0">
-                    <span className="block truncate">{labels.get(p.point_id) ?? "Waypoint"}</span>
+                    <span className="block truncate">{p.km_mark != null ? `${Number(p.km_mark).toLocaleString("pt-BR")} km` : labels.get(p.point_id) ?? "Waypoint"}</span>
                     <span className="block text-[12px] text-[var(--buky-faint)]">
                       {fmtDate(p.passed_at, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                       {p.speed_kmh != null ? ` · ${kmh(Number(p.speed_kmh))} km/h` : ""}
