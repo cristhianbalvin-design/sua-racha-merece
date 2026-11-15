@@ -114,6 +114,7 @@ export default function CompletarPerfil() {
 
   return (
     <main className="px-7 pb-10 pt-[calc(env(safe-area-inset-top,0px)+24px)]">
+      {!editing && <img src="/brand/logo-3buk-horizontal-dark.png" alt="3buk" className="h-[22px] w-auto" />}
       {editing && (
         <button type="button" onClick={() => navigate(-1)} aria-label={pt.comum.voltar} className="-ml-1 p-1">
           <ChevronLeft size={26} />

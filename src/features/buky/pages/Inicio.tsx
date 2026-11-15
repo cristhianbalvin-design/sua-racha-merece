@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Check,
@@ -59,6 +59,9 @@ export default function Inicio() {
     }
   });
   const [mode, setMode] = useState<"route" | "free">("route");
+  useEffect(() => {
+    if (status && !status.free_enabled) setMode("route");
+  }, [status]);
   const [pickRoute, setPickRoute] = useState(false);
   // Al elegir una ruta a mano, el mapa va a ella (aunque estés lejos, p. ej. probando desde otro país)
   const [focusRoute, setFocusRoute] = useState(false);
@@ -125,6 +128,11 @@ export default function Inicio() {
         setAskStart(false);
         void refetchStatus();
         toast.error("Você atingiu o limite de treinos de hoje.");
+      } else if (code === "free_not_enabled") {
+        setAskStart(false);
+        setMode("route");
+        void refetchStatus();
+        toast.error("O treino livre ainda não está disponível na sua cidade.");
       } else if (code === "blocked_today") {
         setAskStart(false);
         void refetchStatus();
@@ -162,6 +170,8 @@ export default function Inicio() {
 
         {/* saldo + avatar */}
         <div className="absolute inset-x-0 top-0 flex items-start justify-between px-6 pt-[calc(env(safe-area-inset-top,0px)+28px)]">
+          <div>
+          <img src="/brand/logo-3buk-horizontal-dark.png" alt="3buk" className="mb-1 h-[20px] w-auto" />
           <Link
             to="/app/bolsa"
             className="flex items-baseline gap-2"
@@ -174,6 +184,7 @@ export default function Inicio() {
               {pt.inicio.bukys}
             </span>
           </Link>
+          </div>
           <ProfileAvatar />
         </div>
 
@@ -199,7 +210,7 @@ export default function Inicio() {
           </div>
 
           <div>
-            <div className="mb-3 inline-flex rounded-full border border-[var(--buky-line)] bg-[#0d0d0d] p-1" role="group" aria-label="Modo de treino">
+            {status?.free_enabled && <div className="mb-3 inline-flex rounded-full border border-[var(--buky-line)] bg-[#0d0d0d] p-1" role="group" aria-label="Modo de treino">
               {(["route", "free"] as const).map((m) => (
                 <button
                   key={m}
@@ -211,7 +222,7 @@ export default function Inicio() {
                   {m === "route" ? "Rota" : "Livre"}
                 </button>
               ))}
-            </div>
+            </div>}
             {status && <p className="mb-2 max-w-[210px] text-xs text-white">Treinos hoje {status.sessions_today}/{status.sessions_max} · Bukys hoje {status.bukys_today}/{status.bukys_max}</p>}
             <div className="min-w-0">
               {zone && (

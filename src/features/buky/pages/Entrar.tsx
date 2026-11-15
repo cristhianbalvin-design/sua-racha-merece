@@ -43,9 +43,7 @@ export default function Entrar() {
   return (
     <div className="buky">
       <main className="relative mx-auto flex min-h-svh w-full max-w-[480px] flex-col overflow-hidden px-7 pb-8 pt-[calc(env(safe-area-inset-top,0px)+28px)]">
-        <p className="font-buky text-center text-[26px]">
-          <span className="text-[var(--buky-neon)]">3</span>buk
-        </p>
+        <img src="/brand/logo-3buk-horizontal-dark.png" alt="3buk" className="mx-auto h-[22px] w-auto" />
 
         {/* "CORRE" en contorno detrás de la mascota */}
         <div className="relative mt-4 h-[290px]" aria-hidden>

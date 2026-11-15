@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
       registerType: "autoUpdate",
       // El service worker se registra en main.tsx, solo en la web (no dentro de la app nativa).
       injectRegister: null,
-      includeAssets: ["favicon.ico", "pwa-192.svg", "pwa-512.svg"],
+      includeAssets: ["brand/icon-3buk-32.png", "brand/icon-3buk-180.png"],
       devOptions: { enabled: true },
       manifest: {
         name: "3BUK — Seu esforço merece patrocínio",
@@ -45,8 +45,8 @@ export default defineConfig(({ mode }) => {
         scope: "/",
         start_url: "/login",
         icons: [
-          { src: "pwa-192.svg", sizes: "192x192", type: "image/svg+xml" },
-          { src: "pwa-512.svg", sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" },
+          { src: "/brand/icon-3buk-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/brand/icon-3buk-512.png", sizes: "512x512", type: "image/png" },
         ],
       },
       workbox: {
