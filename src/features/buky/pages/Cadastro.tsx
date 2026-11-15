@@ -82,6 +82,7 @@ export default function Cadastro() {
           <Link to="/entrar" aria-label={pt.comum.voltar} className="-ml-1 p-1">
             <ChevronLeft size={26} />
           </Link>
+          <img src="/brand/logo-3buk-horizontal-dark.png" alt="3buk" className="h-[22px] w-auto" />
           <span className="text-sm font-semibold text-[var(--buky-muted)]">{pt.cadastro.passo}</span>
         </div>
         <h1 className="font-buky mt-4 text-[48px]">

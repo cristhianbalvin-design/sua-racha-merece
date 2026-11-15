@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Footprints, LogOut, Pencil, Route, SlidersHorizontal, Wallet } from "lucide-react";
+import { ChevronRight, Footprints, LogOut, Pencil, Route, SlidersHorizontal } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiGetMyWallet, brl } from "@/lib/walletApi";
 import { useAuth } from "@/contexts/AuthContext";
@@ -115,6 +115,19 @@ export default function Perfil() {
         </div>
       </div>
 
+      <Link to="/app/perfil/saldo" className="mt-5 flex items-center gap-3 rounded-[18px] bg-[var(--buky-neon)] p-4 text-[#050505]">
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold">Saldo / Premium</span>
+          <span className="block text-2xl font-bold">{brl(wallet?.balance_cents ?? 0)}</span>
+          <span className="block text-sm font-medium">
+            {wallet?.premium?.active && wallet.premium.until
+              ? `Premium ativo até ${fmtDate(wallet.premium.until, { day: "2-digit", month: "2-digit", year: "numeric" })}`
+              : "Seja Premium"}
+          </span>
+        </span>
+        <ChevronRight size={22} className="shrink-0" />
+      </Link>
+
       <dl className="mt-6 grid grid-cols-3 border-y border-[var(--buky-line)]">
         {stats.map((st, i) => (
           <div
@@ -134,24 +147,6 @@ export default function Perfil() {
         {pt.perfil.nota}
       </p>
 
-      <Link
-        to="/app/perfil/saldo"
-        className="mt-5 flex items-center gap-3 rounded-[18px] border border-[var(--buky-line)] bg-[#111] p-4"
-      >
-        <Wallet size={20} className="shrink-0 text-[var(--buky-neon)]" />
-        <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-semibold">
-            {pt.saldo.perfilCard(brl(wallet?.balance_cents ?? 0))}
-          </span>
-          <span className="block truncate text-[12px] text-[var(--buky-muted)]">
-            {wallet?.premium?.active && wallet.premium.until
-              ? `Premium até ${fmtDate(wallet.premium.until, { day: "2-digit", month: "2-digit", year: "2-digit" })} · `
-              : ""}
-            {pt.saldo.perfilCardSub}
-          </span>
-        </span>
-        <ChevronRight size={18} className="shrink-0 text-[var(--buky-faint)]" />
-      </Link>
 
       <div className="mt-5 rounded-[18px] border border-[var(--buky-line)] p-4">
         <label className="flex items-center justify-between gap-3">

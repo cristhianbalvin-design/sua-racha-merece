@@ -37,10 +37,13 @@ export default function HomeExtras({ cityCode }: { cityCode?: number | null }) {
 
       {ranking && (
         <section aria-label="Ranking mensal" className="px-6">
-          <h2 className="buky-label text-[var(--buky-neon)]">Top 3 de {new Date(`${ranking.period}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long" })}</h2>
-          <div className="mt-3 flex gap-3" aria-label="Âmbito do ranking">
-            <button type="button" aria-pressed={scope === "city"} onClick={() => setScope("city")}>Cidade</button>
-            <button type="button" aria-pressed={scope === "national"} onClick={() => setScope("national")}>Brasil</button>
+          <h2 className="buky-label text-[var(--buky-neon)]">Ranking de {new Date(`${ranking.period}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long" })}{scope === "city" && ranking.city && <span className="text-[var(--buky-muted)]"> · {ranking.city}</span>}</h2>
+          <div className="mt-3 flex gap-2" role="tablist" aria-label="Âmbito do ranking">
+            {(["city", "national"] as const).map((value) => (
+              <button key={value} type="button" role="tab" aria-selected={scope === value} onClick={() => setScope(value)} className={`rounded-full border px-3 py-2 text-sm font-semibold ${scope === value ? "border-[var(--buky-neon)] bg-[var(--buky-neon)] text-[#050505]" : "border-[var(--buky-line)] text-white"}`}>
+                {value === "city" ? "Ranking cidade" : "Ranking nacional"}
+              </button>
+            ))}
           </div>
           {ranking.top.length === 0 ? (
             <p className="mt-3 text-sm text-[var(--buky-muted)]">{I.rankingVazio}</p>

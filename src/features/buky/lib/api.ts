@@ -170,6 +170,7 @@ export interface MyStatus {
   sponsorship_min: number;
   free_photo_min: number;
   tester: boolean;
+  free_enabled: boolean;
   plan: "freemium" | "premium";
   sessions_today: number;
   sessions_max: number;

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Save, Trash2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 import type { City } from "../lib/api";
 import { getCity } from "../lib/api";
 import { useRouteRules } from "../lib/hooks";
@@ -43,6 +44,31 @@ export default function AdminRotas() {
     queryKey: ["admin-buky", "routes", city?.code, kind],
     queryFn: () => listRoutes({ cityCode: city?.code, kind }),
   });
+
+  const freeSetting = useQuery({
+    queryKey: ["admin-buky", "free-enabled", city?.code],
+    enabled: !!city,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("br_cities").select("buky_free_enabled").eq("code", city!.code).single();
+      if (error) throw error;
+      return Boolean(data.buky_free_enabled);
+    },
+  });
+  const [savingFree, setSavingFree] = useState(false);
+  const setFree = async (enabled: boolean) => {
+    if (!city) return;
+    setSavingFree(true);
+    try {
+      const { error } = await supabase.rpc("buky_admin_set_free_enabled", { p_city_code: city.code, p_enabled: enabled });
+      if (error) throw error;
+      await freeSetting.refetch();
+      toast.success("Configuração da cidade salva.");
+    } catch {
+      toast.error("Não foi possível salvar a configuração da cidade.");
+    } finally {
+      setSavingFree(false);
+    }
+  };
 
   const placed = useMemo(() => (draft ? placeBukys(draft.path, draft.everyM, draft.radiusM) : { bukys: [], lengthM: 0 }), [draft]);
 
@@ -270,6 +296,13 @@ export default function AdminRotas() {
             <AdminCityPicker value={city} onChange={setCity} placeholder="Todas as cidades" />
           </Field>
         </div>
+        {city && (
+          <label className="flex items-center gap-2 pb-3 text-sm font-semibold">
+            <input type="checkbox" role="switch" checked={freeSetting.data ?? false} disabled={freeSetting.isLoading || !!freeSetting.error || savingFree} onChange={(e) => void setFree(e.target.checked)} />
+            Treino livre
+          </label>
+        )}
+        {city && freeSetting.error && <p className="pb-3 text-sm text-destructive">Não foi possível carregar a configuração da cidade.</p>}
         <Field label="Tipo">
           <select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
             <option value="official">Oficiais</option>
