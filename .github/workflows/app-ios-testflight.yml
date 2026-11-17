@@ -1,0 +1,39 @@
+﻿name: iOS · invitaciones TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      testers:
+        description: Correos de los probadores (Apple ID), separados por coma
+        required: true
+        type: string
+      grupo:
+        description: Grupo interno de TestFlight
+        default: Equipo 3buk
+        type: string
+
+jobs:
+  testflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Instalar dependencias
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install pyjwt cryptography requests
+      - name: Comprobar configuración
+        run: '"$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py check'
+      - name: Invitar probadores
+        env:
+          TESTERS: ${{ inputs.testers }}
+          TF_GROUP: ${{ inputs.grupo }}
+        run: '"$RUNNER_TEMP/venv/bin/python" scripts/ios_signing.py testflight'
