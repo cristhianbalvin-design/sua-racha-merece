@@ -19,6 +19,10 @@ import plistlib
 import subprocess
 import sys
 import time
+import re
+import io
+import contextlib
+from urllib.parse import urlsplit
 
 import jwt
 import requests
@@ -267,6 +271,173 @@ def builds():
         notice("Builds en Apple", f"build {a.get('version')} · {a.get('processingState')} · subida {a.get('uploadedDate')}")
 
 
+def parse_testers(value):
+    correos = re.split(r"[,\s]+", value.strip())
+    return list(dict.fromkeys(c.lower() for c in correos if c))
+
+
+def mask_email(email):
+    local, sep, domain = email.partition("@")
+    return f"{local[:2]}***@{domain}" if sep else "***"
+
+
+def explain_testflight(res, title):
+    # Apple puede incluir direcciones en el detalle de un error HTTP.
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        explain(res, title)
+    print(re.sub(r"[\w.+%-]+@[\w.-]+\.[A-Za-z]{2,}", lambda m: mask_email(m.group()), output.getvalue()), end="", flush=True)
+
+
+def tf_request(method, path, title, **kwargs):
+    res = call(method, path, **kwargs)
+    if not res.ok:
+        explain_testflight(res, title)
+        raise RuntimeError(title)
+    return res.json()
+
+
+def tf_list(path, title, params=None):
+    # Se recorren todas las páginas para no duplicar un grupo existente.
+    items = []
+    while path:
+        body = tf_request("GET", path, title, params=params)
+        items.extend(body.get("data", []))
+        next_url = body.get("links", {}).get("next")
+        if next_url:
+            parts = urlsplit(next_url)
+            if parts.netloc != "api.appstoreconnect.apple.com" or not parts.path.startswith("/v1/"):
+                raise RuntimeError("Paginación de Apple inválida")
+            path = parts.path[3:] + ("?" + parts.query if parts.query else "")
+        else:
+            path = None
+        params = None
+    return items
+
+
+def tf_group(app_id, name):
+    groups = tf_list(f"/apps/{app_id}/betaGroups", "Grupo TestFlight", {"limit": 200})
+    group = next((g for g in groups if g.get("attributes", {}).get("name") == name), None)
+    if group:
+        if not group.get("attributes", {}).get("isInternalGroup"):
+            error("Grupo TestFlight", f"El grupo {name} existe pero no es interno.")
+            raise RuntimeError("Grupo externo")
+        return group
+    return tf_request("POST", "/betaGroups", "Grupo TestFlight", json={"data": {
+        "type": "betaGroups", "attributes": {"name": name, "isInternalGroup": True, "hasAccessToAllBuilds": True},
+        "relationships": {"app": {"data": {"type": "apps", "id": app_id}}},
+    }})["data"]
+
+
+def tf_build(app_id, wait_minutes):
+    params = {"filter[app]": app_id, "sort": "-uploadedDate", "limit": 1, "include": "preReleaseVersion"}
+    body = tf_request("GET", "/builds", "Compilación", params=params)
+    if not body.get("data"):
+        error("Compilación", "No hay compilaciones para esta app.")
+        raise RuntimeError("Sin compilaciones")
+    build = body["data"][0]
+    version = next((v.get("attributes", {}).get("version") for v in body.get("included", []) if v.get("type") == "preReleaseVersions"), "desconocida")
+    deadline = time.monotonic() + wait_minutes * 60
+    while build.get("attributes", {}).get("processingState") == "PROCESSING":
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            error("Compilación", "Se agotó el tiempo de espera del procesamiento.")
+            raise RuntimeError("Espera agotada")
+        time.sleep(min(30, remaining))
+        build = tf_request("GET", f"/builds/{build['id']}", "Compilación")["data"]
+    state = build.get("attributes", {}).get("processingState")
+    if state != "VALID":
+        error("Compilación", f"La compilación no está lista: {state}.")
+        raise RuntimeError("Compilación no válida")
+    if build.get("attributes", {}).get("usesNonExemptEncryption") is None:
+        tf_request("PATCH", f"/builds/{build['id']}", "Cifrado", json={"data": {
+            "type": "builds", "id": build["id"], "attributes": {"usesNonExemptEncryption": False},
+        }})
+    return build, version
+
+
+def tf_tester(email, app_id, group_id):
+    masked = mask_email(email)
+    users = tf_list("/users", "Usuario de App Store Connect", {"filter[username]": email})
+    user = next((u for u in users if u.get("attributes", {}).get("username", "").lower() == email.lower()), None)
+    if not user:
+        invitations = tf_list("/userInvitations", "Invitación de App Store Connect", {"filter[email]": email})
+        if any(i.get("attributes", {}).get("email", "").lower() == email.lower() for i in invitations):
+            error("Probador", f"El usuario {masked} todavía no aceptó la invitación de App Store Connect.")
+        else:
+            error("Probador", f"El usuario {masked} no existe; primero hay que darle de alta en Usuarios y acceso de App Store Connect.")
+        return "error"
+    testers = tf_list("/betaTesters", "Probador TestFlight", {"filter[email]": email})
+    tester = next((t for t in testers if t.get("attributes", {}).get("email", "").lower() == email.lower()), None)
+    if tester:
+        res = call("POST", f"/betaGroups/{group_id}/relationships/betaTesters", json={"data": [{"type": "betaTesters", "id": tester["id"]}]})
+        if not res.ok and res.status_code != 409:
+            explain_testflight(res, "Añadir probador")
+            return "error"
+    else:
+        attrs = user.get("attributes", {})
+        body = tf_request("POST", "/betaTesters", "Crear probador", json={"data": {
+            "type": "betaTesters", "attributes": {"email": email, "firstName": attrs.get("firstName") or email.split("@")[0], "lastName": attrs.get("lastName") or "Probador"},
+            "relationships": {"betaGroups": {"data": [{"type": "betaGroups", "id": group_id}]}},
+        }})
+        tester = body["data"]
+    res = call("POST", "/betaTesterInvitations", json={"data": {"type": "betaTesterInvitations", "relationships": {
+        "app": {"data": {"type": "apps", "id": app_id}}, "betaTester": {"data": {"type": "betaTesters", "id": tester["id"]}},
+    }}})
+    if not res.ok:
+        # No se ocultan conflictos ajenos a una invitación ya enviada.
+        try:
+            detail = str(res.json()).lower() if res.status_code in (400, 409, 422) else ""
+        except ValueError:
+            detail = ""
+        if "already" in detail and ("invit" in detail or "sent" in detail):
+            return "ya estaba"
+        explain_testflight(res, "Invitación TestFlight")
+        return "error"
+    return "invitación enviada"
+
+
+def testflight():
+    testers = parse_testers(os.environ.get("TESTERS", ""))
+    if not testers:
+        error("TestFlight", "TESTERS es obligatorio y debe contener correos.")
+        sys.exit(1)
+    try:
+        wait_minutes = float(os.environ.get("TF_WAIT_MIN", "30"))
+        if not 0 <= wait_minutes < float("inf"):
+            raise ValueError()
+    except ValueError:
+        error("TestFlight", "TF_WAIT_MIN debe ser un número no negativo.")
+        sys.exit(1)
+    group_name = os.environ.get("TF_GROUP", "Equipo 3buk").strip() or "Equipo 3buk"
+    try:
+        apps = tf_list("/apps", "App", {"filter[bundleId]": BUNDLE_ID, "limit": 5})
+        if not apps:
+            error("App", f"No se encontró la app {BUNDLE_ID}.")
+            sys.exit(1)
+        app_id = apps[0]["id"]
+        group = tf_group(app_id, group_name)
+        build, version = tf_build(app_id, wait_minutes)
+        if not group.get("attributes", {}).get("hasAccessToAllBuilds"):
+            res = call("POST", f"/betaGroups/{group['id']}/relationships/builds", json={"data": [{"type": "builds", "id": build["id"]}]})
+            if not res.ok and res.status_code != 409:
+                explain_testflight(res, "Añadir compilación")
+                raise RuntimeError("Añadir compilación")
+        notice("TestFlight", f"Grupo: {group_name} · compilación: {version} ({build['attributes'].get('version')}) · {build['attributes'].get('processingState')}")
+        failed = False
+        for email in testers:
+            try:
+                result = tf_tester(email, app_id, group["id"])
+            except RuntimeError:
+                result = "error"
+            notice("Probador TestFlight", f"{mask_email(email)}: {result}")
+            failed |= result == "error"
+        if failed:
+            sys.exit(1)
+    except RuntimeError:
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
     if cmd == "check":
@@ -279,6 +450,8 @@ if __name__ == "__main__":
         os.chmod(sys.argv[2], 0o600)
     elif cmd == "builds":
         builds()
+    elif cmd == "testflight":
+        testflight()
     elif cmd == "cleanup":
         cleanup(sys.argv[2])
     else:
