@@ -22,7 +22,7 @@ export function FaceBanner() {
           loading="lazy"
         />
         <div className="l-face-actions">
-          <Link className="l-button" to={user ? '/app/fotos' : '/login?redirectTo=/app/fotos'}>
+          <Link className="l-button" to={user ? '/app/fotos' : '/?redirect=%2Fapp%2Ffotos#acesso'}>
             BUSCAR FOTOS →
           </Link>
           <button

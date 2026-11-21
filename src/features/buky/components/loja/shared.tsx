@@ -1,3 +1,4 @@
+import { PAYMENTS_ENABLED } from "@/config/features";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -154,6 +155,7 @@ export function useShopEnabled() {
 }
 export function Gate({ children }: { children: React.ReactNode }) {
   const enabled = useShopEnabled();
+  if (!PAYMENTS_ENABLED) return <p>{"Gerencie seu plano e seu saldo em 3buk.com."}</p>;
   if (enabled.isLoading) return <Shell>{pt.loja.carregar}</Shell>;
   if (enabled.isError) return <Shell>{pt.loja.erroLoja}</Shell>;
   if (!enabled.data)

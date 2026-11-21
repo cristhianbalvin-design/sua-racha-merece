@@ -24,6 +24,9 @@ export interface BukyProfile {
   neighborhood: string | null;
   nickname: string | null;
   phone: string | null;
+  sport: string | null;
+  gender: string | null;
+  birth_date: string | null;
   whatsapp: string | null;
   campaigns_participated: number | null;
 }
@@ -217,7 +220,7 @@ function fail(error: { message?: string; code?: string } | null): never {
 // ------------------------------------------------------------------ perfil y ciudades
 
 const PROFILE_COLUMNS =
-  "id, name, email, avatar_url, city, country, city_code, state_code, instagram, neighborhood, nickname, phone, whatsapp, campaigns_participated";
+  "id, name, email, avatar_url, city, country, city_code, state_code, instagram, neighborhood, nickname, phone, sport, gender, birth_date, whatsapp, campaigns_participated";
 
 export async function getProfile(userId: string): Promise<BukyProfile> {
   const { data, error } = await supabase.from("users").select(PROFILE_COLUMNS).eq("id", userId).single();

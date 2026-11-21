@@ -1,3 +1,4 @@
+import { PAYMENTS_ENABLED } from "@/config/features";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Footprints, LogOut, Pencil, Route, SlidersHorizontal } from "lucide-react";
@@ -122,7 +123,7 @@ export default function Perfil() {
           <span className="block text-sm font-medium">
             {wallet?.premium?.active && wallet.premium.until
               ? `Premium ativo até ${fmtDate(wallet.premium.until, { day: "2-digit", month: "2-digit", year: "numeric" })}`
-              : "Seja Premium"}
+              : PAYMENTS_ENABLED ? "Seja Premium" : "Freemium"}
           </span>
         </span>
         <ChevronRight size={22} className="shrink-0" />

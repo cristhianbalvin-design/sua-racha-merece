@@ -1,3 +1,4 @@
+import { PAYMENTS_ENABLED, PAYMENT_MANAGEMENT_MESSAGE } from "@/config/features";
 import { topupCents } from "@/lib/walletApi";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -82,7 +83,8 @@ export default function Saldo() {
           <Wallet size={14} /> {W.saldo}
         </p>
         <p className="font-buky-xcond mt-2 text-[clamp(48px,15vw,60px)] leading-none">{brl(w.balance_cents)}</p>
-        <p className="mt-2 text-[13px] text-[var(--buky-muted)]">{W.saldoTexto(brl(w.photo_price_cents))}</p>
+        {PAYMENTS_ENABLED && <p className="mt-2 text-[13px] text-[var(--buky-muted)]">{W.saldoTexto(brl(w.photo_price_cents))}</p>}
+        {PAYMENTS_ENABLED ? <>
         <p className="buky-label mt-5 text-[var(--buky-muted)]">{W.recarregar}</p>
         {manual ? <ManualPaymentCard purpose="topup" /> : <>
         <div className="mt-2 grid grid-cols-3 gap-2">
@@ -105,6 +107,7 @@ export default function Saldo() {
         <button type="button" className="buky-btn mt-2" disabled={busy !== null || topupCents(otherAmount) === null} onClick={() => void pay("other", { product: "wallet_topup", amountCents: topupCents(otherAmount)! })}>Recarregar outro valor</button>
         <p className="mt-2 text-[12px] text-[var(--buky-faint)]">{W.devolucao}</p>
         </>}
+        </> : <p className="mt-4 text-sm">{PAYMENT_MANAGEMENT_MESSAGE}</p>}
       </section>
 
       {s && (
@@ -131,7 +134,7 @@ export default function Saldo() {
             <li key={b}>· {b}</li>
           ))}
         </ul>
-        {manual ? <ManualPaymentCard purpose="premium" /> : <>
+        {PAYMENTS_ENABLED && (manual ? <ManualPaymentCard purpose="premium" /> : <>
         <label className="mt-3 flex min-h-11 cursor-pointer items-center gap-3 text-[13px]">
           <input type="checkbox" checked={terms} onChange={(e) => setTerms(e.target.checked)} className="h-5 w-5 accent-[var(--buky-neon)]" />
           <span>
@@ -145,7 +148,7 @@ export default function Saldo() {
           {busy === "premium" ? pt.comum.carregando : premium?.active ? W.renovar(brl(w.premium_price_cents)) : W.assinar(brl(w.premium_price_cents))}
         </button>
         <p className="mt-2 text-[12px] text-[var(--buky-faint)]">{W.semSaldo}</p>
-        </>}
+        </>)}
       </section>
 
       <section className="mt-6">

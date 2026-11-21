@@ -6,7 +6,7 @@ import Landing from '@/pages/Landing';
 import Login from '@/pages/Login';
 
 const mocks = vi.hoisted(() => ({
-  user: null as null | { email: string },
+  user: null as null | { email: string; name?: string },
   login: vi.fn(),
   google: vi.fn(),
   rpc: vi.fn(),
@@ -25,7 +25,7 @@ function show(element: React.ReactNode, path = '/') {
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="*" element={element} />
-          <Route path="/dashboard" element={<div>Dashboard destino</div>} />
+          <Route path="/app" element={<div>App destino</div>} />
           <Route path="/app/fotos" element={<div>Fotos destino</div>} />
         </Routes>
       </MemoryRouter>
@@ -59,7 +59,7 @@ describe('Landing', () => {
     expect(document.body.textContent).not.toMatch(/Marketplace|Produtos 3buk|Parceiros/i);
     expect(screen.getByRole('link', { name: /buscar fotos/i })).toHaveAttribute(
       'href',
-      '/login?redirectTo=/app/fotos',
+      '/?redirect=%2Fapp%2Ffotos#acesso',
     );
   });
   it('abre apenas uma resposta e permite fechá-la', () => {
@@ -89,18 +89,29 @@ describe('Landing', () => {
     show(<Landing />);
     expect(screen.getByRole('link', { name: /buscar fotos/i })).toHaveAttribute('href', '/app/fotos');
   });
+  it('mostra o menu de perfil na landing com sessão', () => {
+    mocks.user = { email: 'atleta@example.com', name: 'Ana Silva' };
+    show(<Landing />);
+    const trigger = screen.getByRole('button', { name: 'Abrir menu do perfil' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'Meu perfil' })).toHaveAttribute('href', '/app/perfil');
+    expect(screen.getByRole('link', { name: 'Saldo / Premium' })).toHaveAttribute('href', '/app/perfil/saldo');
+    expect(screen.getByRole('button', { name: 'Sair' })).toBeInTheDocument();
+  });
   it('usa a lógica de login compartilhada', async () => {
     show(<Landing />);
     fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'atleta@example.com' } });
     fireEvent.change(screen.getByLabelText('Senha'), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: /entrar →/i }));
     await waitFor(() => expect(mocks.login).toHaveBeenCalledWith('atleta@example.com', '123456'));
-    expect(await screen.findByText('Dashboard destino')).toBeInTheDocument();
+    expect(await screen.findByText('App destino')).toBeInTheDocument();
   });
 });
 describe('Login', () => {
   it('mantém o redirecionamento solicitado', async () => {
-    show(<Login />, '/login?redirectTo=/app/fotos');
+    show(<Login />, '/?redirect=%2Fapp%2Ffotos#acesso');
     const inputs = document.querySelectorAll('input');
     fireEvent.change(inputs[0], { target: { value: 'atleta@example.com' } });
     fireEvent.change(inputs[1], { target: { value: '123456' } });

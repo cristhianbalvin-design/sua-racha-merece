@@ -1,6 +1,9 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { WelcomeCard } from './ProfileMenu';
 import { LoginCard } from './LoginCard';
 
 export function Hero() {
+  const { user } = useAuth();
   return (
     <section className="l-wrap l-hero">
       <div className="l-hero-inner">
@@ -31,7 +34,7 @@ export function Hero() {
             fetchPriority="high"
           />
         </picture>
-        <LoginCard />
+        {user ? <WelcomeCard /> : <LoginCard />}
       </div>
     </section>
   );

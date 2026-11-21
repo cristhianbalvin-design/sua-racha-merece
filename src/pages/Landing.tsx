@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaceBanner } from '@/components/landing/FaceBanner';
 import { Faq } from '@/components/landing/Faq';
 import { Footer } from '@/components/landing/Footer';
@@ -15,14 +15,17 @@ import '@/components/landing/landing.css';
 
 export default function Landing() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [winners, setWinners] = useState<Winner[]>([]);
   const [popup, setPopup] = useState<HomePopup | null>(null);
   useEffect(() => {
     if (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (navigator as Navigator & { standalone?: boolean }).standalone
+      !window.location.hash && (
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone
+      )
     ) {
-      navigate('/login', { replace: true });
+      navigate('/app', { replace: true });
       return;
     }
     apiGetWinners()
@@ -34,6 +37,12 @@ export default function Landing() {
       })
       .catch(() => {});
   }, [navigate]);
+  useEffect(() => {
+    if (location.hash === '#acesso') {
+      document.getElementById('acesso')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('landing-email')?.focus();
+    }
+  }, [location.hash, location.search]);
   const close = () => {
     if (popup) sessionStorage.setItem(`home-popup-dismissed-${popup.id}`, 'true');
     setPopup(null);

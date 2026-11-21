@@ -1,3 +1,5 @@
+import { IS_NATIVE } from "@/lib/platform";
+import { OpenInApp } from "../components/OpenInApp";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -48,7 +50,7 @@ export default function Inicio() {
   const { pos, error: geoError } = useGeolocation();
   // Ronda 3: solo la app instalada recolecta; en la web se ve todo menos el botón de iniciar (los testadores sí)
   const sessionsFull = Boolean(status && !status.tester && status.sessions_today >= status.sessions_max);
-  const canTrain = getGpsSource().kind === "native" || Boolean(status?.tester);
+  const canTrain = IS_NATIVE && getGpsSource().kind === "native";
   const [appOnly, setAppOnly] = useState(false);
   const { coupons, away } = useCouponsHere(pos);
   const [routeId, setRouteIdState] = useState<string | null>(() => {
@@ -188,7 +190,7 @@ export default function Inicio() {
           <ProfileAvatar />
         </div>
 
-        <div className="absolute inset-x-0 bottom-[118px] px-6">
+        {IS_NATIVE ? <div className="absolute inset-x-0 bottom-[118px] px-6">
           {/* Botón Iniciar debajo del mapa, a la derecha del contador (no tapa el mapa) */}
           <div className="absolute right-6 top-0 z-10 flex flex-col items-center">
             <button
@@ -297,7 +299,7 @@ export default function Inicio() {
               )}
             </div>
           </div>
-        </div>
+        </div> : <div className="absolute inset-x-0 bottom-[100px] px-6"><OpenInApp path="/app/treino" /></div>}
       </div>
       {shop.data && <Link to="/app/loja" className="mx-6 mb-5 block rounded-2xl border border-[var(--buky-line)] bg-[#111] p-5 text-lg font-semibold">Loja 3buk →</Link>}
       <HomeExtras cityCode={profile?.city_code} />

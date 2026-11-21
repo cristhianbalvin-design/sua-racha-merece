@@ -1,8 +1,11 @@
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Winner } from '@/data/mockData';
 
 export function Winners({ winners }: { winners: Winner[] }) {
+  const { user } = useAuth();
   const ref = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   if (!winners.length) return null;
@@ -14,7 +17,7 @@ export function Winners({ winners }: { winners: Winner[] }) {
   return (
     <section className="l-wrap l-section">
       <div className="l-section-head">
-        <h2>GANHADORES DAS ÚLTIMAS CAMPANHAS.</h2>
+        <h2>GANHADORES DAS ÚLTIMAS CAMPANHAS. <Link to={user ? "/app/sorteios" : "/?redirect=%2Fapp%2Fsorteios#acesso"}>Ver todos →</Link></h2>
         <div>
           <button className="l-arrow" aria-label="Ganhador anterior" onClick={() => move(-1)}>
             <ChevronLeft aria-hidden="true" />

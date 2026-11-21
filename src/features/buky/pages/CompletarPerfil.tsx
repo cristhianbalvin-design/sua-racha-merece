@@ -1,17 +1,18 @@
 import CpfProfile from "@/components/CpfProfile";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Camera, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiUploadAvatar } from "@/lib/mockApi";
+import { apiGetSports, apiUpdateUser, apiUploadAvatar } from "@/lib/mockApi";
 import { squareAvatar } from "../lib/avatarImage";
 import { pt } from "../i18n";
 import CityPicker from "../components/CityPicker";
 import { ProfileAvatar, Spinner } from "../components/ui";
 import type { City } from "../lib/api";
 import { getCity } from "../lib/api";
-import { isProfileComplete, useBukyProfile, useUpdateProfile } from "../lib/hooks";
+import { qk, useBukyProfile, useUpdateProfile } from "../lib/hooks";
 import { clearPendingProfile, takePendingProfile } from "../lib/pendingProfile";
 import { cleanInstagram, isValidInstagram, isValidName, isValidNeighborhood, isValidNickname, maskPhone, normalizePhone } from "../lib/validation";
 
@@ -26,13 +27,19 @@ export default function CompletarPerfil() {
   const { user, updateUserContext } = useAuth();
   const { data: p, isLoading } = useBukyProfile();
   const save = useUpdateProfile();
+  const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [f, setF] = useState({ nome: "", instagram: "", bairro: "", nickname: "", phone: "", whatsapp: "" });
+  const [f, setF] = useState({ nome: "", instagram: "", bairro: "", nickname: "", phone: "", whatsapp: "", sport: "", gender: "", birthDate: "" });
+  const [sports, setSports] = useState<string[]>([]);
   const [sameWhatsapp, setSameWhatsapp] = useState(true);
   const [city, setCity] = useState<City | null>(null);
   const [touched, setTouched] = useState(false);
   const [uploading, setUploading] = useState(false);
   const loaded = useRef(false);
+
+  useEffect(() => {
+    void apiGetSports().then(setSports).catch(() => toast.error("Não foi possível carregar os esportes."));
+  }, []);
 
   // Prellenar con el perfil y con lo que quedó pendiente del registro
   useEffect(() => {
@@ -46,11 +53,14 @@ export default function CompletarPerfil() {
       nickname: p.nickname ?? "",
       phone: maskPhone(p.phone ?? ""),
       whatsapp: maskPhone(p.whatsapp ?? ""),
+      sport: p.sport ?? user?.sport ?? "",
+      gender: p.gender ?? user?.gender ?? "",
+      birthDate: p.birth_date ?? user?.birthDate ?? "",
     });
     setSameWhatsapp(!p.whatsapp || p.whatsapp === p.phone);
     const code = p.city_code ?? pending?.city_code;
     if (code) void getCity(code).then(setCity);
-  }, [p]);
+  }, [p, user]);
 
   if (isLoading || !p) return <Spinner label={pt.comum.carregando} />;
 
@@ -62,8 +72,11 @@ export default function CompletarPerfil() {
     bairro: f.bairro.trim() && !isValidNeighborhood(f.bairro) ? E.bairro : null,
     cidade: !city ? E.cidade : null,
     nickname: !isValidNickname(f.nickname) ? "Use 3 a 20 letras, números, pontos ou sublinhados." : null,
-    phone: f.phone && !normalizePhone(f.phone) ? "Confira o número de celular." : null,
+    phone: !normalizePhone(f.phone) ? "Informe um número de celular válido." : null,
     whatsapp: !sameWhatsapp && f.whatsapp && !normalizePhone(f.whatsapp) ? "Confira o número de WhatsApp." : null,
+    sport: !f.sport ? "Escolha seu esporte favorito." : null,
+    gender: !f.gender ? "Selecione seu sexo." : null,
+    birthDate: !/^\d{4}-\d{2}-\d{2}$/.test(f.birthDate) || Number.isNaN(Date.parse(`${f.birthDate}T00:00:00`)) || f.birthDate > new Date().toISOString().slice(0, 10) ? "Informe uma data de nascimento válida." : null,
   };
   const firstError = Object.values(errs).find(Boolean);
 
@@ -80,12 +93,17 @@ export default function CompletarPerfil() {
         instagram: cleanInstagram(f.instagram) || null,
         neighborhood: f.bairro.trim() || null,
         nickname: f.nickname.trim() || null,
-        phone: normalizePhone(f.phone),
         whatsapp: normalizePhone(sameWhatsapp ? f.phone : f.whatsapp),
         city_code: city!.code,
       });
+      await apiUpdateUser(user!.id, {
+        name: f.nome.trim(), city: city!.name, country: city!.uf,
+        sport: f.sport, phone: normalizePhone(f.phone)!, gender: f.gender, birthDate: f.birthDate,
+      });
+      updateUserContext({ sport: f.sport, phone: normalizePhone(f.phone)!, gender: f.gender, birthDate: f.birthDate });
+      queryClient.setQueryData(qk.profile(user?.id), { ...saved, sport: f.sport, phone: normalizePhone(f.phone), gender: f.gender, birth_date: f.birthDate });
       clearPendingProfile();
-      if (isProfileComplete(saved)) navigate(editing ? "/app/perfil" : "/app", { replace: true });
+      navigate(editing ? "/app/perfil" : "/app", { replace: true });
     } catch {
       toast.error(pt.comum.erro);
     }
@@ -152,8 +170,28 @@ export default function CompletarPerfil() {
           <small>Para mudar o e-mail, fale com a 3buk</small>
         </label>
         <label className="buky-field" data-invalid={inv("phone")}>
-          <span>Celular</span>
-          <div className="flex gap-2"><span>+55</span><input type="tel" value={f.phone} placeholder="(21) 99999-9999" onChange={(e) => setF((s) => ({ ...s, phone: maskPhone(e.target.value) }))} /></div>
+          <span>Celular *</span>
+          <div className="flex gap-2"><span>+55</span><input type="tel" required value={f.phone} placeholder="(21) 99999-9999" onChange={(e) => setF((s) => ({ ...s, phone: maskPhone(e.target.value) }))} /></div>
+        </label>
+        <label className="buky-field" data-invalid={inv("sport")}>
+          <span>Esporte favorito *</span>
+          <select required value={f.sport} onChange={(e) => setF((s) => ({ ...s, sport: e.target.value }))}>
+            <option value="">Selecione seu esporte</option>
+            {sports.map((sport) => <option key={sport} value={sport}>{sport}</option>)}
+          </select>
+        </label>
+        <label className="buky-field" data-invalid={inv("gender")}>
+          <span>Sexo *</span>
+          <select required value={f.gender} onChange={(e) => setF((s) => ({ ...s, gender: e.target.value }))}>
+            <option value="">Selecione</option>
+            <option value="Masculino">Masculino</option>
+            <option value="Feminino">Feminino</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </label>
+        <label className="buky-field" data-invalid={inv("birthDate")}>
+          <span>Data de nascimento *</span>
+          <input type="date" required max={new Date().toISOString().slice(0, 10)} value={f.birthDate} onChange={(e) => setF((s) => ({ ...s, birthDate: e.target.value }))} />
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={sameWhatsapp} onChange={(e) => setSameWhatsapp(e.target.checked)} /> Meu WhatsApp é o mesmo número

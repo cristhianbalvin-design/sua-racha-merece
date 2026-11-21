@@ -1,3 +1,4 @@
+import { postLoginDestination } from '@/lib/postLogin';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -33,7 +34,7 @@ export function useLoginForm() {
       ) {
         navigate('/admin/usuarios');
       } else {
-        navigate(redirectTo || '/dashboard', { replace: Boolean(redirectTo) });
+        navigate(postLoginDestination(redirectTo), { replace: Boolean(redirectTo) });
       }
     } catch (error: any) {
       const msg = error?.message || 'Erro ao entrar. Verifique suas credenciais.';
