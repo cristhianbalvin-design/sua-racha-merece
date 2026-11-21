@@ -1,0 +1,695 @@
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+@import '@fontsource/barlow-condensed/900-italic.css';
+.landing-3buk {
+  --l-bg: #050505;
+  --l-neon: #39ff14;
+  background: var(--l-bg);
+  color: #fff;
+  min-height: 100vh;
+  font-family: Barlow, sans-serif;
+  overflow-x: hidden;
+}
+.landing-3buk * {
+  box-sizing: border-box;
+}
+.landing-3buk :focus-visible {
+  outline: 3px solid #39ff14;
+  outline-offset: 3px;
+}
+.landing-3buk a {
+  color: inherit;
+  text-decoration: none;
+}
+.landing-3buk button {
+  cursor: pointer;
+  font: inherit;
+}
+.l-wrap {
+  max-width: 1376px;
+  margin: 0 auto;
+  padding-left: 32px;
+  padding-right: 32px;
+}
+.l-header {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.l-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 1px solid var(--l-neon);
+  border-radius: 8px;
+  padding: 10px 24px;
+  background: var(--l-neon);
+  color: #050505 !important;
+  font:
+    italic 900 18px 'Barlow Condensed',
+    sans-serif !important;
+  text-align: center;
+}
+.l-hero {
+  padding-top: 100px;
+  padding-bottom: 64px;
+}
+.l-hero-inner {
+  min-height: 570px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr 360px;
+  align-items: center;
+  border: 2px solid var(--l-neon);
+  border-radius: 28px;
+  padding: 54px;
+}
+.l-hero-title {
+  position: relative;
+  z-index: 1;
+}
+.l-hero h1,
+.l-face h2,
+.l-plan h2,
+.l-faq h2,
+.l-section h2,
+.l-institutional h1,
+.l-institutional h2 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-style: italic;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.l-hero h1 {
+  font-size: clamp(50px, 6vw, 88px);
+  line-height: 0.94;
+  margin: 0;
+}
+.l-green,
+.l-hero h1 span,
+.l-face h2 span {
+  color: var(--l-neon);
+}
+.l-hero-title i,
+.l-faq i {
+  display: block;
+  width: 70px;
+  height: 5px;
+  background: var(--l-neon);
+  margin-top: 24px;
+}
+.l-ghost {
+  position: absolute;
+  left: 0;
+  top: 22%;
+  font:
+    italic 900 clamp(120px, 25vw, 360px) 'Barlow Condensed',
+    sans-serif;
+  color: transparent;
+  -webkit-text-stroke: 2px #12360d;
+  line-height: 1;
+  overflow: hidden;
+  max-width: 100%;
+}
+.l-mascot {
+  position: absolute;
+  z-index: 1;
+  height: 108%;
+  bottom: -5%;
+  left: 35%;
+  width: 38%;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.l-mascot img {
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.l-login {
+  position: relative;
+  z-index: 2;
+  grid-column: 3;
+  padding: 28px;
+  border: 1px solid var(--l-neon);
+  border-radius: 22px;
+  background: #090909;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.l-login h2 {
+  font:
+    italic 900 30px 'Barlow Condensed',
+    sans-serif;
+  margin: 0 0 4px;
+}
+.l-login input {
+  width: 100%;
+  height: 52px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #090909;
+  color: white;
+  padding: 0 15px;
+  font:
+    16px Barlow,
+    sans-serif;
+}
+.l-password {
+  position: relative;
+}
+.l-password input {
+  padding-right: 50px;
+}
+.l-password button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 48px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  color: #bdbdbd;
+  background: none;
+  border: 0;
+}
+.l-login .l-button,
+.l-google {
+  width: 100%;
+}
+.l-google {
+  min-height: 50px;
+  background: none;
+  border: 1px solid #bdbdbd;
+  border-radius: 8px;
+  color: #fff;
+}
+.l-google span {
+  color: #4285f4;
+  font-weight: bold;
+  margin-right: 10px;
+}
+.l-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #bdbdbd;
+  font-size: 13px;
+}
+.l-or:before,
+.l-or:after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #333;
+}
+.l-forgot {
+  text-align: center;
+  text-decoration: underline !important;
+  font-size: 14px;
+  padding: 4px;
+}
+.l-login p {
+  text-align: center;
+  color: #bdbdbd;
+  margin: 0;
+  font-size: 14px;
+}
+.l-login p a {
+  color: var(--l-neon);
+  font-weight: 600;
+}
+.l-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+.l-face {
+  min-height: 150px;
+  border: 1px solid #2a2a2a;
+  border-radius: 20px;
+  background: #0b0b0b;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  padding: 24px 38px;
+  position: relative;
+  overflow: hidden;
+}
+.l-face > svg {
+  color: var(--l-neon);
+  flex: none;
+}
+.l-face h2 {
+  font-size: 40px;
+  line-height: 0.95;
+  margin: 0;
+  z-index: 1;
+}
+.l-face img {
+  height: 100%;
+  width: 30%;
+  position: absolute;
+  left: 35%;
+  top: 0;
+  object-fit: cover;
+  mask-image: linear-gradient(90deg, transparent, #000 35%, transparent);
+}
+.l-face-actions {
+  margin-left: auto;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.l-face-actions button {
+  min-height: 44px;
+  background: none;
+  border: 0;
+  color: #ddd;
+  font:
+    600 13px 'Barlow Condensed',
+    sans-serif;
+}
+.l-plans {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+.l-plan {
+  min-height: 230px;
+  border: 1px solid #2a2a2a;
+  border-radius: 20px;
+  padding: 34px 36px;
+  background-size: cover;
+  background-position: center;
+}
+.l-plan h2 {
+  font-size: 50px;
+  line-height: 1;
+  margin: 0;
+}
+.l-plan p {
+  font:
+    500 22px/1.15 'Barlow Condensed',
+    sans-serif;
+  letter-spacing: 1px;
+  margin: 8px 0 22px;
+}
+.l-outline {
+  color: white !important;
+  background: transparent;
+}
+.l-payment {
+  font-size: 14px;
+  color: #bdbdbd;
+  margin: 10px 4px;
+}
+.l-payment a {
+  text-decoration: underline;
+  color: #fff;
+}
+.l-section {
+  padding-top: 80px;
+}
+.l-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.l-section-head h2 {
+  font-size: 40px;
+  line-height: 1;
+  margin: 0;
+}
+.l-section-head h2:before {
+  content: '';
+  display: inline-block;
+  width: 36px;
+  height: 5px;
+  vertical-align: middle;
+  background: var(--l-neon);
+  margin-right: 16px;
+}
+.l-section-head > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.l-arrow {
+  width: 44px;
+  height: 44px;
+  border: 1px solid white;
+  border-radius: 50%;
+  color: white;
+  background: none;
+  font-size: 28px !important;
+  line-height: 1;
+  flex: none;
+}
+.l-carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  gap: 14px;
+}
+.l-carousel > article {
+  scroll-snap-align: start;
+  flex: none;
+}
+.l-winner {
+  width: calc((100% - 70px) / 6);
+  min-width: 190px;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0b0b0b;
+}
+.l-winner img,
+.l-initials {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+}
+.l-initials {
+  display: grid;
+  place-items: center;
+  background: #151515;
+  color: var(--l-neon);
+  font: 700 40px 'Barlow Condensed';
+}
+.l-winner > div:last-child {
+  padding: 14px;
+}
+.l-winner strong {
+  font: 700 19px 'Barlow Condensed';
+  text-transform: uppercase;
+}
+.l-winner p,
+.l-winner small {
+  color: #ddd;
+  font-size: 14px;
+  margin: 6px 0;
+}
+.l-testimonial {
+  width: calc(50% - 12px);
+  min-width: 280px;
+  border: 1px solid #2a2a2a;
+  border-radius: 16px;
+  display: flex;
+  overflow: hidden;
+}
+.l-testimonial img {
+  width: 42%;
+  object-fit: cover;
+}
+.l-testimonial div {
+  padding: 24px;
+}
+.l-testimonial blockquote {
+  font: italic 600 26px 'Barlow Condensed';
+  margin: 0 0 18px;
+}
+.l-faq {
+  padding-top: 80px;
+}
+.l-faq-inner {
+  position: relative;
+  border-block: 1px solid #1f1f1f;
+  padding: 40px 0;
+  display: flex;
+  gap: 40px;
+  background:
+    linear-gradient(90deg, #050505 45%, transparent),
+    url('/landing/bg-faq-rio.webp') right center/40% 100% no-repeat;
+}
+.l-faq-inner > div:first-child {
+  flex: 0 1 300px;
+}
+.l-faq h2 {
+  font-size: 58px;
+  line-height: 0.95;
+  margin: 0;
+}
+.l-faq-list {
+  flex: 1 1 420px;
+  max-width: 520px;
+  display: grid;
+  gap: 10px;
+}
+.l-faq-list button {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #0b0b0b;
+  color: #fff;
+  text-align: left;
+  border: 1px solid #333;
+  border-radius: 6px;
+}
+.l-faq-list p {
+  margin: 0;
+  padding: 16px 18px;
+  background: #111;
+  color: #eee;
+  line-height: 1.5;
+}
+.l-footer {
+  padding-top: 72px;
+  padding-bottom: 36px;
+}
+.l-footer-inner {
+  border-top: 1px solid #1f1f1f;
+  padding-top: 36px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  justify-content: space-between;
+}
+.l-brand {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.l-brand span {
+  border-left: 1px solid #444;
+  padding-left: 24px;
+  font: 500 15px 'Barlow Condensed';
+}
+.l-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 44px;
+}
+.l-footer nav div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.l-footer nav strong {
+  font: 600 15px 'Barlow Condensed';
+  letter-spacing: 1px;
+}
+.l-footer nav a {
+  color: #bdbdbd;
+  font-size: 14px;
+  min-height: 28px;
+}
+.l-social {
+  display: flex;
+  gap: 18px;
+}
+.l-footer-line {
+  height: 2px;
+  background: var(--l-neon);
+  margin-top: 32px;
+}
+.l-popup {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: #000d;
+}
+.l-popup > div {
+  position: relative;
+  max-width: 860px;
+  width: 100%;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 16px;
+  overflow: hidden;
+}
+.l-popup img {
+  display: block;
+  width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+}
+.l-popup-close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  color: white;
+  background: #111;
+  border: 1px solid #888;
+  border-radius: 50%;
+}
+.l-popup-actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+}
+.l-popup-actions a {
+  flex: 1;
+}
+.l-institutional-main {
+  max-width: 900px;
+  padding-top: 60px;
+  padding-bottom: 80px;
+  line-height: 1.6;
+}
+.l-institutional h1 {
+  font-size: 56px;
+  line-height: 1;
+  margin: 0 0 24px;
+}
+.l-institutional h2 {
+  font-size: 30px;
+  margin: 32px 0 12px;
+}
+.l-institutional p,
+.l-institutional li {
+  color: #ddd;
+}
+.l-institutional li {
+  list-style: disc;
+  margin-left: 24px;
+}
+.l-institutional-footer {
+  padding-bottom: 40px;
+  color: #bdbdbd;
+}
+@media (max-width: 860px) {
+  .l-wrap {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .l-header {
+    height: 80px;
+  }
+  .l-hero {
+    padding-top: 35px;
+    padding-bottom: 32px;
+  }
+  .l-hero-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 18px 20px;
+    border-radius: 20px;
+  }
+  .l-mascot {
+    order: 0;
+    position: relative;
+    height: 300px;
+    width: 100%;
+    left: auto;
+    bottom: auto;
+    margin-top: -30px;
+  }
+  .l-hero-title {
+    order: 1;
+  }
+  .l-hero h1 {
+    font-size: clamp(50px, 11vw, 75px);
+  }
+  .l-ghost {
+    top: 34%;
+    font-size: 32vw;
+  }
+  .l-login {
+    order: 2;
+    margin-top: 24px;
+    padding: 22px;
+  }
+  .l-face {
+    padding: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .l-face h2 {
+    font-size: 34px;
+  }
+  .l-face img {
+    left: 40%;
+    width: 60%;
+    opacity: 0.4;
+  }
+  .l-face-actions {
+    width: 100%;
+    margin: 0;
+  }
+  .l-plans {
+    grid-template-columns: 1fr;
+  }
+  .l-faq-inner {
+    display: block;
+    background-size: 100% 100%;
+    background-image: linear-gradient(90deg, #050505 45%, #05050599), url('/landing/bg-faq-rio.webp');
+  }
+  .l-faq h2 {
+    font-size: 46px;
+  }
+  .l-faq-list {
+    margin-top: 30px;
+  }
+  .l-section-head {
+    flex-wrap: wrap;
+  }
+  .l-section-head h2 {
+    font-size: 32px;
+  }
+  .l-winner {
+    width: 75%;
+  }
+  .l-testimonial {
+    width: 85%;
+  }
+  .l-footer nav {
+    gap: 24px;
+  }
+  .l-popup-actions {
+    flex-direction: column;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .landing-3buk *,
+  .landing-3buk *:before,
+  .landing-3buk *:after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

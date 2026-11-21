@@ -12,6 +12,7 @@ import { parseLinkError } from "./lib/sponsorAccess";
 import { initializeMockData } from "./lib/mockApi";
 
 import Landing from "./pages/Landing";
+import Institucional from "./pages/Institucional";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -79,6 +80,9 @@ const AnimatedRoutes = () => {
 
       {/* Public */}
       <Route path="/" element={SHOW_BUKY_APP ? <Navigate to="/app" replace /> : <PageTransition><Landing /></PageTransition>} />
+      <Route path="/sobre" element={<Institucional page="sobre" />} />
+      <Route path="/regulamento" element={<Institucional page="regulamento" />} />
+      <Route path="/contato" element={<Institucional page="contato" />} />
       <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
       <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
       <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
