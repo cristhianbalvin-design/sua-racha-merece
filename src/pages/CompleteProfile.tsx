@@ -38,7 +38,7 @@ const CompleteProfile = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
-      navigate('/dashboard');
+      navigate('/app');
       return;
     }
 
@@ -73,7 +73,7 @@ const CompleteProfile = () => {
       
       toast.success('Perfil concluído!');
       clearAuthRedirect();
-      navigate(redirectTo || '/dashboard', { replace: Boolean(redirectTo) });
+      navigate(redirectTo || '/app', { replace: Boolean(redirectTo) });
     } catch (err) {
       console.error(err);
       toast.error('Ocorreu um erro ao salvar seu perfil.');

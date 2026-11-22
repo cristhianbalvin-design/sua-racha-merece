@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
+import { apiGetMyWallet } from '@/lib/walletApi';
 import { usePaymentsConfig } from '@/features/buky/components/PaymentsConfig';
 
 export function Plans() {
   const { user } = useAuth();
   const config = usePaymentsConfig();
+  const wallet = useQuery({ queryKey: ["wallet"], queryFn: apiGetMyWallet, enabled: Boolean(user) });
+  const premiumTarget = wallet.data?.premium?.active ? "/app/patrocinio" : "/app/perfil/saldo";
   const email = config.data?.contact_email || 'contato@3buk.com';
   return (
     <section className="l-wrap l-plans" aria-label="Planos">
@@ -21,7 +25,7 @@ export function Plans() {
           <br />
           SUA HISTÓRIA.
         </p>
-        <Link className="l-button l-outline" to={user ? '/campanhas' : '/registro'}>
+        <Link className="l-button l-outline" to={user ? '/app/patrocinio' : '/?redirect=%2Fapp%2Fpatrocinio#acesso'}>
           ENVIAR FOTO →
         </Link>
       </div>
@@ -39,7 +43,7 @@ export function Plans() {
             <br />
             VIVA MAIS.
           </p>
-          <Link className="l-button" to="/registro">
+          <Link className="l-button" to={user ? premiumTarget : "/?redirect=%2Fapp%2Fperfil%2Fsaldo#acesso"}>
             PARTICIPAR →
           </Link>
         </div>

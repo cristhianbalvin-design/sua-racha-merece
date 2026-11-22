@@ -30,7 +30,7 @@ const ResetPassword = () => {
 
   useEffect(() => {
     if (user && !isRecovery && !ARRIVED_FROM_INVITE) {
-      navigate('/dashboard');
+      navigate('/app');
     }
   }, [user, isRecovery, navigate]);
 
@@ -97,7 +97,7 @@ const ResetPassword = () => {
 
   if (isVerifying) {
     return (
-      <div className="min-h-svh bg-background flex flex-col items-center justify-center px-4">
+      <div className="landing-3buk min-h-svh bg-[#050505] text-white flex flex-col items-center justify-center px-4">
         <div className="flex flex-col items-center">
           <Loader2 className="animate-spin text-primary w-10 h-10 mb-4" />
           <p className="text-muted-foreground text-ui">Verificando link...</p>
@@ -107,11 +107,11 @@ const ResetPassword = () => {
   }
 
   return (
-    <div className="min-h-svh bg-background flex flex-col items-center justify-center px-4">
+    <div className="landing-3buk min-h-svh bg-[#050505] text-white flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <Link to="/" className="inline-block">
-            <Logo size="lg" />
+            <Logo size="lg" variant="dark" />
           </Link>
           <p className="text-muted-foreground mt-2">Criar nova senha</p>
         </div>
@@ -158,7 +158,7 @@ const ResetPassword = () => {
               whileHover={!loading ? { scale: 1.03 } : {}}
               whileTap={!loading ? { scale: 0.97 } : {}}
               transition={spring}
-              className="w-full bg-primary text-primary-foreground text-ui py-3 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow font-bold flex justify-center items-center opacity-disabled"
+              className="w-full bg-[#39ff14] text-black text-ui py-3 rounded-xl btn-shadow hover:btn-shadow-hover transition-shadow font-bold flex justify-center items-center opacity-disabled"
               style={{ opacity: loading ? 0.7 : 1 }}
             >
               {loading ? <Loader2 className="animate-spin w-5 h-5" /> : 'ATUALIZAR SENHA'}

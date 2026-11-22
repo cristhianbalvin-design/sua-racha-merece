@@ -159,7 +159,7 @@ export const pt = {
     completarTitulo1: "Falta",
     completarTitulo2: "pouco",
     completarTexto:
-      "Para jogar Buky só precisamos da sua cidade. Bairro e Instagram são opcionais.",
+      "Complete seus dados para jogar Buky. Bairro e Instagram são opcionais.",
     opcional: "opcional",
     salvar: "Salvar e continuar",
   },

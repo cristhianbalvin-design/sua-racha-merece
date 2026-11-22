@@ -1,3 +1,4 @@
+import { IS_NATIVE } from '@/lib/platform';
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,7 +24,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   if (!user) {
     return (
       <Navigate
-        to={location.pathname.startsWith('/app') ? '/entrar' : '/login'}
+        to={location.pathname.startsWith('/app') ? (IS_NATIVE ? '/entrar' : `/?redirect=${encodeURIComponent(buildAuthRedirect(location.pathname, location.search))}#acesso`) : '/login'}
         replace
         state={{ redirectTo: buildAuthRedirect(location.pathname, location.search) }}
       />
@@ -31,7 +32,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
   }
 
   if (requireAdmin && !isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/app" replace />;
   }
 
   return <>{children}</>;

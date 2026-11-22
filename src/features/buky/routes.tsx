@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from "react";
-import { Route } from "react-router-dom";
+import { Navigate, Route, useLocation } from "react-router-dom";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Carga diferida: MapLibre y las pantallas de Buky no pesan en la web actual.
@@ -18,6 +18,8 @@ const TreinoDetalhe = lazy(() => import("./pages/TreinoDetalhe"));
 const Saldo = lazy(() => import("./pages/Saldo"));
 const CompletarPerfil = lazy(() => import("./pages/CompletarPerfil"));
 const CriarRota = lazy(() => import("./pages/CriarRota"));
+import { IS_NATIVE } from "@/lib/platform";
+import { NativeOnly } from "./components/NativeOnly";
 const Entrar = lazy(() => import("./pages/Entrar"));
 const Cadastro = lazy(() => import("./pages/Cadastro"));
 const Loja = lazy(() =>
@@ -47,6 +49,13 @@ const S = ({ children }: { children: ReactNode }) => (
   <Suspense fallback={<Loading />}>{children}</Suspense>
 );
 
+function LoginEntry() {
+  const location = useLocation();
+  const state = location.state as { redirectTo?: string } | null;
+  const redirect = new URLSearchParams(location.search).get("redirect") || state?.redirectTo;
+  return <Navigate to={`/${redirect ? `?redirect=${encodeURIComponent(redirect)}` : ""}#acesso`} replace />;
+}
+
 /** Rutas de la app del atleta. Se insertan dentro de <Routes> en App.tsx. */
 export const bukyRoutes = (
   <>
@@ -54,7 +63,7 @@ export const bukyRoutes = (
       path="/entrar"
       element={
         <S>
-          <Entrar />
+          {IS_NATIVE ? <Entrar /> : <LoginEntry />}
         </S>
       }
     />
@@ -66,8 +75,8 @@ export const bukyRoutes = (
         </S>
       }
     />
-    <Route path="/app/loja" element={<S><BukyLayout /></S>}>
-      <Route index element={<S><Loja /></S>} />
+    <Route path="/app/loja" element={<ProtectedRoute><S><BukyLayout /></S></ProtectedRoute>}>
+      <Route index element={IS_NATIVE ? <Navigate to="/app" replace /> : <S><Loja /></S>} />
     </Route>
     <Route
       path="/app"
@@ -91,7 +100,7 @@ export const bukyRoutes = (
         path="treino"
         element={
           <S>
-            <Treino />
+            <NativeOnly path="/app/treino"><Treino /></NativeOnly>
           </S>
         }
       />
@@ -99,7 +108,7 @@ export const bukyRoutes = (
         path="treino/resumo"
         element={
           <S>
-            <Resumo />
+            <NativeOnly path="/app/treino/resumo"><Resumo /></NativeOnly>
           </S>
         }
       />
@@ -163,7 +172,7 @@ export const bukyRoutes = (
         path="loja/produto/:slug"
         element={
           <S>
-            <Produto />
+            {IS_NATIVE ? <Navigate to="/app" replace /> : <Produto />}
           </S>
         }
       />
@@ -171,7 +180,7 @@ export const bukyRoutes = (
         path="loja/carrinho"
         element={
           <S>
-            <Carrinho />
+            {IS_NATIVE ? <Navigate to="/app" replace /> : <Carrinho />}
           </S>
         }
       />
@@ -179,7 +188,7 @@ export const bukyRoutes = (
         path="loja/pedidos"
         element={
           <S>
-            <Pedidos />
+            {IS_NATIVE ? <Navigate to="/app" replace /> : <Pedidos />}
           </S>
         }
       />
@@ -187,7 +196,7 @@ export const bukyRoutes = (
         path="loja/pedido/:id"
         element={
           <S>
-            <Pedido />
+            {IS_NATIVE ? <Navigate to="/app" replace /> : <Pedido />}
           </S>
         }
       />
@@ -227,7 +236,7 @@ export const bukyRoutes = (
         path="rotas/nova"
         element={
           <S>
-            <CriarRota />
+            <NativeOnly path="/app/rotas/nova"><CriarRota /></NativeOnly>
           </S>
         }
       />

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Camera, Check, ChevronRight, Download, ExternalLink, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
-import { SHOW_FACE_SEARCH } from "@/config/features";
+import { PAYMENTS_ENABLED, PAYMENT_MANAGEMENT_MESSAGE, SHOW_FACE_SEARCH } from "@/config/features";
 import { pt } from "../i18n";
 import { ScreenHeader, Sheet } from "../components/ui";
 import EventCalendar from "../components/EventCalendar";
@@ -84,7 +84,8 @@ export default function Fotos() {
         setBuy(null);
         void refetchStatus();
       } else if (r.purchase) {
-        setBuy({ m, ...r.purchase });
+        if (PAYMENTS_ENABLED) setBuy({ m, ...r.purchase });
+        else toast(PAYMENT_MANAGEMENT_MESSAGE);
       } else if (r.cpfRequired) {
         setCpfPhoto(m);
       } else toast.error(r.message, { duration: 8000 });

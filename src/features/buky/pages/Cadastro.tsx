@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Check, ChevronLeft, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { getAuthRedirectFromLocation } from "@/lib/authRedirect";
+import { postLoginDestination } from "@/lib/postLogin";
 import { TermsModal } from "@/components/TermsModal";
 import "../theme.css";
 import { pt } from "../i18n";
@@ -17,6 +19,7 @@ type Errors = Partial<Record<"nome" | "email" | "instagram" | "bairro" | "cidade
 export default function Cadastro() {
   const { register, user, loading } = useAuth();
   const navigate = useNavigate();
+  const redirect = getAuthRedirectFromLocation(useLocation());
   const [f, setF] = useState({ nome: "", email: "", instagram: "", bairro: "", senha: "", confirmar: "" });
   const [city, setCity] = useState<City | null>(null);
   const [terms, setTerms] = useState(false);
@@ -61,10 +64,10 @@ export default function Cadastro() {
       const { data } = await supabase.auth.getSession();
       if (data.session?.user) {
         await updateProfile(data.session.user.id, profile);
-        navigate("/app", { replace: true });
+        navigate(postLoginDestination(redirect), { replace: true });
       } else {
         toast.success("Conta criada! Confirme seu e-mail e depois entre.");
-        navigate("/entrar", { replace: true });
+        navigate(redirect ? `/entrar?redirect=${encodeURIComponent(redirect)}` : "/entrar", { replace: true });
       }
     } catch (err) {
       toast.error(`Erro ao criar conta: ${(err as Error).message ?? pt.comum.erro}`);

@@ -31,7 +31,7 @@ export function useBukyProfile() {
  * son obligatorios al crear cuenta nueva, pero opcionales para los atletas que ya existían.
  */
 export function isProfileComplete(p?: api.BukyProfile | null): boolean {
-  return Boolean(p?.city_code);
+  return Boolean((p?.city_code || (p?.city && p?.country)) && p?.sport && p?.gender && p?.birth_date && p?.phone);
 }
 
 export function useUpdateProfile() {
