@@ -8,13 +8,17 @@ import { getCity, type City } from "../lib/api";
 import { useStates } from "../lib/hooks";
 import {
   addCodes,
+  archivePeriod,
   cancelPeriod,
   createPeriod,
   deleteCoupon,
+  deletePeriod,
   drawPeriod,
+  drawNow,
   generateCodes,
   listCodes,
   listCoupons,
+  listEntries,
   listPeriods,
   listResults,
   listSponsors,
@@ -91,6 +95,8 @@ export default function AdminSorteios() {
 function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: boolean; onOpen: (id: string) => void }) {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const visiblePeriods = periods.filter((p) => showArchived || !p.archived_at);
   const start = nextMonday();
   const [f, setF] = useState({
     name: `Sorteio semanal ${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })}`,
@@ -102,6 +108,7 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
     min: 30,
     days: 15,
     rules: "",
+    isTest: false,
   });
 
   const create = async () => {
@@ -117,6 +124,7 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
         min_participants: f.min,
         redeem_days: f.days,
         rules_text: f.rules.trim() || null,
+        is_test: f.isTest,
       });
       toast.success("Sorteio criado. Agora cadastre os cupons antes da abertura.");
       setCreating(false);
@@ -184,6 +192,9 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
             </Field>
           </div>
           <div className="md:col-span-5">
+            <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={f.isTest} onChange={(e) => setF({ ...f, isTest: e.target.checked })} /> Sorteio de teste</label>
+          </div>
+          <div className="md:col-span-5">
             <button type="button" className={btnPrimary} onClick={create}>
               <Save size={14} /> CRIAR SORTEIO
             </button>
@@ -191,10 +202,11 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
         </div>
       )}
 
+      <label className="mb-3 inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Mostrar arquivados</label>
       <div className={`${card} overflow-hidden`}>
         {loading ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Carregando…</p>
-        ) : periods.length === 0 ? (
+        ) : visiblePeriods.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Nenhum período ainda.</p>
         ) : (
           <table className="w-full text-sm">
@@ -209,10 +221,12 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {periods.map((p) => (
+              {visiblePeriods.map((p) => (
                 <tr key={p.id} className="cursor-pointer hover:bg-muted/30" onClick={() => onOpen(p.id)}>
                   <td className="px-4 py-3 font-bold">
                     {p.name}
+                    {p.is_test && <Badge>Teste</Badge>}
+                    {p.archived_at && <Badge>Arquivado</Badge>}
                     <span className="block text-[11px] font-normal text-muted-foreground">
                       {CADENCE[p.cadence]} · {p.city_names.length ? p.city_names.join(", ") : "todo o Brasil"} · mín. {p.min_participants}
                     </span>
@@ -259,21 +273,57 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
 
 function PeriodDetail({ period, periods, onBack }: { period: Period; periods: Period[]; onBack: () => void }) {
   const qc = useQueryClient();
-  const editable = period.status === "scheduled";
+  const editable = (period.status === "scheduled" || period.status === "open") && !period.drawn_at && !period.archived_at;
   const { data: coupons = [] } = useQuery({ queryKey: ["admin-buky", "coupons", period.id], queryFn: () => listCoupons(period.id) });
   const { data: results = [] } = useQuery({ queryKey: ["admin-buky", "results", period.id], queryFn: () => listResults(period.id), enabled: period.status === "drawn" });
   const [editing, setEditing] = useState<Partial<Coupon> | null>(null);
   const [busy, setBusy] = useState(false);
+  const [isTest, setIsTest] = useState(period.is_test);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [participantSearch, setParticipantSearch] = useState("");
+  const participants = useQuery({ queryKey: ["admin-buky", "entries", period.id], queryFn: () => listEntries(period.id), enabled: showParticipants });
+  const entryCount = useQuery({ queryKey: ["admin-buky", "entry-count", period.id], queryFn: async () => {
+    const { count, error } = await supabase.from("buky_entries").select("id", { count: "exact", head: true }).eq("period_id", period.id);
+    if (error) throw error;
+    return count ?? 0;
+  } });
   const refresh = () => qc.invalidateQueries({ queryKey: ["admin-buky"] });
-  const canDraw = (period.status === "open" || period.status === "closed") && new Date(period.ends_at) <= new Date();
+  const canDraw = !period.archived_at && (period.status === "open" || period.status === "closed");
+  const canDelete = period.is_test || entryCount.data === 0;
+
+  const remove = async () => {
+    if (!confirm(`Excluir definitivamente "${period.name}" e todos os cupons, participações e resultados?${period.is_test && period.entries ? " Os Bukys enviados serão devolvidos." : ""}`)) return;
+    setBusy(true);
+    try {
+      const result = await deletePeriod(period.id);
+      toast.success(`Sorteio excluído.${result.bukys_refunded ? ` ${result.bukys_refunded} Bukys devolvidos.` : ""}`);
+      await refresh();
+      onBack();
+    } catch (e) { toast.error(`Erro: ${(e as Error).message}`); }
+    finally { setBusy(false); }
+  };
+
+  const archive = async () => {
+    const archived = !period.archived_at;
+    if (!confirm(archived
+      ? `Arquivar "${period.name}"? Se ainda estiver em andamento, ele será cancelado e os Bukys devolvidos.`
+      : `Mostrar novamente "${period.name}" na lista?`)) return;
+    setBusy(true);
+    try {
+      const result = await archivePeriod(period.id, archived);
+      toast.success(`${archived ? "Sorteio arquivado" : "Sorteio desarquivado"}.${result.bukys_refunded ? ` ${result.bukys_refunded} Bukys devolvidos.` : ""}`);
+      await refresh();
+    } catch (e) { toast.error(`Erro: ${(e as Error).message}`); }
+    finally { setBusy(false); }
+  };
 
 
   const draw = async () => {
-    if (!confirm(`Sortear agora "${period.name}"? O resultado é definitivo.`)) return;
+    if (!confirm(`Sortear agora "${period.name}"? O encerramento será antecipado e o resultado é definitivo.`)) return;
     setBusy(true);
     try {
-      const r = await drawPeriod(period.id);
-      toast.success(r.duplicate ? "Este período já estava sorteado." : `Sorteio feito: ${r.results} prêmios.`);
+      const r = await drawNow(period.id, isTest);
+      toast.success(r.duplicate ? "Este período já estava sorteado." : r.status === "review" ? "Sem o mínimo: aguardando decisão do administrador." : `Sorteio feito: ${r.results} prêmios.`);
       await refresh();
     } catch (e) {
       toast.error(`Erro: ${(e as Error).message}`);
@@ -311,22 +361,41 @@ function PeriodDetail({ period, periods, onBack }: { period: Period; periods: Pe
           </p>
         </div>
         <Badge tone={STATUS[period.status].tone}>{STATUS[period.status].label}</Badge>
+        {period.is_test && <Badge>Teste</Badge>}
+        {period.archived_at && <Badge>Arquivado</Badge>}
         {editable && <PeriodDates period={period} onSaved={refresh} />}
         {canDraw && (
-          <button type="button" className={btnPrimary} onClick={draw} disabled={busy}>
+          <><label className="text-xs"><input type="checkbox" checked={isTest} onChange={(e) => setIsTest(e.target.checked)} disabled={period.is_test} /> Sorteio de teste</label><button type="button" className={btnPrimary} onClick={draw} disabled={busy}>
             <Dice5 size={14} /> SORTEAR AGORA
-          </button>
+          </button></>
         )}
         {period.status !== "drawn" && period.status !== "cancelled" && period.status !== "merged" && (
           <button type="button" className={btnDanger} onClick={cancel}>
             <XCircle size={14} /> CANCELAR
           </button>
         )}
+        <button type="button" className={btnGhost} onClick={archive} disabled={busy}>{period.archived_at ? "DESARQUIVAR" : "ARQUIVAR"}</button>
+        {canDelete && <button type="button" className={btnDanger} onClick={remove} disabled={busy}><Trash2 size={14} /> EXCLUIR</button>}
       </div>
 
-      {period.needs_review && <ReviewPanel period={period} periods={periods} onDraw={draw} busy={busy} onDone={refresh} />}
+      {period.needs_review && <ReviewPanel period={period} periods={periods} onDraw={async () => {
+        if (!confirm(`Sortear "${period.name}" mesmo sem o mínimo? O resultado é definitivo.`)) return;
+        setBusy(true);
+        try { await drawPeriod(period.id); toast.success("Sorteio realizado."); await refresh(); }
+        catch (e) { toast.error(`Erro: ${(e as Error).message}`); }
+        finally { setBusy(false); }
+      }} busy={busy} onDone={refresh} />}
       {period.status === "merged" && period.review_note && <p className="mb-4 text-sm text-muted-foreground">{period.review_note}</p>}
       <PeriodSettings period={period} onSaved={refresh} />
+
+      <button type="button" className={`${btnGhost} mb-3`} onClick={() => setShowParticipants((v) => !v)}>PARTICIPANTES ({period.athletes})</button>
+      {showParticipants && <div className={`${card} mb-4 space-y-2 p-4`}>
+        <p className="text-sm font-bold">{participants.data?.length ?? period.athletes} participantes · {(participants.data ?? []).reduce((n, p) => n + p.tickets, 0)} tickets</p>
+        <input className={inputCls} placeholder="Buscar por nome, apelido ou cidade" value={participantSearch} onChange={(e) => setParticipantSearch(e.target.value)} />
+        {participants.isLoading && <p>Carregando…</p>}
+        {participants.isError && <p>Não foi possível carregar os participantes.</p>}
+        {(participants.data ?? []).filter((p) => [p.name, p.nickname, p.cities].some((s) => s?.toLocaleLowerCase("pt-BR").includes(participantSearch.toLocaleLowerCase("pt-BR")))).map((p) => <p key={p.user_id} className="text-sm">{p.name ?? "—"} {p.nickname && `· @${p.nickname}`} · {p.cities ?? "—"} · {p.tickets} tickets · primeira entrada {dt(p.first_entry)}</p>)}
+      </div>}
 
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-bold italic">PRÊMIOS EM SORTEIO · CUPONS ({coupons.length})</h3>
@@ -462,8 +531,10 @@ function ReviewPanel({ period, periods, onDraw, busy, onDone }: { period: Period
 
 /** Cidades, mínimo, prazo de resgate e regulamento do sorteio. */
 function PeriodSettings({ period, onSaved }: { period: Period; onSaved: () => void }) {
-  const locked = ["drawn", "cancelled", "merged"].includes(period.status);
+  const locked = !["scheduled", "open"].includes(period.status) || !!period.drawn_at || !!period.archived_at;
   const init = () => ({
+    name: period.name,
+    cadence: period.cadence,
     cities: (period.city_codes ?? []).map((code, i) => ({ code, name: period.city_names[i] ?? String(code) })),
     min: period.min_participants,
     days: period.redeem_days,
@@ -480,14 +551,13 @@ function PeriodSettings({ period, onSaved }: { period: Period; onSaved: () => vo
           Regulamento v{period.rules_version} {period.rules_text ? "· oficial" : "· provisório (teste)"}
         </span>
         <button type="button" className={btnGhost} onClick={() => setOpen(true)}>
-          EDITAR CIDADES, MÍNIMO E REGULAMENTO
+          EDITAR CONFIGURAÇÃO
         </button>
       </div>
     );
   const save = async () => {
-    const patch: Partial<PeriodInput> = { min_participants: f.min, redeem_days: f.days, rules_text: f.rules.trim() || null };
-    // Las ciudades solo cambian antes de abrir (un atleta ya pudo enviar desde una de ellas)
-    if (period.status === "scheduled") patch.city_codes = f.cities.length ? f.cities.map((c) => c.code) : null;
+    const patch: Partial<PeriodInput> = { name: f.name.trim(), cadence: f.cadence, min_participants: f.min, redeem_days: f.days, rules_text: f.rules.trim() || null };
+    if (period.status === "scheduled" || period.status === "open") patch.city_codes = f.cities.length ? f.cities.map((c) => c.code) : null;
     try {
       await updatePeriod(period.id, patch);
       toast.success((period.rules_text ?? "") !== f.rules.trim() ? "Salvo. O regulamento mudou: os atletas aceitam de novo no próximo envio." : "Salvo.");
@@ -499,9 +569,11 @@ function PeriodSettings({ period, onSaved }: { period: Period; onSaved: () => vo
   };
   return (
     <div className={`${card} mb-4 grid gap-3 p-4 md:grid-cols-4`}>
+      <Field label="Nome"><input className={inputCls} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
+      <Field label="Repetição"><select className={inputCls} value={f.cadence} onChange={(e) => setF({ ...f, cadence: e.target.value as Period["cadence"] })}><option value="weekly">Semanal</option><option value="biweekly">Quinzenal</option><option value="monthly">Mensal</option><option value="none">Não repetir</option></select></Field>
       <div className="md:col-span-2">
-        <Field label="Cidades" hint={period.status === "scheduled" ? "Vazio = todo o Brasil" : "Só mudam antes de abrir"}>
-          <CitiesField value={f.cities} onChange={(cities) => setF({ ...f, cities })} disabled={period.status !== "scheduled"} />
+        <Field label="Cidades" hint="Vazio = todo o Brasil. Cidades de participantes não podem ser excluídas.">
+          <CitiesField value={f.cities} onChange={(cities) => setF({ ...f, cities })} disabled={period.status !== "scheduled" && period.status !== "open"} />
         </Field>
       </div>
       <Field label="Mínimo de participantes">
@@ -780,6 +852,13 @@ function CodesButton({ coupon, onDone }: { coupon: Coupon; onDone: () => void })
   );
 }
 
+function ContactValue({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+  return <p>{label}: <button type="button" className="break-all text-left underline" title={`Copiar ${label.toLowerCase()}`} onClick={() => {
+    void navigator.clipboard.writeText(value).then(() => toast.success(`${label} copiado.`)).catch(() => toast.error("Não foi possível copiar."));
+  }}>{value}</button></p>;
+}
+
 function Results({
   period,
   results,
@@ -920,16 +999,13 @@ function Results({
                 <td className="px-4 py-3">
                   {r.user_id ? (
                     <>
-                      <p className="font-bold">{r.user_name ?? "—"}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {[
-                          r.user_instagram && `@${r.user_instagram}`,
-                          r.user_email,
-                          r.user_phone,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
+                      <div className="font-bold"><ContactValue label="Nome" value={r.user_name} /></div>
+                      <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+                        <ContactValue label="Apelido" value={r.user_nickname ? `@${r.user_nickname}` : null} />
+                        <ContactValue label="Instagram" value={r.user_instagram ? `@${r.user_instagram}` : null} />
+                        <ContactValue label="E-mail" value={r.user_email} />
+                        <ContactValue label="Telefone" value={r.user_phone} />
+                      </div>
                     </>
                   ) : (
                     <span className="text-muted-foreground">
@@ -976,6 +1052,12 @@ function Results({
                       <option value="unclaimed">não resgatado</option>
                     </select>
                   )}
+                  {r.user_id && <button type="button" className="mt-1 block text-xs text-muted-foreground underline" onClick={async () => {
+                    const note = prompt("Observação sobre contato ou entrega:", r.delivery_note ?? "");
+                    if (note === null) return;
+                    try { await setDelivery(r.id, r.delivery_status, note.trim() || null); onChange(); toast.success("Observação salva."); }
+                    catch (e) { toast.error((e as Error).message); }
+                  }}>{r.delivery_note ? `Observação: ${r.delivery_note}` : "Adicionar observação"}</button>}
                 </td>
                 <td className="px-4 py-3 text-right">
                   {r.delivery_status === "delivered" && (

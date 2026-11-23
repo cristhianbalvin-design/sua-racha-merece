@@ -375,7 +375,7 @@ export const pt = {
       `${n} ${n === 1 ? "ganhador" : "ganhadores"} em ${cidades}`,
     semGanhador: "Sem ganhador",
     voceGanhou: "Você ganhou!",
-    resultadoTexto: "Por privacidade mostramos só a cidade de quem ganhou.",
+    resultadoTexto: "Por privacidade mostramos apenas as iniciais e o apelido de quem ganhou.",
     participouCom: (n: number) => `Você participou com ${n} Bukys.`,
     naoParticipouTexto: "Você não participou deste sorteio.",
     fechar: "Fechar",

@@ -519,6 +519,20 @@ export interface PrizeResult {
   winners: number;
   cities: string[];
   mine: boolean;
+  public_winners?: PublicRaffleWinner[];
+}
+
+export interface PublicRaffleWinner {
+  period_id: string;
+  coupon_id: string;
+  initials: string;
+  nickname: string | null;
+}
+
+export async function getPublicRaffleWinners(): Promise<PublicRaffleWinner[]> {
+  const { data, error } = await supabase.rpc("buky_public_winners");
+  if (error) fail(error);
+  return (data ?? []) as PublicRaffleWinner[];
 }
 
 export interface PastRaffle extends RafflePeriod {

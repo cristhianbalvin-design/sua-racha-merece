@@ -10,8 +10,9 @@ import PrizeSheet, { PrizeRow, PrizeThumb } from "../components/PrizeSheet";
 import SendToRaffleSheet from "../components/SendToRaffleSheet";
 import { isToRedeem, type MyPrize, type MyRaffles, type PastRaffle, type Prize, type RafflePeriod } from "../lib/api";
 import { fmtCountdown } from "../lib/countdown";
-import { useMyRaffles, useSummary } from "../lib/hooks";
+import { useMyRaffles, usePublicRaffleWinners, useSummary } from "../lib/hooks";
 import { useGeolocation } from "../lib/useGeolocation";
+import { publicWinnerLabel } from "../lib/publicWinners";
 
 const S = pt.sorteios;
 type Aba = "atual" | "proximos" | "resultados";
@@ -31,6 +32,7 @@ export default function Sorteios() {
   const aba = (["atual", "proximos", "resultados"].includes(params.get("aba") ?? "") ? params.get("aba") : "atual") as Aba;
   const { pos } = useGeolocation();
   const { data, isLoading, isError, refetch } = useMyRaffles(pos);
+  const { data: publicWinners = [] } = usePublicRaffleWinners();
   const { data: summary } = useSummary();
   const balance = summary?.balance ?? 0;
   const [prize, setPrize] = useState<{ p: Prize; period?: RafflePeriod; ctx: "atual" | "proximo"; opensAt?: string } | null>(null);
@@ -115,7 +117,7 @@ export default function Sorteios() {
         }
       />
 
-      <PastSheet raffle={past} onClose={() => setPast(null)} />
+      <PastSheet raffle={past} winners={publicWinners} onClose={() => setPast(null)} />
       <SendToRaffleSheet period={sendTo} balance={balance} pos={pos} onClose={() => setSendTo(null)} />
     </div>
   );
@@ -447,7 +449,7 @@ function Resultados({ mine, past, onOpen }: { mine: MyPrize[]; past: PastRaffle[
   );
 }
 
-function PastSheet({ raffle, onClose }: { raffle: PastRaffle | null; onClose: () => void }) {
+function PastSheet({ raffle, winners, onClose }: { raffle: PastRaffle | null; winners: { period_id: string; coupon_id: string; initials: string; nickname: string | null }[]; onClose: () => void }) {
   if (!raffle) return null;
   return (
     <Sheet open onClose={onClose} label={raffle.name}>
@@ -468,6 +470,11 @@ function PastSheet({ raffle, onClose }: { raffle: PastRaffle | null; onClose: ()
                 <span className={`block truncate text-[12px] ${r.mine ? "font-bold text-[var(--buky-neon)]" : "text-[var(--buky-muted)]"}`}>
                   {r.mine ? S.voceGanhou : r.winners > 0 ? S.ganhadoresEm(r.winners, r.cities.join(", ")) : S.semGanhador}
                 </span>
+                {winners.filter((w) => w.period_id === raffle.id && w.coupon_id === r.prize_id).map((w, i) => (
+                  <span key={`${w.coupon_id}-${i}`} className="block text-[12px] text-[var(--buky-muted)]">
+                    {publicWinnerLabel(w)}
+                  </span>
+                ))}
               </span>
               {r.benefit && <span className="font-buky shrink-0 text-[17px] text-[var(--buky-neon)]">{r.benefit}</span>}
             </li>
