@@ -101,3 +101,5 @@ Los pasos 16 y 17 solo agregan objetos nuevos (`buky_*`). Antes del lanzamiento 
 - **38_pagos_manuales.sql**: pagos manuales, configuración reversible y operaciones administrativas auditadas. Aplicar después del 37.
 
 - **39_livre_por_cidade.sql**: habilita el entrenamiento libre por ciudad (desactivado por defecto) y agrega la RPC de administración.
+- **40_admin_rutas.sql**: borrado o archivo de rutas con historial y guardas de entrada al sorteo.
+- **41_admin_sorteos_gestao.sql**: sorteo anticipado, edición segura, listado de participantes, eliminación y archivo con reintegro, y ganadores públicos limitados a iniciales y apodo. Aplicar después del 40.

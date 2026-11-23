@@ -172,6 +172,16 @@ export function useMyRaffles(pos?: { lat: number; lon: number } | null) {
   });
 }
 
+export function usePublicRaffleWinners() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["buky", "public-raffle-winners"],
+    queryFn: api.getPublicRaffleWinners,
+    enabled: Boolean(user),
+    staleTime: 60_000,
+  });
+}
+
 export function useIsRouteTester() {
   const { user } = useAuth();
   return useQuery({ queryKey: ["buky", "route-tester", user?.id], queryFn: api.isRouteTester, enabled: Boolean(user), staleTime: 5 * 60_000 });

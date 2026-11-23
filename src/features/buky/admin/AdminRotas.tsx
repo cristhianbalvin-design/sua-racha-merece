@@ -8,7 +8,7 @@ import { getCity } from "../lib/api";
 import { useRouteRules } from "../lib/hooks";
 import { placeBukys, type DraftPoint } from "../lib/routeDraft";
 import BukyMap from "../components/BukyMap";
-import { listRoutes, saveOfficialRoute, setRouteActive, type AdminRoute } from "./adminApi";
+import { deleteRoute, listRoutes, saveOfficialRoute, setRouteActive, type AdminRoute } from "./adminApi";
 import { AdminCityPicker, Badge, btnDanger, btnGhost, btnPrimary, card, dt, Field, inputCls } from "./ui";
 
 const NITEROI = { lat: -22.8832, lon: -43.1034 };
@@ -343,13 +343,13 @@ export default function AdminRotas() {
                   <td className="px-4 py-3">{r.city_name} · {r.uf}</td>
                   <td className="px-4 py-3">{r.points.length}</td>
                   <td className="px-4 py-3">{r.length_m ? `${(r.length_m / 1000).toFixed(2)} km` : "—"}</td>
-                  <td className="px-4 py-3">{r.active ? <Badge tone="green">ativa</Badge> : <Badge>inativa</Badge>}</td>
+                  <td className="px-4 py-3">{r.archived_at ? <Badge>arquivada</Badge> : r.active ? <Badge tone="green">ativa</Badge> : <Badge>inativa</Badge>}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">
-                      {r.kind === "official" && (
+                      {r.kind === "official" && !r.archived_at && (
                         <button type="button" className={btnGhost} onClick={() => edit(r)}>EDITAR</button>
                       )}
-                      <button
+                      {!r.archived_at && <button
                         type="button"
                         className={r.active ? btnDanger : btnGhost}
                         onClick={async () => {
@@ -358,7 +358,15 @@ export default function AdminRotas() {
                         }}
                       >
                         {r.active ? "DESATIVAR" : "ATIVAR"}
-                      </button>
+                      </button>}
+                      {!r.archived_at && <button type="button" className={btnDanger} onClick={async () => {
+                        if (!window.confirm(`Excluir a rota "${r.name}"? Se houver sessões, ela será arquivada.`)) return;
+                        try {
+                          const status = await deleteRoute(r.id);
+                          toast.success(status === "deleted" ? "Rota excluída." : "Rota arquivada porque possui sessões.");
+                          await qc.invalidateQueries({ queryKey: ["admin-buky"] });
+                        } catch (e) { toast.error(`Erro: ${(e as Error).message}`); }
+                      }}>EXCLUIR</button>}
                     </div>
                   </td>
                 </tr>

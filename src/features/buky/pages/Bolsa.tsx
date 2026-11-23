@@ -5,9 +5,10 @@ import { pt } from "../i18n";
 import { ScreenHeader, Spinner, ErrorBox } from "../components/ui";
 import ProgressGoals from "../components/ProgressGoals";
 import { fmtCountdown } from "../lib/countdown";
-import { useMyRaffles, useSummary } from "../lib/hooks";
+import { useMyRaffles, usePublicRaffleWinners, useSummary } from "../lib/hooks";
 import { isToRedeem } from "../lib/api";
 import { useGeolocation } from "../lib/useGeolocation";
+import { publicWinnerLabel } from "../lib/publicWinners";
 
 const S = pt.sorteios;
 
@@ -21,6 +22,7 @@ export default function Bolsa() {
   const navigate = useNavigate();
   const { pos } = useGeolocation();
   const { data: raffles } = useMyRaffles(pos);
+  const { data: publicWinners = [] } = usePublicRaffleWinners();
 
   if (isLoading) return <Spinner label={pt.comum.carregando} />;
   if (isError || !s) return <ErrorBox message={pt.comum.erro} onRetry={() => refetch()} />;
@@ -74,6 +76,18 @@ export default function Bolsa() {
         </span>
         <ChevronRight size={18} className="shrink-0 text-[var(--buky-muted)]" />
       </Link>
+
+      {publicWinners.length > 0 && (
+        <section className="mx-6 mt-3 rounded-2xl bg-[#111] p-4" aria-label="Ganhadores dos sorteios">
+          <h2 className="buky-label text-[var(--buky-neon)]">Ganhadores dos sorteios</h2>
+          <ul className="mt-2 space-y-1 text-sm">
+            {publicWinners.slice(0, 3).map((winner, i) => (
+              <li key={`${winner.coupon_id}-${i}`}>{publicWinnerLabel(winner)}</li>
+            ))}
+          </ul>
+          <Link to="/app/bolsa/sorteios?aba=resultados" className="mt-2 inline-block text-xs text-[var(--buky-muted)]">Ver resultados</Link>
+        </section>
+      )}
 
       {toRedeem > 0 && (
         <Link to="/app/bolsa/sorteios?aba=resultados" className="mx-6 mt-3 flex items-center gap-3 rounded-2xl bg-[#111] px-4 py-3 text-[14px]">
