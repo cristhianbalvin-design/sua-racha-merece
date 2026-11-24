@@ -2,6 +2,8 @@ import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getKpis } from "./adminApi";
 import { card } from "./ui";
+import AdminLive from "./AdminLive";
+import AdminHeat from "./AdminHeat";
 import AdminRotas from "./AdminRotas";
 import AdminSorteios from "./AdminSorteios";
 import AdminPatrocinadores from "./AdminPatrocinadores";
@@ -11,6 +13,8 @@ import AdminConfig from "./AdminConfig";
 import AdminLoja from "./AdminLoja";
 
 const TABS = [
+  { to: "ao-vivo", label: "Ao vivo" },
+  { to: "mapa-calor", label: "Mapa de calor" },
   { to: "rotas", label: "Rotas" },
   { to: "sorteios", label: "Sorteios" },
   { to: "patrocinadores", label: "Patrocinadores" },
@@ -64,6 +68,8 @@ export default function AdminBuky() {
       </nav>
       <Routes>
         <Route index element={<Navigate to="rotas" replace />} />
+        <Route path="ao-vivo" element={<AdminLive />} />
+        <Route path="mapa-calor" element={<AdminHeat />} />
         <Route path="rotas" element={<AdminRotas />} />
         <Route path="sorteios" element={<AdminSorteios />} />
         <Route path="patrocinadores" element={<AdminPatrocinadores />} />

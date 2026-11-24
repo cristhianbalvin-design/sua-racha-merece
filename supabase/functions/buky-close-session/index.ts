@@ -20,6 +20,8 @@ import {
   toEnginePoints,
 } from "./logic.ts";
 
+import { trackToHeatCells } from "../_shared/buky/heat.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -113,6 +115,26 @@ serve(async (req) => {
 
     const { data: result, error: fErr } = await admin.rpc("buky_finalize_session", params);
     if (fErr) throw fErr;
+
+    // Background work cannot delay or fail the response. The historical backfill
+    // can retry any session whose background task is interrupted.
+    if (session.mode === "free" && evaluation.status === "valid") {
+      const ingest = async () => {
+        try {
+          const { data: finalized, error } = await admin.from("buky_sessions").select("status,start_city_code").eq("id", sessionId).single();
+          if (error) throw error;
+          if (finalized.status !== "valid" || !finalized.start_city_code) return;
+          const cells = trackToHeatCells(readings.filter((r) => !r.simulated).map((r) => ({ lat: r.lat, lon: r.lon, acc: r.accuracy })));
+          const { error: heatError } = await admin.rpc("buky_heat_add", { p_city_code: finalized.start_city_code, p_cells: { session_id: sessionId, cells } });
+          if (heatError) throw heatError;
+        } catch (error) { console.error("buky-close-session: heat ingestion failed", error); }
+      };
+      try {
+        const runtime = (globalThis as { EdgeRuntime?: { waitUntil(task: Promise<unknown>): void } }).EdgeRuntime;
+        if (runtime) runtime.waitUntil(ingest());
+        else void ingest();
+      } catch (error) { console.error("buky-close-session: could not schedule heat ingestion", error); }
+    }
 
     // Pasadas tal como quedaron en la base: incluye los topes por punto (paso 24), que decide el SQL
     const { data: saved } = await admin

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import maplibregl, { type GeoJSONSource, type Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { BUKY_RADIUS, VERTEX_OPACITY, VERTEX_RADIUS } from "../lib/mapLayerStyles";
 import { loadDarkStyle } from "../lib/mapStyle";
 
 export interface MapPoint {
@@ -198,7 +199,6 @@ export default function BukyMap({
           id: "points-glow",
           type: "circle",
           source: "points",
-          filter: ["!=", ["get", "state"], "pending"],
           paint: {
             "circle-radius": ["match", ["get", "state"], "visited", 16, 10],
             "circle-color": NEON,
@@ -211,9 +211,9 @@ export default function BukyMap({
           type: "circle",
           source: "points",
           paint: {
-            "circle-radius": ["match", ["get", "state"], "visited", 9, "pending", 5, 5],
-            "circle-color": ["match", ["get", "state"], "pending", "rgba(0,0,0,0)", NEON],
-            "circle-stroke-color": ["match", ["get", "state"], "pending", "#cfcfcf", NEON],
+            "circle-radius": ["match", ["get", "state"], "visited", 10, "pending", BUKY_RADIUS, BUKY_RADIUS],
+            "circle-color": NEON,
+            "circle-stroke-color": "#050505",
             "circle-stroke-width": ["match", ["get", "state"], "pending", 1.4, 0],
           },
         });
@@ -224,10 +224,11 @@ export default function BukyMap({
           type: "circle",
           source: "vertices",
           paint: {
-            "circle-radius": ["case", ["==", ["get", "first"], 1], 6.5, 5],
+            "circle-radius": VERTEX_RADIUS,
             "circle-color": "#ffffff",
+            "circle-opacity": VERTEX_OPACITY,
             "circle-stroke-color": "#050505",
-            "circle-stroke-width": 2,
+            "circle-stroke-width": 1,
           },
         });
         m.addLayer({
@@ -239,7 +240,7 @@ export default function BukyMap({
         });
         m.addLayer({ id: "vertex-hit", type: "circle", source: "vertices", paint: { "circle-radius": 20, "circle-opacity": 0 } });
         // Números de orden (crear ruta); solo si el estilo trae tipografías (sin teselas no hay)
-        if ((latest.current.showPath || latest.current.vertices) && m.getStyle().glyphs) {
+        if (m.getStyle().glyphs) {
           m.addLayer({
             id: "points-number",
             type: "symbol",
