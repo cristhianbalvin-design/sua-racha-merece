@@ -14,6 +14,7 @@ const config: CapacitorConfig = {
   },
   ios: {
     backgroundColor: "#050505",
+    handleApplicationNotifications: false,
   },
   plugins: {
     // Pantalla de borde a borde; la app respeta env(safe-area-inset-*) en cada pantalla.

@@ -103,3 +103,9 @@ Los pasos 16 y 17 solo agregan objetos nuevos (`buky_*`). Antes del lanzamiento 
 - **39_livre_por_cidade.sql**: habilita el entrenamiento libre por ciudad (desactivado por defecto) y agrega la RPC de administración.
 - **40_admin_rutas.sql**: borrado o archivo de rutas con historial y guardas de entrada al sorteo.
 - **41_admin_sorteos_gestao.sql**: sorteo anticipado, edición segura, listado de participantes, eliminación y archivo con reintegro, y ganadores públicos limitados a iniciales y apodo. Aplicar después del 40.
+- **42_avisos.sql**: catálogo de tipos y canales, avisos por activación Premium y recarga, resultados y recordatorios de sorteos, y RPC de administración. Aplicar después del 41.
+
+### Recordatorios de avisos (paso 42)
+Con pg_cron se programan diariamente los recordatorios de Premium y sorteos. Si pg_cron no está disponible, ejecutar diariamente como service_role `public.premium_expiry_reminders()` y `public.buky_raffle_closing_reminders()` mediante un programador externo.
+El paso 27 ya intentaba programar `premium_expiry_reminders()`; el paso 42 vuelve a programarlo de forma idempotente junto con los sorteos. La programación efectiva depende de que `pg_cron` esté instalado en la base de destino.
+Para recibir push en la app nativa, sincronizar el plugin de OneSignal con Capacitor en el siguiente ciclo de build nativo. Android también necesita `android/app/google-services.json` del mismo proyecto Firebase configurado en OneSignal; este archivo de credenciales no está en el repositorio.
