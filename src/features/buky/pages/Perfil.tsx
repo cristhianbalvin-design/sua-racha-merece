@@ -1,3 +1,4 @@
+import { MyPlanBadge } from "@/components/PlanBadge";
 import { PAYMENTS_ENABLED } from "@/config/features";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -91,6 +92,7 @@ export default function Perfil() {
         </button>
       </div>
 
+      <div className="mt-3"><MyPlanBadge /></div>
       {shop.data && <Link to="/app/loja" className="mt-4 block rounded-xl border border-[var(--buky-line)] p-4">Loja 3buk →</Link>}
       <div className="mt-5 flex items-center gap-4">
         <ProfileAvatar size={84} to={null} />

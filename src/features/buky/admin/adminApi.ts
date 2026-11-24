@@ -178,17 +178,24 @@ export interface Sponsor {
   website: string | null;
   city_code: number | null;
   active: boolean;
+  whatsapp: string | null;
+  phone: string | null;
+  address: string | null;
+  contact_email: string | null;
+  maps_url: string | null;
+  active_members: number;
+  pending_invites: number;
 }
 
 export async function listSponsors(): Promise<Sponsor[]> {
-  const { data, error } = await supabase.from("buky_sponsors").select("id, name, logo_url, instagram, website, city_code, active").order("name");
+  const { data, error } = await supabase.rpc("admin_buky_sponsors");
   if (error) fail(error);
   return (data ?? []) as Sponsor[];
 }
 
 export async function saveSponsor(s: Partial<Sponsor> & { name: string }): Promise<void> {
-  const row = { name: s.name, logo_url: s.logo_url || null, instagram: s.instagram || null, website: s.website || null, city_code: s.city_code ?? null, active: s.active ?? true };
-  const { error } = s.id ? await supabase.from("buky_sponsors").update(row).eq("id", s.id) : await supabase.from("buky_sponsors").insert(row);
+  const row = { name: s.name, logo_url: s.logo_url || null, instagram: s.instagram || null, website: s.website || null, city_code: s.city_code ?? null, active: s.active ?? true, whatsapp: s.whatsapp || null, phone: s.phone || null, address: s.address || null, contact_email: s.contact_email || null, maps_url: s.maps_url || null };
+  const { error } = await supabase.rpc("admin_buky_sponsor_save", { p_id: s.id ?? null, p_data: row });
   if (error) fail(error);
 }
 

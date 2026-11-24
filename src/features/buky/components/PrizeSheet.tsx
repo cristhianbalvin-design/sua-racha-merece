@@ -2,6 +2,9 @@ import { Gift } from "lucide-react";
 import { pt } from "../i18n";
 import type { Prize } from "../lib/api";
 import { fmtDate } from "./ui";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { instagramLink, mapsLink, phoneValid, whatsappLink, type SponsorContact } from "../lib/sponsorContact";
 
 const S = pt.sorteios;
 
@@ -60,8 +63,24 @@ export function PrizeRow({ prize, onOpen, selected = false }: { prize: Prize; on
  * Detalle del premio (hoja inferior): foto, patrocinador, beneficio, alcance, ganadores, vigencia y
  * cómo canjearlo. `footer` lleva el aviso y el botón según el contexto (atual o próximo).
  */
-export default function PrizeSheet({ prize, onClose, footer }: { prize: Prize | null; onClose: () => void; footer?: React.ReactNode }) {
+export default function PrizeSheet({ prize, onClose, footer, resultId }: { prize: Prize | null; onClose: () => void; footer?: React.ReactNode; resultId?: string }) {
+  const contact = useQuery({
+    queryKey: ["buky", "sponsor-contact", resultId],
+    enabled: Boolean(prize && resultId),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("buky_sponsor_contact", { p_result_id: resultId });
+      if (error) throw error;
+      return data as SponsorContact | null;
+    },
+  });
   if (!prize) return null;
+  const detail = contact.data;
+  const links = resultId && detail ? [
+    ["Falar no WhatsApp", whatsappLink(detail.whatsapp, prize.title)],
+    ["Ligar", detail.phone && phoneValid(detail.phone) ? `tel:${detail.phone}` : null],
+    ["Ver Instagram", instagramLink(detail.instagram)],
+    ["Como chegar", mapsLink(detail.maps_url, detail.address)],
+  ].filter((item): item is [string, string] => Boolean(item[1])) : [];
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70" role="dialog" aria-modal="true" aria-label={prize.title} onClick={onClose}>
       <div
@@ -110,6 +129,14 @@ export default function PrizeSheet({ prize, onClose, footer }: { prize: Prize | 
             <p className="mt-1.5 text-[14px] leading-relaxed text-[#d9d9d9]">{prize.redeem_instructions}</p>
           </>
         )}
+
+        {resultId && contact.isLoading && <p className="mt-4 text-sm text-[var(--buky-muted)]">Carregando contato…</p>}
+        {resultId && contact.isError && <p className="mt-4 text-sm text-[var(--buky-muted)]">Não foi possível carregar o contato.</p>}
+        {links.length > 0 && <div className="mt-4 grid grid-cols-2 gap-2">
+          {links.map(([label, href]) => <a key={label} href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer" className="flex min-h-11 items-center justify-center rounded-xl border border-[var(--buky-line)] px-2 text-center text-sm font-semibold">{label}</a>)}
+        </div>}
+        {detail?.address && <p className="mt-2 text-xs text-[var(--buky-muted)]">{detail.address}</p>}
+        {detail?.contact_email && <a className="mt-2 block text-xs underline" href={`mailto:${detail.contact_email}`}>{detail.contact_email}</a>}
 
         {footer}
         <button type="button" onClick={onClose} className="mt-2 flex min-h-11 w-full items-center justify-center text-sm text-[var(--buky-muted)]">
