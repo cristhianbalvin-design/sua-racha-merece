@@ -33,8 +33,8 @@ const AdminLayout = () => {
   useEffect(() => {
     const setupOneSignal = async () => {
       try {
-        if (user?.email && typeof OneSignal !== 'undefined' && OneSignal.User) {
-          await OneSignal.login(user.email);
+        if (user?.id && typeof OneSignal !== 'undefined' && OneSignal.User) {
+          await OneSignal.login(user.id);
           OneSignal.User.addTag("role", "admin");
         }
       } catch (err) {

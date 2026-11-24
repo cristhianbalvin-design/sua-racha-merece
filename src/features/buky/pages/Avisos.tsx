@@ -1,13 +1,15 @@
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { useAvisos } from "../lib/avisosApi";
+import { useAvisos, groupAvisos, avisoLabel } from "../lib/avisosApi";
 import { avisos } from "../i18n";
 import { toast } from "sonner";
 export default function Avisos() {
   const { user } = useAuth();
-  const query = useAvisos();
+  const [limit, setLimit] = useState(50);
+  const query = useAvisos(limit);
   const qc = useQueryClient();
   const navigate = useNavigate();
   async function mark(id?: string) {
@@ -39,6 +41,7 @@ export default function Avisos() {
           {avisos.marcarTodos}
         </button>
       </div>
+      <p className="mt-3 text-sm text-[var(--buky-muted)]">Aqui você vê os avisos de prêmios, Premium e saldo.</p>
       {query.isLoading ? (
         <p>Carregando…</p>
       ) : query.error ? (
@@ -46,8 +49,10 @@ export default function Avisos() {
       ) : !query.data?.length ? (
         <p className="mt-6">{avisos.vazios}</p>
       ) : (
-        <ul className="mt-4">
-          {query.data.map((n) => (
+        <div className="mt-4">
+          {Object.entries(groupAvisos(query.data)).map(([date, notices]) => (
+          <section key={date}><h2 className="mt-4 font-bold">{date}</h2><ul>
+          {notices.map((n) => (
             <li key={n.id} className="border-b border-[var(--buky-line)]">
               <button
                 className="w-full py-4 text-left"
@@ -63,6 +68,7 @@ export default function Avisos() {
                     navigate("/app/bolsa/sorteios?aba=resultados");
                 }}
               >
+                <span className="block text-xs text-[var(--buky-muted)]">{avisoLabel(n.type)}</span>
                 <b>
                   {!n.read && "• "}
                   {n.title}
@@ -76,7 +82,9 @@ export default function Avisos() {
               </button>
             </li>
           ))}
-        </ul>
+          </ul></section>))}
+          {query.data.length === limit && <button className="my-4 underline" onClick={() => setLimit(limit + 50)}>Ver anteriores</button>}
+        </div>
       )}
     </main>
   );

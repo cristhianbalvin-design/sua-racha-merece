@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import OneSignal from "react-onesignal";
+import NativeOneSignal from "@onesignal/capacitor-plugin";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -137,11 +138,25 @@ const AnimatedRoutes = () => {
 
 let oneSignalReady: Promise<void> | undefined;
 let identityQueue: Promise<void> = Promise.resolve();
+let nativeOneSignalReady = false;
 function PushIdentity() {
   const { user, loading } = useAuth();
   useEffect(() => {
-    if (IS_NATIVE || loading) return;
+    if (loading) return;
     let cancelled = false;
+    if (IS_NATIVE) {
+      if (!nativeOneSignalReady) {
+        NativeOneSignal.initialize("f4c2d37d-d6a4-4209-9814-cf2c9cce92e1");
+        nativeOneSignalReady = true;
+        void NativeOneSignal.Notifications.requestPermission(false).catch(console.error);
+      }
+      identityQueue = identityQueue.catch(console.error).then(async () => {
+        if (cancelled) return;
+        if (user?.id) await NativeOneSignal.login(user.id);
+        else await NativeOneSignal.logout();
+      }).catch(console.error);
+      return () => { cancelled = true; };
+    }
     oneSignalReady ??= OneSignal.init({ appId: "f4c2d37d-d6a4-4209-9814-cf2c9cce92e1", serviceWorkerPath: "sw.js", allowLocalhostAsSecureOrigin: true });
     identityQueue = identityQueue.catch(console.error).then(async () => { await oneSignalReady; if (!cancelled) { if (user?.id) await OneSignal.login(user.id); else await OneSignal.logout(); } }).catch(console.error);
     return () => { cancelled = true; };
