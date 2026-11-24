@@ -20,7 +20,8 @@ export function parseTrackJson(json: { readings?: unknown[] }): { lat: number; l
   const out: { lat: number; lon: number; t: number; acc: number }[] = [];
   for (const r of json.readings ?? []) {
     if (!Array.isArray(r) || r.length < 6) continue;
-    const [, fixTime, , lat, lon, acc] = r as number[];
+    const [, fixTime, , lat, lon, acc, simulated] = r as number[];
+    if (simulated === 1) continue;
     if (Number.isFinite(lat) && Number.isFinite(lon)) out.push({ lat, lon, t: fixTime, acc });
   }
   return out.sort((a, b) => a.t - b.t);
