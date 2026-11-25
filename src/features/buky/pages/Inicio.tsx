@@ -1,3 +1,4 @@
+import { MyPlanBadge } from "@/components/PlanBadge";
 import { IS_NATIVE } from "@/lib/platform";
 import { OpenInApp } from "../components/OpenInApp";
 import { useEffect, useMemo, useState } from "react";
@@ -173,7 +174,7 @@ export default function Inicio() {
         {/* saldo + avatar */}
         <div className="absolute inset-x-0 top-0 flex items-start justify-between px-6 pt-[calc(env(safe-area-inset-top,0px)+28px)]">
           <div>
-          <img src="/brand/logo-3buk-horizontal-dark.png" alt="3buk" className="mb-1 h-[20px] w-auto" />
+          <img src="/brand/logo-3buk-horizontal-dark.png" alt="3buk" className="mb-1 h-[20px] w-auto" /><MyPlanBadge />
           <Link
             to="/app/bolsa"
             className="flex items-baseline gap-2"

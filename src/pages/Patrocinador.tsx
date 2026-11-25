@@ -7,6 +7,7 @@ import { useSponsors } from "@/lib/sponsorApi";
 import { useConfirm } from "@/hooks/useConfirm";
 import { supabase } from "@/lib/supabase";
 import { redemptionValue } from "@/features/buky/lib/redemption";
+import SponsorData from "./SponsorData";
 
 const texto = {
   titulo: "Painel do patrocinador",
@@ -26,12 +27,6 @@ const texto = {
   expirado: "Expirado",
   confirmar: "Confirmar uso",
   erroCupons: "Não foi possível carregar os cupons.",
-  ultimos: "Últimos usos",
-  atribuidos: "Atribuídos",
-  usados: "Usados",
-  pendentes: "Pendentes",
-  expirados: "Expirados",
-  codigos: "Códigos disponíveis",
   jaUsado: "Já usado em",
   sucesso: "Uso confirmado.",
   confirmarPergunta: "Confirmar o uso deste prêmio?",
@@ -58,19 +53,11 @@ type Dashboard = {
     expired: number;
     codes_available: number;
   }[];
-  redemptions: {
-    date: string;
-    prize: string;
-    athlete_short_name: string;
-    channel: string;
-  }[];
 };
 const date = (s?: string | null) =>
   s
     ? new Date(s).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })
     : "—";
-const channelLabel = (channel: string) =>
-  ({ qr: "QR", code: "Código", admin: "Admin" })[channel] ?? "—";
 const rpcError = (error: unknown) => {
   const message =
     error instanceof Error
@@ -95,7 +82,7 @@ export default function Patrocinador() {
   const [confirmRedeem, confirmDialog] = useConfirm();
   const { data: sponsors = [], isLoading, error } = useSponsors();
   const [selected, setSelected] = useState("");
-  const [tab, setTab] = useState<"validar" | "cupons">("validar");
+  const [tab, setTab] = useState<"validar" | "cupons" | "resgates" | "dados">("validar");
   const [value, setValue] = useState(token ?? "");
   const [result, setResult] = useState<Lookup | null>(null);
   const [channel, setChannel] = useState<"qr" | "code">(token ? "qr" : "code");
@@ -104,15 +91,26 @@ export default function Patrocinador() {
   const [message, setMessage] = useState("");
   const video = useRef<HTMLVideoElement>(null);
   const sponsorId = selected || sponsors[0]?.id;
+  const role = sponsors.find((s) => s.id === sponsorId)?.role;
+  const visibleTab = role === "staff" && (tab === "cupons" || tab === "dados") ? "validar" : tab;
   const dashboard = useQuery({
     queryKey: ["sponsor-dashboard", sponsorId],
-    enabled: !!sponsorId && tab === "cupons",
+    enabled: !!sponsorId && visibleTab === "cupons" && role === "owner",
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("buky_sponsor_dashboard", {
+      const { data, error } = await supabase.rpc("buky_sponsor_owner_dashboard", {
         p_sponsor_id: sponsorId,
       });
       if (error) throw error;
       return data as Dashboard;
+    },
+  });
+  const redemptions = useQuery({
+    queryKey: ["sponsor-redemptions", sponsorId],
+    enabled: !!sponsorId && visibleTab === "resgates",
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("buky_sponsor_redemptions", { p_sponsor_id: sponsorId });
+      if (error) throw error;
+      return data as { date: string; prize: string; initials: string; username: string | null; status: string }[];
     },
   });
   async function lookup(input: string, source: "qr" | "code") {
@@ -244,6 +242,7 @@ export default function Patrocinador() {
       await lookup(value, channel);
       setMessage(texto.sucesso);
       void dashboard.refetch();
+      void redemptions.refetch();
     } catch (e) {
       setMessage(`Não foi possível confirmar: ${rpcError(e)}`);
     } finally {
@@ -286,15 +285,15 @@ export default function Patrocinador() {
           ) : (
             <p className="mt-2">{sponsors[0].name}</p>
           )}
-          <nav className="my-5 flex gap-3">
+          <nav className="my-5 flex flex-wrap gap-2">
             <button
-              aria-current={tab === "validar" ? "page" : undefined}
-              className={`min-h-11 flex-1 rounded border p-3 ${tab === "validar" ? "bg-primary text-primary-foreground" : ""}`}
+              aria-current={visibleTab === "validar" ? "page" : undefined}
+              className={`min-h-11 flex-1 rounded border p-3 ${visibleTab === "validar" ? "bg-primary text-primary-foreground" : ""}`}
               onClick={() => setTab("validar")}
             >
               {texto.validar}
             </button>
-            <button
+            {role === "owner" && <button
               aria-current={tab === "cupons" ? "page" : undefined}
               className={`min-h-11 flex-1 rounded border p-3 ${tab === "cupons" ? "bg-primary text-primary-foreground" : ""}`}
               onClick={() => {
@@ -302,10 +301,16 @@ export default function Patrocinador() {
                 setTab("cupons");
               }}
             >
-              {texto.cupons}
-            </button>
+              Meus cupons
+            </button>}
+            <button aria-current={visibleTab === "resgates" ? "page" : undefined}
+              className={`min-h-11 flex-1 rounded border p-3 ${visibleTab === "resgates" ? "bg-primary text-primary-foreground" : ""}`}
+              onClick={() => { setScanning(false); setTab("resgates"); }}>Resgates</button>
+            {role === "owner" && <button aria-current={tab === "dados" ? "page" : undefined}
+              className={`min-h-11 flex-1 rounded border p-3 ${tab === "dados" ? "bg-primary text-primary-foreground" : ""}`}
+              onClick={() => { setScanning(false); setTab("dados"); }}>Meus dados</button>}
           </nav>
-          {tab === "validar" ? (
+          {visibleTab === "validar" ? (
             <section className="space-y-4">
               <button
                 className="rounded bg-primary p-3 text-primary-foreground"
@@ -380,7 +385,16 @@ export default function Patrocinador() {
                 </div>
               )}
             </section>
-          ) : (
+          ) : visibleTab === "resgates" ? (
+            <section>
+              <h2 className="font-bold">Resgates</h2>
+              {redemptions.isLoading ? <p>Carregando…</p> : redemptions.isError ? <p>Não foi possível carregar os resgates.</p> : !redemptions.data?.length ? <p>Nenhum resgate ainda.</p> :
+                redemptions.data.map((r, i) => <div key={`${r.date}-${i}`} className="border-b py-3 text-sm">
+                  <b>{r.initials || "Atleta"}{r.username ? ` · @${r.username}` : ""}</b>
+                  <p>{r.prize} · {date(r.date)} · {r.status}</p>
+                </div>)}
+            </section>
+          ) : visibleTab === "dados" && sponsorId ? <SponsorData sponsorId={sponsorId} /> : (
             <section>
               {dashboard.isLoading ? (
                 texto.carregando
@@ -388,24 +402,15 @@ export default function Patrocinador() {
                 texto.erroCupons
               ) : (
                 <>
-                  <h2 className="font-bold">{texto.cupons}</h2>
+                  <h2 className="font-bold">Meus cupons</h2>
+                  {!dashboard.data?.coupons.length && <p>Nenhum cupom deste patrocinador.</p>}
                   {dashboard.data?.coupons.map((c) => (
                     <div key={c.coupon_id} className="my-3 rounded border p-3">
                       <b>{c.title}</b> · {c.period}
                       <p>
-                        {texto.atribuidos}: {c.assigned} · {texto.usados}:{" "}
-                        {c.redeemed} · {texto.pendentes}: {c.pending} ·{" "}
-                        {texto.expirados}: {c.expired} · {texto.codigos}:{" "}
-                        {c.codes_available}
+                        Disponíveis: {c.codes_available} · Entregues: {c.pending} · Resgatados: {c.redeemed} · Vencidos: {c.expired}
                       </p>
                     </div>
-                  ))}
-                  <h2 className="mt-5 font-bold">{texto.ultimos}</h2>
-                  {dashboard.data?.redemptions.map((r, i) => (
-                    <p className="border-b py-2" key={i}>
-                      {date(r.date)} · {r.prize} · {r.athlete_short_name} ·{" "}
-                      {channelLabel(r.channel)}
-                    </p>
                   ))}
                 </>
               )}

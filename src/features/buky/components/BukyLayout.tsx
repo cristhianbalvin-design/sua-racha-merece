@@ -1,3 +1,4 @@
+import { MyPlanBadge } from "@/components/PlanBadge";
 import { useEffect } from "react";
 import { consumeAuthRedirect } from "@/lib/authRedirect";
 import Logo from "@/components/Logo";
@@ -104,6 +105,7 @@ export default function BukyLayout() {
             ["/app/patrocinio", "Patrocínio"], ["/app/sorteios", "Sorteios"], ["/app/avisos", "Avisos"],
           ].map(([to, label]) => <NavLink key={to} to={to} end={to === "/app"}>{label}</NavLink>)}
         </nav>
+        <MyPlanBadge />
         <ProfileMenu />
       </header>
       <div className="relative mx-auto min-h-svh w-full max-w-[480px] overflow-x-hidden lg:max-w-[860px]">

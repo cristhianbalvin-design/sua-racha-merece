@@ -1,3 +1,4 @@
+import { MyPlanBadge } from "@/components/PlanBadge";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -47,7 +48,7 @@ export function ProfileMenu() {
         <strong>{account.name}</strong>
         <p>{account.user?.email}</p>
         <p>{account.city?.name || account.profile?.city || ""}</p>
-        <p>{account.plan}</p>
+        <MyPlanBadge />
         <p>{brl(account.wallet?.balance_cents ?? 0)} · {account.summary?.balance ?? 0} Bukys</p>
         <Link to="/app/perfil" onClick={() => setOpen(false)}>Meu perfil</Link>
         <Link to="/app/perfil/saldo" onClick={() => setOpen(false)}>Saldo / Premium</Link>

@@ -1,3 +1,5 @@
+import { CouponCounts } from "../components/CouponCounts";
+import { participationLabel } from "../lib/raffleDisplay";
 import QRCode from "qrcode";
 import { redemptionStatus } from "../lib/redemption";
 import { useEffect, useMemo, useState } from "react";
@@ -67,6 +69,8 @@ export default function Sorteios() {
           </button>
         ))}
       </div>
+
+      {data && aba !== "resultados" && <div className="mx-6 mt-3"><span className="text-xs text-[var(--buky-muted)]">Total vis?vel</span><CouponCounts coupons={(aba === "atual" ? data.open : data.upcoming).flatMap((p) => p.prizes)} /></div>}
 
       {isLoading ? (
         <Spinner label={pt.comum.carregando} />
@@ -213,7 +217,8 @@ function RaffleCard({
       {period.participants !== undefined && period.min_participants !== undefined && (
         <p className="mt-0.5 text-[12px] text-[var(--buky-faint)]">{S.participantesMin(period.participants, period.min_participants)}</p>
       )}
-      {period.my_bukys > 0 && <p className="mt-2 text-[13px] font-semibold text-[var(--buky-neon)]">{S.seusBukysAqui(period.my_bukys)}</p>}
+      <p className={`mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold ${period.my_tickets.length ? "bg-[var(--buky-neon)] text-black" : "bg-[#333] text-[#ccc]"}`}>{participationLabel(period.my_tickets.length)}</p>
+      <CouponCounts coupons={prizes} />
 
       {open &&
         (here ? (
@@ -262,6 +267,7 @@ function Proximos({ periods, onPrize }: { periods: RafflePeriod[]; onPrize: (p: 
         <section key={p.id} aria-label={p.name} className="mx-6 mt-4">
           <div className="rounded-[20px] border border-[var(--buky-line)] bg-[#111] p-4">
             <p className="text-[16px] font-semibold">{p.name}</p>
+            <CouponCounts coupons={p.prizes} />
             <p className="mt-0.5 text-[12px] text-[var(--buky-muted)]">
               {S.cadencia[p.cadence ?? "none"]} · {S.cidades(p.cities ?? [], Boolean(p.national))}
             </p>
@@ -288,6 +294,7 @@ function MyPrizeCard({ p }: { p: MyPrize }) {
   const status = redemptionStatus(p);
   const toRedeem = status === "available";
   const [qr, setQr] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   useEffect(() => {
     let active = true;
     if (toRedeem && p.kind === "physical" && p.redeem_token)
@@ -391,6 +398,8 @@ function MyPrizeCard({ p }: { p: MyPrize }) {
           {p.redeem_instructions}
         </p>
       )}
+      {toRedeem && <button type="button" onClick={() => setDetailsOpen(true)} className="mt-3 min-h-11 w-full rounded-xl border border-[var(--buky-line)] text-sm font-semibold">Contato e detalhes</button>}
+      {detailsOpen && <PrizeSheet prize={p} resultId={p.result_id} onClose={() => setDetailsOpen(false)} />}
       <p className="mt-2 text-[12px] text-[var(--buky-faint)]">
         {[
           p.valid_until
