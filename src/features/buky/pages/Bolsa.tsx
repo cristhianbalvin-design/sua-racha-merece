@@ -78,7 +78,7 @@ export default function Bolsa() {
         <ChevronRight size={18} className="shrink-0 text-[var(--buky-muted)]" />
       </Link>
 
-      {raffles && <section className="mx-6 mt-3 rounded-2xl bg-[#111] p-4"><p className="text-sm font-semibold">Cupons dos sorteios abertos ? total vis?vel</p><CouponCounts coupons={open.flatMap((p) => p.prizes)} />{open.map((p) => <div key={p.id} className="mt-3"><p className="text-sm">{p.name}</p><CouponCounts coupons={p.prizes} /></div>)}</section>}
+      {raffles && open.length > 0 && <section className="mx-6 mt-3 rounded-2xl bg-[#111] p-4"><p className="text-sm font-semibold">Cupons dos sorteios abertos · total visível</p><CouponCounts coupons={open.flatMap((p) => p.prizes)} />{open.map((p) => <div key={p.id} className="mt-3"><p className="text-sm">{p.name}</p><CouponCounts coupons={p.prizes} /></div>)}</section>}
 
       {publicWinners.length > 0 && (
         <section className="mx-6 mt-3 rounded-2xl bg-[#111] p-4" aria-label="Ganhadores dos sorteios">

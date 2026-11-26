@@ -119,7 +119,7 @@ export default function AdminHeat() {
   });
   const backfill = async () => {
     setBusy(true);
-    setProgress("Buscando treinos?");
+    setProgress("Buscando treinos…");
     let done = 0;
     try {
       while (true) {
@@ -140,12 +140,12 @@ export default function AdminHeat() {
           setProgress(`${done} treino(s) processado(s)`);
         }
       }
-      setProgress(`${done} treino(s) processado(s). Hist?rico atualizado.`);
+      setProgress(`${done} treino(s) processado(s). Histórico atualizado.`);
       await qc.invalidateQueries({ queryKey: ["admin-buky", "heat"] });
       await qc.invalidateQueries({ queryKey: ["admin-buky", "heat-cities"] });
     } catch {
       setProgress(
-        `N?o foi poss?vel processar o hist?rico. ${done} treino(s) conclu?do(s); tente novamente.`,
+        `Não foi possível processar o histórico. ${done} treino(s) concluído(s); tente novamente.`,
       );
     } finally {
       setBusy(false);
@@ -162,14 +162,14 @@ export default function AdminHeat() {
           >
             {cities.data?.map((c) => (
               <option key={c.code} value={c.code}>
-                {c.name} ? {c.uf}
+                {c.name} · {c.uf}
                 {c.sessions ? ` (${c.sessions})` : ""}
               </option>
             ))}
           </select>
         </label>
         <label>
-          Per?odo<select
+          Período<select
             className={inputCls}
             value={days ?? "all"}
             onChange={(e) =>
@@ -177,28 +177,28 @@ export default function AdminHeat() {
           >
             <option value={7}>7 dias</option>
             <option value={30}>30 dias</option>
-            <option value="all">Todo o per?odo</option>
+            <option value="all">Todo o período</option>
           </select>
         </label>
         <button className={btnGhost} disabled={busy} onClick={backfill}>
-          Recalcular hist?rico
+          Recalcular histórico
         </button>
       </div>
       {progress && <p role="status">{progress}</p>}
       {(cities.isError || heat.isError) && (
-        <p>N?o foi poss?vel carregar o mapa de calor.</p>
+        <p>Não foi possível carregar o mapa de calor.</p>
       )}
       {heat.data && city && (
         <div className={`${card} space-y-3 p-4`}>
           <p>
-            {heat.data.sessions} treinos livres ? {heat.data.athletes} atletas
+            {heat.data.sessions} treinos livres · {heat.data.athletes} atletas
           </p>
           {heat.data.sessions === 0
-            ? <p>Ainda n?o h? treinos livres nesta cidade</p>
+            ? <p>Ainda não há treinos livres nesta cidade</p>
             : heat.data.cells.length === 0
             ? (
               <p>
-                Os dados desta cidade est?o protegidos pela regra de
+                Os dados desta cidade estão protegidos pela regra de
                 privacidade.
               </p>
             )
@@ -209,7 +209,7 @@ export default function AdminHeat() {
               </>
             )}
           <p className="text-xs text-muted-foreground">
-            Com menos de tr?s atletas no per?odo, c?lulas de apenas um atleta
+            Com menos de três atletas no período, células de apenas um atleta
             ficam ocultas.
           </p>
         </div>

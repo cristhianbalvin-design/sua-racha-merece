@@ -34,6 +34,8 @@ import {
 } from "./adminApi";
 import { AdminCityPicker, Badge, btnDanger, btnGhost, btnPrimary, card, downloadCsv, dt, Field, fromLocalInput, inputCls, toLocalInput } from "./ui";
 import { summarizeResults } from "./resultSummary";
+import { monthGrid, saoPauloDay, shiftDay, shiftMonth, weekRange } from "../lib/raffleCalendar";
+import { groupByMonth, pageSlice } from "../lib/listPage";
 
 const STATUS: Record<Period["status"], { label: string; tone: "muted" | "green" | "yellow" | "red" | "blue" }> = {
   scheduled: { label: "programado", tone: "blue" },
@@ -97,7 +99,25 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const visiblePeriods = periods.filter((p) => showArchived || !p.archived_at);
+  const [monthFilter, setMonthFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [sort, setSort] = useState<"asc" | "desc">("desc");
+  const [view, setView] = useState<"list" | "week" | "month">("list");
+  const [shown, setShown] = useState(25);
+  const [calendarMonth, setCalendarMonth] = useState(saoPauloDay(new Date().toISOString()).slice(0, 7));
+  const [calendarWeek, setCalendarWeek] = useState(saoPauloDay(new Date().toISOString()));
+  const [selectedDay, setSelectedDay] = useState(saoPauloDay(new Date().toISOString()));
+  const months = Object.keys(groupByMonth(periods, (p) => saoPauloDay(p.ends_at))).sort().reverse();
+  const visiblePeriods = periods.filter((p) => (showArchived || !p.archived_at)
+    && (!monthFilter || saoPauloDay(p.ends_at).startsWith(monthFilter))
+    && (!statusFilter || p.status === statusFilter))
+    .sort((a, b) => (sort === "desc" ? -1 : 1) * (a.ends_at.localeCompare(b.ends_at) || a.id.localeCompare(b.id)));
+  const calendarDays = view === "week" ? [weekRange(calendarWeek).days] : monthGrid(calendarMonth);
+  const byDay = new Map<string, Period[]>();
+  for (const p of visiblePeriods) {
+    const day = saoPauloDay(p.draw_at);
+    byDay.set(day, [...(byDay.get(day) ?? []), p]);
+  }
   const drawnIds = periods.filter((p) => p.status === "drawn").map((p) => p.id);
   const { data: winnerCounts } = useQuery({
     queryKey: ["admin-buky", "winner-counts", drawnIds],
@@ -223,7 +243,20 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
         </div>
       )}
 
-      <label className="mb-3 inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Mostrar arquivados</label>
+      <div className="mb-3 flex flex-wrap items-end gap-3 text-sm">
+        <label className="inline-flex items-center gap-2"><input type="checkbox" checked={showArchived} onChange={(e) => { setShowArchived(e.target.checked); setShown(25); }} /> Mostrar arquivados</label>
+        <label>Mês <select className={inputCls} value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setShown(25); }}><option value="">Todos</option>{months.map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
+        <label>Estado <select className={inputCls} value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setShown(25); }}><option value="">Todos</option>{Object.entries(STATUS).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
+        <label>Encerramento <select className={inputCls} value={sort} onChange={(e) => setSort(e.target.value as "asc" | "desc")}><option value="desc">Mais recente</option><option value="asc">Mais antigo</option></select></label>
+        <div role="group" aria-label="Visualização dos sorteios" className="flex gap-1">{([ ["list", "Lista"], ["week", "Semana"], ["month", "Calendário"] ] as const).map(([key, label]) => <button key={key} type="button" aria-pressed={view === key} onClick={() => setView(key)} className={`${btnGhost} ${view === key ? "ring-2 ring-primary" : ""}`}>{label}</button>)}</div>
+      </div>
+      {view !== "list" && <div className={`${card} mb-3 p-4`}>
+        <div className="mb-3 flex items-center justify-between"><button type="button" aria-label="Período anterior" onClick={() => view === "month" ? setCalendarMonth(shiftMonth(calendarMonth, -1)) : setCalendarWeek(shiftDay(calendarWeek, -7))}><ChevronLeft /></button><b>{view === "month" ? calendarMonth : `${weekRange(calendarWeek).from} – ${weekRange(calendarWeek).to}`}</b><button type="button" aria-label="Próximo período" onClick={() => view === "month" ? setCalendarMonth(shiftMonth(calendarMonth, 1)) : setCalendarWeek(shiftDay(calendarWeek, 7))}>→</button></div>
+        <div className="grid grid-cols-7 gap-1 text-center text-xs">{["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((d) => <span key={d}>{d}</span>)}</div>
+        {calendarDays.map((row) => <div key={row[0]} className="mt-1 grid grid-cols-7 gap-1">{row.map((day) => <button key={day} type="button" aria-label={`${day}, ${byDay.get(day)?.length ?? 0} sorteios`} aria-pressed={selectedDay === day} onClick={() => setSelectedDay(day)} className={`min-h-12 rounded border p-1 focus-visible:ring-2 focus-visible:ring-primary ${selectedDay === day ? "border-primary" : "border-border"}`}>{day.slice(-2)}{Boolean(byDay.get(day)?.length) && <span className="block text-xs text-primary">● {byDay.get(day)?.length}</span>}</button>)}</div>)}
+        <div className="mt-3 space-y-1">{(byDay.get(selectedDay) ?? []).map((p) => <button key={p.id} type="button" onClick={() => onOpen(p.id)} className="block w-full rounded border p-2 text-left hover:bg-muted">{p.name} · {STATUS[p.status].label}</button>)}{!byDay.get(selectedDay)?.length && <p className="text-muted-foreground">Nenhum sorteio neste dia.</p>}</div>
+      </div>}
+      {view === "list" &&
       <div className={`${card} overflow-hidden`}>
         {loading ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Carregando…</p>
@@ -242,7 +275,7 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {visiblePeriods.map((p) => (
+              {pageSlice(visiblePeriods, shown).map((p) => (
                 <tr key={p.id} className="cursor-pointer hover:bg-muted/30" onClick={() => onOpen(p.id)}>
                   <td className="px-4 py-3 font-bold">
                     {p.name}
@@ -294,6 +327,8 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
           </table>
         )}
       </div>
+      }
+      {view === "list" && visiblePeriods.length > shown && <button type="button" className={`${btnGhost} mt-3`} onClick={() => setShown((n) => n + 25)}>Ver mais</button>}
     </div>
   );
 }
@@ -308,6 +343,7 @@ function PeriodDetail({ period, periods, onBack }: { period: Period; periods: Pe
   const [isTest, setIsTest] = useState(period.is_test);
   const [showParticipants, setShowParticipants] = useState(false);
   const [participantSearch, setParticipantSearch] = useState("");
+  const [participantShown, setParticipantShown] = useState(25);
   const participants = useQuery({ queryKey: ["admin-buky", "entries", period.id], queryFn: () => listEntries(period.id), enabled: showParticipants });
   const entryCount = useQuery({ queryKey: ["admin-buky", "entry-count", period.id], queryFn: async () => {
     const { count, error } = await supabase.from("buky_entries").select("id", { count: "exact", head: true }).eq("period_id", period.id);
@@ -426,7 +462,8 @@ function PeriodDetail({ period, periods, onBack }: { period: Period; periods: Pe
         <input className={inputCls} placeholder="Buscar por nome, apelido ou cidade" value={participantSearch} onChange={(e) => setParticipantSearch(e.target.value)} />
         {participants.isLoading && <p>Carregando…</p>}
         {participants.isError && <p>Não foi possível carregar os participantes.</p>}
-        {(participants.data ?? []).filter((p) => [p.name, p.nickname, p.cities].some((s) => s?.toLocaleLowerCase("pt-BR").includes(participantSearch.toLocaleLowerCase("pt-BR")))).map((p) => <p key={p.user_id} className="text-sm">{p.name ?? "—"} {p.nickname && `· @${p.nickname}`} · {p.cities ?? "—"} · {p.tickets} tickets · primeira entrada {dt(p.first_entry)}</p>)}
+        {(participants.data ?? []).filter((p) => [p.name, p.nickname, p.cities].some((s) => s?.toLocaleLowerCase("pt-BR").includes(participantSearch.toLocaleLowerCase("pt-BR")))).slice(0, participantShown).map((p) => <p key={p.user_id} className="text-sm">{p.name ?? "—"} {p.nickname && `· @${p.nickname}`} · {p.cities ?? "—"} · {p.tickets} tickets · primeira entrada {dt(p.first_entry)}</p>)}
+        {(participants.data ?? []).filter((p) => [p.name, p.nickname, p.cities].some((s) => s?.toLocaleLowerCase("pt-BR").includes(participantSearch.toLocaleLowerCase("pt-BR")))).length > participantShown && <button type="button" className={btnGhost} onClick={() => setParticipantShown((n) => n + 25)}>Ver mais</button>}
       </div>}
 
       <div className="mb-3 flex items-center justify-between">
@@ -901,6 +938,7 @@ function Results({
   onChange: () => void;
 }) {
   const [audit, setAudit] = useState<RaffleResult | null>(null);
+  const [resultsShown, setResultsShown] = useState(25);
   const summary = summarizeResults(results);
   const [confirmRedeem, confirmDialog] = useConfirm();
   const qc = useQueryClient();
@@ -1015,7 +1053,7 @@ function Results({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {results.map((r) => (
+            {results.slice(0, resultsShown).map((r) => (
               <tr key={r.id}>
                 <td className="px-4 py-3">
                   <p className="font-bold">
@@ -1161,6 +1199,7 @@ function Results({
           </tbody>
         </table>
       </div>
+      {results.length > resultsShown && <button type="button" className={`${btnGhost} mt-3`} onClick={() => setResultsShown((n) => n + 25)}>Ver mais</button>}
       {audit && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"

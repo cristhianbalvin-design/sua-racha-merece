@@ -65,12 +65,17 @@ export async function listRoutes(filter: { cityCode?: number | null; kind?: "off
     .from("buky_routes")
     .select("id, name, city_code, kind, active, archived_at, length_m, path, buky_every_m, created_at, br_cities(name, br_states(uf)), users:owner_id(name, email), buky_points(id, seq, label, lat, lon, radius_m)")
     .order("created_at", { ascending: false })
-    .limit(300);
+    .order("id");
   if (filter.cityCode) q = q.eq("city_code", filter.cityCode);
   if (filter.kind && filter.kind !== "all") q = q.eq("kind", filter.kind);
-  const { data, error } = await q;
-  if (error) fail(error);
-  return ((data ?? []) as unknown as RouteRow[]).map((r) => {
+  const rows: RouteRow[] = [];
+  for (let offset = 0; ; offset += 200) {
+    const { data, error } = await q.range(offset, offset + 199);
+    if (error) fail(error);
+    rows.push(...((data ?? []) as unknown as RouteRow[]));
+    if ((data?.length ?? 0) < 200) break;
+  }
+  return rows.map((r) => {
     const city = one(r.br_cities);
     const owner = one(r.users);
     return {
@@ -230,13 +235,17 @@ export interface Period {
 }
 
 export async function listPeriods(): Promise<Period[]> {
-  const { data, error } = await supabase
+  const q = supabase
     .from("buky_raffle_periods")
     .select("id, name, starts_at, ends_at, draw_at, cadence, status, drawn_at, city_codes, min_participants, redeem_days, rules_text, rules_version, needs_review, review_note, merged_into, is_test, archived_at")
-    .order("starts_at", { ascending: false })
-    .limit(300);
-  if (error) fail(error);
-  const raw = (data ?? []) as Omit<Period, "entries" | "bukys" | "athletes" | "prizes" | "city_names">[];
+    .order("starts_at", { ascending: false }).order("id");
+  const raw: Omit<Period, "entries" | "bukys" | "athletes" | "prizes" | "city_names">[] = [];
+  for (let offset = 0; ; offset += 200) {
+    const { data, error } = await q.range(offset, offset + 199);
+    if (error) fail(error);
+    raw.push(...((data ?? []) as typeof raw));
+    if ((data?.length ?? 0) < 200) break;
+  }
   const codes = [...new Set(raw.flatMap((p) => p.city_codes ?? []))];
   const names = new Map<number, string>();
   if (codes.length) {
@@ -249,24 +258,32 @@ export async function listPeriods(): Promise<Period[]> {
   const stats = new Map<string, { entries: number; bukys: number; athletes: Set<string> }>();
   const prizes = new Map<string, Period["prizes"]>();
   if (ids.length) {
-    const { data: c, error: cErr } = await supabase
-      .from("buky_coupons")
-      .select("period_id, title, winners_count, draw_order, discount_pct")
-      .in("period_id", ids)
-      .order("discount_pct", { ascending: false, nullsFirst: false })
-      .order("draw_order");
-    if (cErr) fail(cErr);
-    for (const row of (c ?? []) as { period_id: string; title: string; winners_count: number }[]) {
-      prizes.set(row.period_id, [...(prizes.get(row.period_id) ?? []), { title: row.title, winners: row.winners_count }]);
-    }
-    const { data: e, error: eErr } = await supabase.from("buky_entries").select("period_id, user_id, amount").in("period_id", ids);
-    if (eErr) fail(eErr);
-    for (const row of (e ?? []) as { period_id: string; user_id: string; amount: number }[]) {
-      const s = stats.get(row.period_id) ?? { entries: 0, bukys: 0, athletes: new Set<string>() };
-      s.entries++;
-      s.bukys += row.amount;
-      s.athletes.add(row.user_id);
-      stats.set(row.period_id, s);
+    for (let start = 0; start < ids.length; start += 100) {
+      const batch = ids.slice(start, start + 100);
+      const cq = supabase.from("buky_coupons").select("period_id, title, winners_count, draw_order, discount_pct")
+        .in("period_id", batch).order("discount_pct", { ascending: false, nullsFirst: false }).order("draw_order").order("period_id");
+      const eq = supabase.from("buky_entries").select("period_id, user_id, amount, id")
+        .in("period_id", batch).order("id");
+      for (let offset = 0; ; offset += 200) {
+        const { data, error } = await cq.range(offset, offset + 199);
+        if (error) fail(error);
+        for (const row of (data ?? []) as { period_id: string; title: string; winners_count: number }[]) {
+          prizes.set(row.period_id, [...(prizes.get(row.period_id) ?? []), { title: row.title, winners: row.winners_count }]);
+        }
+        if ((data?.length ?? 0) < 200) break;
+      }
+      for (let offset = 0; ; offset += 200) {
+        const { data, error } = await eq.range(offset, offset + 199);
+        if (error) fail(error);
+        for (const row of (data ?? []) as { period_id: string; user_id: string; amount: number }[]) {
+          const s = stats.get(row.period_id) ?? { entries: 0, bukys: 0, athletes: new Set<string>() };
+          s.entries++;
+          s.bukys += row.amount;
+          s.athletes.add(row.user_id);
+          stats.set(row.period_id, s);
+        }
+        if ((data?.length ?? 0) < 200) break;
+      }
     }
   }
   return periods.map((p) => {
@@ -422,9 +439,13 @@ export interface RaffleParticipant {
 }
 
 export async function listEntries(id: string): Promise<RaffleParticipant[]> {
-  const { data, error } = await supabase.rpc("admin_buky_list_entries", { p_period_id: id });
-  if (error) fail(error);
-  return (data ?? []) as RaffleParticipant[];
+  const all: RaffleParticipant[] = [];
+  for (let offset = 0; ; offset += 200) {
+    const { data, error } = await supabase.rpc("admin_buky_list_entries", { p_period_id: id }).order("first_entry").order("user_id").range(offset, offset + 199);
+    if (error) fail(error);
+    all.push(...(data ?? []) as RaffleParticipant[]);
+    if ((data?.length ?? 0) < 200) return all;
+  }
 }
 
 export async function cancelPeriod(id: string, reason: string): Promise<{ changed: boolean; bukys_refunded?: number }> {
@@ -464,18 +485,21 @@ export interface RaffleResult {
 }
 
 export async function listResults(periodId: string): Promise<RaffleResult[]> {
+  const all: RaffleResult[] = [];
+  for (let offset = 0; ; offset += 200) {
   const { data, error } = await supabase
     .from("buky_raffle_results")
     .select("*, buky_coupons(title, draw_order, buky_sponsors(name)), users(name, nickname, email, instagram, phone)")
     .eq("period_id", periodId)
-    .order("drawn_at")
-    .order("role", { ascending: false });
+    .order("drawn_at", { ascending: false })
+    .order("id")
+    .range(offset, offset + 199);
   if (error) fail(error);
   type Row = RaffleResult & {
     buky_coupons: One<{ title: string; draw_order: number; buky_sponsors: One<{ name: string }> }>;
     users: One<{ name: string | null; nickname: string | null; email: string | null; instagram: string | null; phone: string | null }>;
   };
-  return ((data ?? []) as unknown as Row[]).map((r) => {
+  all.push(...((data ?? []) as unknown as Row[]).map((r) => {
     const c = one(r.buky_coupons);
     const u = one(r.users);
     return {
@@ -488,7 +512,9 @@ export async function listResults(periodId: string): Promise<RaffleResult[]> {
       user_instagram: u?.instagram ?? null,
       user_phone: u?.phone ?? null,
     };
-  });
+  }));
+  if ((data?.length ?? 0) < 200) return all;
+  }
 }
 
 export async function setDelivery(id: string, status: RaffleResult["delivery_status"], note: string | null): Promise<void> {
@@ -536,12 +562,13 @@ export interface AdminSession {
   user_email: string | null;
 }
 
-export async function listSessions(filter: { status?: string; since?: string }): Promise<AdminSession[]> {
+export async function listSessions(filter: { status?: string; since?: string; offset?: number }): Promise<AdminSession[]> {
   let q = supabase
     .from("buky_sessions")
     .select("id, status, started_at, ended_at, distance_m, duration_s, max_speed_kmh, avg_speed_kmh, passes_valid, passes_rejected, bukys_awarded, invalid_reason, user_id, buky_routes(name, kind, br_cities(name)), users(name, email)")
     .order("started_at", { ascending: false })
-    .limit(200);
+    .order("id")
+    .range(filter.offset ?? 0, (filter.offset ?? 0) + 49);
   if (filter.status && filter.status !== "all") q = q.eq("status", filter.status);
   if (filter.since) q = q.gte("started_at", filter.since);
   const { data, error } = await q;

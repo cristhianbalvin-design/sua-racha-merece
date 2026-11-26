@@ -16,11 +16,12 @@ export default function AdminTreinos() {
   const qc = useQueryClient();
   const [status, setStatus] = useState("all");
   const [days, setDays] = useState(7);
+  const [page, setPage] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
   const since = new Date(Date.now() - days * 864e5).toISOString();
   const { data: sessions = [], isLoading } = useQuery({
-    queryKey: ["admin-buky", "sessions", status, days],
-    queryFn: () => listSessions({ status, since }),
+    queryKey: ["admin-buky", "sessions", status, days, page],
+    queryFn: () => listSessions({ status, since, offset: page * 50 }),
   });
 
   const invalidate = async (s: AdminSession) => {
@@ -42,7 +43,7 @@ export default function AdminTreinos() {
       <div>
         <div className="mb-3 flex flex-wrap items-end gap-3">
           <Field label="Estado">
-            <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>
+            <select className={inputCls} value={status} onChange={(e) => { setStatus(e.target.value); setPage(0); }}>
               <option value="all">Todos</option>
               <option value="valid">Validados</option>
               <option value="invalid">Não validados</option>
@@ -51,7 +52,7 @@ export default function AdminTreinos() {
             </select>
           </Field>
           <Field label="Período">
-            <select className={inputCls} value={days} onChange={(e) => setDays(Number(e.target.value))}>
+            <select className={inputCls} value={days} onChange={(e) => { setDays(Number(e.target.value)); setPage(0); }}>
               <option value={1}>Últimas 24 h</option>
               <option value={7}>7 dias</option>
               <option value={30}>30 dias</option>
@@ -67,7 +68,7 @@ export default function AdminTreinos() {
               ])
             }
           >
-            <Download size={14} /> CSV
+            <Download size={14} /> CSV da página
           </button>
         </div>
         <div className={`${card} overflow-x-auto`}>
@@ -136,6 +137,11 @@ export default function AdminTreinos() {
               </tbody>
             </table>
           )}
+        </div>
+        <div className="mt-3 flex items-center gap-3 text-sm">
+          <button type="button" className={btnGhost} disabled={page === 0 || isLoading} onClick={() => setPage((n) => n - 1)}>Anterior</button>
+          <span>Página {page + 1}</span>
+          <button type="button" className={btnGhost} disabled={sessions.length < 50 || isLoading} onClick={() => setPage((n) => n + 1)}>Próxima</button>
         </div>
       </div>
     </div>

@@ -35,6 +35,8 @@ export default function AdminRotas() {
   const { data: rules } = useRouteRules();
   const [city, setCity] = useState<City | null>(null);
   const [kind, setKind] = useState<"all" | "official" | "athlete">("official");
+  const [showArchived, setShowArchived] = useState(false);
+  const [shown, setShown] = useState(25);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [history, setHistory] = useState<DraftPoint[][]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -44,6 +46,7 @@ export default function AdminRotas() {
     queryKey: ["admin-buky", "routes", city?.code, kind],
     queryFn: () => listRoutes({ cityCode: city?.code, kind }),
   });
+  const visibleRoutes = routes.filter((r) => showArchived || !r.archived_at);
 
   const freeSetting = useQuery({
     queryKey: ["admin-buky", "free-enabled", city?.code],
@@ -310,6 +313,7 @@ export default function AdminRotas() {
             <option value="all">Todas</option>
           </select>
         </Field>
+        <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={showArchived} onChange={(e) => { setShowArchived(e.target.checked); setShown(25); }} /> Mostrar arquivadas</label>
         <button type="button" className={`${btnPrimary} ml-auto`} onClick={() => edit()}>
           <Plus size={14} /> NOVA ROTA OFICIAL
         </button>
@@ -317,7 +321,7 @@ export default function AdminRotas() {
       <div className={`${card} overflow-hidden`}>
         {isLoading ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Carregando…</p>
-        ) : routes.length === 0 ? (
+        ) : visibleRoutes.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma rota.</p>
         ) : (
           <table className="w-full text-sm">
@@ -332,7 +336,7 @@ export default function AdminRotas() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {routes.map((r) => (
+              {visibleRoutes.slice(0, shown).map((r) => (
                 <tr key={r.id}>
                   <td className="px-4 py-3">
                     <p className="font-bold">{r.name}</p>
@@ -375,6 +379,7 @@ export default function AdminRotas() {
           </table>
         )}
       </div>
+      {visibleRoutes.length > shown && <button type="button" className={`${btnGhost} mt-3`} onClick={() => setShown((n) => n + 25)}>Ver mais</button>}
     </div>
   );
 }

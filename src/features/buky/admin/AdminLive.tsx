@@ -47,7 +47,7 @@ function Breakdown(
       {sorted.map((r, i) => (
         <div key={`${r.uf}-${r.name}-${i}`} className="mt-3 text-sm">
           <div className="flex justify-between">
-            <span>{r.name} ? {r.uf}</span>
+            <span>{r.name} · {r.uf}</span>
             <span>{r.count}</span>
           </div>
           <div className="mt-1 h-1.5 rounded bg-muted">
@@ -72,11 +72,11 @@ export default function AdminLive() {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
-  if (q.isLoading) return <p>Carregando?</p>;
+  if (q.isLoading) return <p>Carregando…</p>;
   if (q.isError || !q.data) {
     return (
       <div>
-        N?o foi poss?vel carregar os dados.{" "}
+        Não foi possível carregar os dados.{" "}
         <button className={btnGhost} onClick={() => q.refetch()}>
           Tentar novamente
         </button>
@@ -89,10 +89,10 @@ export default function AdminLive() {
     ["Em rotas", d.now.route],
     ["Treino livre", d.now.free],
     ["Atletas hoje", d.athletes_today],
-    ["Atletas nas ?ltimas 24 h", d.athletes_24h],
+    ["Atletas nas últimas 24 h", d.athletes_24h],
     ["Treinos iniciados hoje", d.sessions_today],
     ["Bukys encontrados hoje", d.bukys_today],
-    ["N?o validados hoje", d.invalid_today],
+    ["Não validados hoje", d.invalid_today],
   ] as const;
   return (
     <div className="space-y-4">
@@ -113,19 +113,19 @@ export default function AdminLive() {
           </div>
         ))}
       </div>
-      <p>Brasil ? {d.now.total} treinando agora</p>
+      <p>Brasil · {d.now.total} treinando agora</p>
       {!d.now.total && <p>Nenhum atleta treinando agora</p>}
       <div className="grid gap-4 md:grid-cols-2">
         <Breakdown title="Estados" rows={d.states} total={d.now.total} />
         <Breakdown title="Cidades" rows={d.cities} total={d.now.total} />
       </div>
       <div className={`${card} p-4`}>
-        <h3 className="font-bold">?ltimos treinos</h3>
+        <h3 className="font-bold">Últimos treinos</h3>
         {d.recent.map((s, i) => (
           <div key={i} className="mt-2 text-sm">
-            {s.athlete} ? {s.city} ? {s.mode === "free" ? "Livre" : "Rota"} ?
+            {s.athlete} · {s.city} · {s.mode === "free" ? "Livre" : "Rota"} ·
             {" "}
-            {s.status} ? h?{" "}
+            {s.status} · há{" "}
             {Math.max(0, Math.floor((now - Date.parse(s.started_at)) / 60000))}
             {" "}
             min

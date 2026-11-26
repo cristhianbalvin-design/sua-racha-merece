@@ -1,6 +1,6 @@
 import { MyPlanBadge } from "@/components/PlanBadge";
 import { PAYMENTS_ENABLED } from "@/config/features";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Footprints, LogOut, Pencil, Route, SlidersHorizontal } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ import ShareButton from "../share/ShareButton";
 import type { SessionHistoryItem } from "../lib/api";
 import { useBukyProfile, useCity, useMySessions, useSummary } from "../lib/hooks";
 import { useShopEnabled } from "../components/loja/shared";
+import { appendUniquePage } from "../lib/listPage";
 
 /** Perfil (mockup 5): datos, 4 indicadores e historial de entrenamientos. */
 export default function Perfil() {
@@ -60,7 +61,14 @@ export default function Perfil() {
       return data as { sorteios: number };
     },
   });
-  const { data: sessions = [], isLoading } = useMySessions();
+  const [sessionMonth, setSessionMonth] = useState("");
+  const [sessionOffset, setSessionOffset] = useState(0);
+  const { data: sessionPage = [], isLoading, isFetching: loadingMore } = useMySessions(sessionMonth || null, sessionOffset);
+  const [sessions, setSessions] = useState<SessionHistoryItem[]>([]);
+  useEffect(() => { setSessions([]); setSessionOffset(0); }, [sessionMonth]);
+  useEffect(() => {
+    setSessions((previous) => appendUniquePage(previous, sessionPage, sessionOffset));
+  }, [sessionPage, sessionOffset]);
   const [menu, setMenu] = useState(false);
   const { data: wallet } = useQuery({
     queryKey: ["wallet"],
@@ -178,6 +186,7 @@ export default function Perfil() {
         <h2 className="buky-label text-[var(--buky-muted)]">
           {pt.perfil.historico}
         </h2>
+        <label className="mt-3 block text-sm text-[var(--buky-muted)]">Mês do treino <input type="month" value={sessionMonth} onChange={(e) => setSessionMonth(e.target.value)} className="mt-1 block rounded-xl border border-[var(--buky-line)] bg-[#111] p-2 text-white" /></label>
         {isLoading ? (
           <Spinner />
         ) : sessions.length === 0 ? (
@@ -191,6 +200,7 @@ export default function Perfil() {
             ))}
           </ul>
         )}
+        {sessionPage.length === 25 && <button type="button" disabled={loadingMore} onClick={() => setSessionOffset((n) => n + 25)} className="mt-4 rounded-full border border-[var(--buky-line)] px-4 py-2 text-sm">{loadingMore ? "Carregando…" : "Ver mais"}</button>}
       </section>
 
       <Sheet open={menu} onClose={() => setMenu(false)} label="Configurações">

@@ -9,6 +9,7 @@ const Treino = lazy(() => import("./pages/Treino"));
 const Resumo = lazy(() => import("./pages/Resumo"));
 const Bolsa = lazy(() => import("./pages/Bolsa"));
 const Sorteios = lazy(() => import("./pages/Sorteios"));
+const Ranking = lazy(() => import("./pages/Ranking"));
 const Fotos = lazy(() => import("./pages/Fotos"));
 const Patrocinio = lazy(() => import("./pages/Patrocinio"));
 const Campanha = lazy(() => import("./pages/Campanha"));
@@ -168,6 +169,7 @@ export const bukyRoutes = (
           </S>
         }
       />
+      <Route path="ranking" element={<S><Ranking /></S>} />
       <Route
         path="loja/produto/:slug"
         element={

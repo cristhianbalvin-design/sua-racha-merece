@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { haversineMeters } from "@/features/buky/engine";
 import { useAuth } from "@/contexts/AuthContext";
 import * as api from "./api";
@@ -15,6 +15,21 @@ export const qk = {
   routeRules: ["buky", "route-rules"] as const,
   status: ["buky", "status"] as const,
 };
+
+export function useRaffleHistory(month: string | null, offset = 0) {
+  const { user } = useAuth();
+  return useQuery({ queryKey: [...qk.raffles, "history", month, offset], queryFn: () => api.getRaffleHistory(month, offset), enabled: Boolean(user), staleTime: 30_000 });
+}
+
+export function useRaffleCalendar(from: string, to: string) {
+  const { user } = useAuth();
+  return useQuery({ queryKey: [...qk.raffles, "calendar", from, to], queryFn: () => api.getRaffleCalendar(from, to), enabled: Boolean(user), staleTime: 30_000 });
+}
+
+export function useRankingPage(scope: "city" | "national", cityCode: number | null, month: string | null) {
+  const { user } = useAuth();
+  return useInfiniteQuery({ queryKey: ["buky", "ranking-page", scope, cityCode, month], queryFn: ({ pageParam }) => api.getRankingPage(scope, cityCode, month, pageParam), initialPageParam: 0, getNextPageParam: (last, pages) => pages.reduce((n, p) => n + p.items.length, 0) < last.total ? pages.reduce((n, p) => n + p.items.length, 0) : undefined, enabled: Boolean(user), staleTime: 60_000 });
+}
 
 export function useBukyProfile() {
   const { user } = useAuth();
@@ -95,11 +110,11 @@ export function useZoneCoupons(cityCode?: number | null) {
   });
 }
 
-export function useMySessions() {
+export function useMySessions(month: string | null = null, offset = 0) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: qk.sessions(user?.id),
-    queryFn: () => api.listMySessions(user!.id),
+    queryKey: [...qk.sessions(user?.id), month, offset],
+    queryFn: () => api.listMySessions(user!.id, 25, offset, month),
     enabled: Boolean(user?.id),
   });
 }

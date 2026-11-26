@@ -6,5 +6,5 @@ export function countCouponKinds(coupons: readonly { kind: "physical" | "digital
 }
 
 export function participationLabel(ticketCount: number) {
-  return ticketCount > 0 ? `Participando ? ${ticketCount} ${ticketCount === 1 ? "ticket" : "tickets"}` : "Voc? ainda n?o participa";
+  return ticketCount > 0 ? `Participando · ${ticketCount} ${ticketCount === 1 ? "ticket" : "tickets"}` : "Você ainda não participa";
 }
