@@ -12,9 +12,11 @@ import PrizeSheet, { PrizeRow, PrizeThumb } from "../components/PrizeSheet";
 import SendToRaffleSheet from "../components/SendToRaffleSheet";
 import { isToRedeem, type MyPrize, type MyRaffles, type PastRaffle, type Prize, type RafflePeriod } from "../lib/api";
 import { fmtCountdown } from "../lib/countdown";
-import { useMyRaffles, usePublicRaffleWinners, useSummary } from "../lib/hooks";
+import { useMyRaffles, usePublicRaffleWinners, useRaffleHistory, useRaffleCalendar, useSummary } from "../lib/hooks";
+import { monthGrid, periodsByDay, saoPauloDay, shiftDay, shiftMonth, weekRange } from "../lib/raffleCalendar";
 import { useGeolocation } from "../lib/useGeolocation";
 import { publicWinnerLabel } from "../lib/publicWinners";
+import { appendUniquePage, pageSlice } from "../lib/listPage";
 
 const S = pt.sorteios;
 type Aba = "atual" | "proximos" | "resultados";
@@ -70,7 +72,7 @@ export default function Sorteios() {
         ))}
       </div>
 
-      {data && aba !== "resultados" && <div className="mx-6 mt-3"><span className="text-xs text-[var(--buky-muted)]">Total vis?vel</span><CouponCounts coupons={(aba === "atual" ? data.open : data.upcoming).flatMap((p) => p.prizes)} /></div>}
+      {data && aba !== "resultados" && <div className="mx-6 mt-3"><span className="text-xs text-[var(--buky-muted)]">Total visível</span><CouponCounts coupons={(aba === "atual" ? data.open : data.upcoming).flatMap((p) => p.prizes)} /></div>}
 
       {isLoading ? (
         <Spinner label={pt.comum.carregando} />
@@ -87,9 +89,9 @@ export default function Sorteios() {
           selectedId={prize?.p.id}
         />
       ) : aba === "proximos" ? (
-        <Proximos periods={data.upcoming} onPrize={(p, opensAt) => setPrize({ p, ctx: "proximo", opensAt })} />
+        <UpcomingViews periods={data.upcoming} onPrize={(p, opensAt) => setPrize({ p, ctx: "proximo", opensAt })} />
       ) : (
-        <Resultados mine={data.my_prizes} past={data.past} onOpen={setPast} />
+        <Resultados onOpen={setPast} />
       )}
 
       <PrizeSheet
@@ -259,6 +261,37 @@ function RaffleCard({
   );
 }
 
+function UpcomingViews({ periods, onPrize }: { periods: RafflePeriod[]; onPrize: (p: Prize, opensAt: string) => void }) {
+  const [view, setView] = useState<"list" | "week" | "month">("list");
+  const today = saoPauloDay(new Date().toISOString());
+  const [month, setMonth] = useState(today.slice(0, 7));
+  const [week, setWeek] = useState(today);
+  const [selected, setSelected] = useState(today);
+  const days = view === "week" ? [weekRange(week).days] : monthGrid(month);
+  const from = days[0][0];
+  const to = days.at(-1)![6];
+  const calendar = useRaffleCalendar(from, to);
+  const grouped = periodsByDay(calendar.data ?? []);
+  return <>
+    <div className="mx-6 mt-4 flex gap-2" role="group" aria-label="Visualização dos sorteios">
+      {([ ["list", "Lista"], ["week", "Semana"], ["month", "Calendário"] ] as const).map(([value, label]) =>
+        <button key={value} type="button" aria-pressed={view === value} onClick={() => setView(value)} className={`rounded-full px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--buky-neon)] ${view === value ? "bg-[var(--buky-neon)] text-black" : "border border-[var(--buky-line)]"}`}>{label}</button>)}
+    </div>
+    {view === "list" ? <Proximos periods={periods} onPrize={onPrize} /> : <div className="mx-6 mt-4">
+      <div className="mb-3 flex items-center justify-between">
+        <button type="button" aria-label="Período anterior" className="rounded p-2 focus-visible:outline" onClick={() => view === "month" ? setMonth(shiftMonth(month, -1)) : setWeek(shiftDay(week, -7))}><ChevronLeft /></button>
+        <span className="font-semibold">{view === "month" ? new Date(`${month}-01T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" }) : `${weekRange(week).from} – ${weekRange(week).to}`}</span>
+        <button type="button" aria-label="Próximo período" className="rounded p-2 focus-visible:outline" onClick={() => view === "month" ? setMonth(shiftMonth(month, 1)) : setWeek(shiftDay(week, 7))}><ChevronRight /></button>
+      </div>
+      {calendar.isLoading ? <Spinner label={pt.comum.carregando} /> : calendar.isError ? <ErrorBox message={pt.comum.erro} onRetry={() => calendar.refetch()} /> : <>
+        <div className="grid grid-cols-7 gap-1 text-center text-xs">{["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((d) => <span key={d}>{d}</span>)}</div>
+        {days.map((row) => <div key={row[0]} className="mt-1 grid grid-cols-7 gap-1">{row.map((day) => <button key={day} type="button" aria-label={`${day}, ${grouped[day]?.length ?? 0} sorteios`} aria-pressed={selected === day} onClick={() => setSelected(day)} className={`min-h-12 rounded-lg border text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--buky-neon)] ${selected === day ? "border-[var(--buky-neon)]" : "border-[var(--buky-line)]"} ${day.slice(0, 7) !== month && view === "month" ? "opacity-50" : ""}`}>{day.slice(-2)}<span className="flex justify-center gap-0.5">{(grouped[day] ?? []).map((p) => <i key={p.id} className={`h-1.5 w-1.5 rounded-full ${p.my_tickets ? "bg-[var(--buky-neon)]" : "bg-gray-400"}`} />)}</span></button>)}</div>)}
+        <div className="mt-4 space-y-2">{(grouped[selected] ?? []).length ? grouped[selected].map((p) => <div key={p.id} className="rounded-xl border border-[var(--buky-line)] p-3"><b>{p.name}</b><p className="text-xs text-[var(--buky-muted)]">{p.prize_count} prêmios · {p.my_tickets ? `${p.my_tickets} bilhete(s) meus` : "Sem participação"}</p></div>) : <p className="text-sm text-[var(--buky-muted)]">Nenhum sorteio neste dia.</p>}</div>
+      </>}
+    </div>}
+  </>;
+}
+
 function Proximos({ periods, onPrize }: { periods: RafflePeriod[]; onPrize: (p: Prize, opensAt: string) => void }) {
   if (periods.length === 0) return <p className="mx-6 mt-6 text-center text-sm text-[var(--buky-faint)]">{S.semProximos}</p>;
   return (
@@ -414,17 +447,35 @@ function MyPrizeCard({ p }: { p: MyPrize }) {
   );
 }
 
-function Resultados({ mine, past, onOpen }: { mine: MyPrize[]; past: PastRaffle[]; onOpen: (r: PastRaffle) => void }) {
+function Resultados({ onOpen }: { onOpen: (r: PastRaffle) => void }) {
+  const [month, setMonth] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [prizesShown, setPrizesShown] = useState(25);
+  const history = useRaffleHistory(month, offset);
+  const [items, setItems] = useState<PastRaffle[]>([]);
+  useEffect(() => { setItems([]); setOffset(0); setPrizesShown(25); }, [month]);
+  useEffect(() => {
+    if (!history.data) return;
+    setItems((previous) => appendUniquePage(previous, history.data!.items, offset));
+  }, [history.data, offset]);
+  const mine = history.data?.my_prizes ?? [];
+  const past = items;
   return (
     <>
+      <div className="mx-6 mt-4 flex gap-2 overflow-x-auto pb-1" aria-label="Histórico por mês">
+        {(history.data?.months ?? []).map((m) => <button key={m.month} type="button" onClick={() => setMonth(m.month)} aria-pressed={month === m.month || (!month && m === history.data?.months[0])} className={`shrink-0 rounded-full border px-3 py-2 text-sm ${month === m.month || (!month && m === history.data?.months[0]) ? "border-[var(--buky-neon)] text-[var(--buky-neon)]" : "border-[var(--buky-line)]"}`}>{new Date(`${m.month}-01T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" })} · {m.count}</button>)}
+      </div>
+      {history.isLoading && <Spinner label={pt.comum.carregando} />}
+      {history.isError && <ErrorBox message={pt.comum.erro} onRetry={() => history.refetch()} />}
       {mine.length > 0 && (
         <>
           <p className="buky-label mx-6 mt-5 text-[var(--buky-neon)]">{S.meusPremios(mine.length)}</p>
           <ul className="mx-6 mt-2.5 space-y-3">
-            {mine.map((p) => (
+            {pageSlice(mine, prizesShown).map((p) => (
               <MyPrizeCard key={p.result_id} p={p} />
             ))}
           </ul>
+          {mine.length > prizesShown && <button type="button" className="mx-6 mt-3 rounded-full border border-[var(--buky-line)] px-4 py-2 text-sm" onClick={() => setPrizesShown((n) => n + 25)}>Ver mais prêmios</button>}
         </>
       )}
       <p className="buky-label mx-6 mt-6 text-[var(--buky-muted)]">{S.anteriores}</p>
@@ -454,6 +505,7 @@ function Resultados({ mine, past, onOpen }: { mine: MyPrize[]; past: PastRaffle[
           ))}
         </ul>
       )}
+      {history.data && past.length < history.data.total && <button type="button" onClick={() => setOffset(past.length)} className="mx-6 mt-4 rounded-full border border-[var(--buky-line)] px-4 py-2 text-sm font-semibold">Ver mais</button>}
     </>
   );
 }

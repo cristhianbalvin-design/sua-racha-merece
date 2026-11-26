@@ -20,7 +20,9 @@ describe("admin Buky RPCs", () => {
   });
 
   it("propagates participant access errors", async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: "forbidden" } });
+    const result = Promise.resolve({ data: null, error: { message: "forbidden" } });
+    const builder = { order: () => builder, range: () => result };
+    rpc.mockReturnValue(builder);
     await expect(listEntries("period")).rejects.toThrow("forbidden");
   });
 });

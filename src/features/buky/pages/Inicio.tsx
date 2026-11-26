@@ -1,4 +1,6 @@
-import { MyPlanBadge } from "@/components/PlanBadge";
+import { isPremiumActive } from "@/components/PlanBadge";
+import { useQuery } from "@tanstack/react-query";
+import { apiGetMyWallet, brl } from "@/lib/walletApi";
 import { IS_NATIVE } from "@/lib/platform";
 import { OpenInApp } from "../components/OpenInApp";
 import { useEffect, useMemo, useState } from "react";
@@ -41,6 +43,7 @@ export default function Inicio() {
   const shop = useShopEnabled();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { data: wallet } = useQuery({ queryKey: ["wallet"], queryFn: apiGetMyWallet, enabled: Boolean(user), staleTime: 30_000 });
   const { data: profile } = useBukyProfile();
   const { data: city } = useCity(profile?.city_code);
   const { data: routes = [], isLoading: loadingRoutes } = useRoutes(
@@ -174,7 +177,10 @@ export default function Inicio() {
         {/* saldo + avatar */}
         <div className="absolute inset-x-0 top-0 flex items-start justify-between px-6 pt-[calc(env(safe-area-inset-top,0px)+28px)]">
           <div>
-          <img src="/brand/logo-3buk-horizontal-dark.png" alt="3buk" className="mb-1 h-[20px] w-auto" /><MyPlanBadge />
+          <img src="/brand/logo-3buk-horizontal-dark.png" alt="3buk" className="mb-1 h-[20px] w-auto" />
+          {wallet && <Link to="/app/perfil/saldo" className="mb-1 inline-flex max-w-[230px] items-center gap-1 rounded-full bg-[var(--buky-neon)] px-2.5 py-1 text-xs font-semibold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" aria-label={`Saldo / Premium: ${brl(wallet.balance_cents)}, ${isPremiumActive(wallet.premium?.active, wallet.premium?.until) ? "Premium" : "Freemium"}`}>
+            <span>Saldo / Premium</span><span>·</span><span>{brl(wallet.balance_cents)}</span><span>·</span><span>{isPremiumActive(wallet.premium?.active, wallet.premium?.until) ? "Premium" : "Freemium"}</span>
+          </Link>}
           <Link
             to="/app/bolsa"
             className="flex items-baseline gap-2"

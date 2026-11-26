@@ -28,7 +28,7 @@ export function useAvisos(limit = 50) {
       if (visibility.error) throw visibility.error;
       const hidden = (visibility.data as { kind: string; visible: boolean }[]).filter((r) => !r.visible).map((r) => r.kind);
       let request = supabase.from("notifications").select("id,type,title,message,read,created_at")
-        .eq("user_id", user!.id).order("created_at", { ascending: false });
+        .eq("user_id", user!.id).order("created_at", { ascending: false }).order("id");
       if (hidden.length) request = request.not("type", "in", `(${hidden.join(",")})`);
       const { data, error } = await request.limit(limit);
       if (error) throw error;

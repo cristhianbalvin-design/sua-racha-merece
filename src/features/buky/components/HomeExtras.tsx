@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Trophy } from "lucide-react";
 import { pt } from "../i18n";
-import { useCityRanking, useNationalRanking, useSponsorshipWinners } from "../lib/hooks";
+import { useCityRanking, useSponsorshipWinners } from "../lib/hooks";
 import type { SponsorWinner } from "../lib/api";
 
 const I = pt.inicio;
@@ -14,37 +14,27 @@ const MEDAL = ["#ffd54a", "#c9d1d9", "#d39058"];
  */
 export default function HomeExtras({ cityCode }: { cityCode?: number | null }) {
   const { data: winners = [] } = useSponsorshipWinners();
-  const [scope, setScope] = useState<"city" | "national">("city");
-  const { data: cityRanking } = useCityRanking(cityCode);
-  const { data: nationalRanking } = useNationalRanking();
-  const ranking = scope === "city" ? cityRanking : nationalRanking;
+  const { data: ranking } = useCityRanking(cityCode);
 
   return (
     <div className="space-y-7 pt-2">
       {winners.length > 0 && (
-        <section aria-label={I.ganhadores}>
-          <div className="flex items-baseline justify-between px-6">
-            <h2 className="buky-label text-[var(--buky-neon)]">{I.ganhadores}</h2>
-            <span className="text-[12px] text-[var(--buky-muted)]">{I.ganhadoresSub}</span>
-          </div>
-          <ul className="mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-6 pb-1 [scrollbar-width:none]">
-            {winners.map((w, i) => (
-              <WinnerCard key={`${w.name}-${i}`} w={w} />
-            ))}
-          </ul>
-        </section>
+        <details className="px-6" aria-label={I.ganhadores}>
+          <summary className="buky-label cursor-pointer text-[var(--buky-neon)]">{I.ganhadores}</summary>
+          <section aria-label={I.ganhadores}>
+            <p className="mt-2 text-[12px] text-[var(--buky-muted)]">{I.ganhadoresSub}</p>
+            <ul className="mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none]">
+              {winners.map((w, i) => (
+                <WinnerCard key={`${w.name}-${i}`} w={w} />
+              ))}
+            </ul>
+          </section>
+        </details>
       )}
 
       {ranking && (
-        <section aria-label="Ranking mensal" className="px-6">
-          <h2 className="buky-label text-[var(--buky-neon)]">Ranking de {new Date(`${ranking.period}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long" })}{scope === "city" && ranking.city && <span className="text-[var(--buky-muted)]"> · {ranking.city}</span>}</h2>
-          <div className="mt-3 flex gap-2" role="tablist" aria-label="Âmbito do ranking">
-            {(["city", "national"] as const).map((value) => (
-              <button key={value} type="button" role="tab" aria-selected={scope === value} onClick={() => setScope(value)} className={`rounded-full border px-3 py-2 text-sm font-semibold ${scope === value ? "border-[var(--buky-neon)] bg-[var(--buky-neon)] text-[#050505]" : "border-[var(--buky-line)] text-white"}`}>
-                {value === "city" ? "Ranking cidade" : "Ranking nacional"}
-              </button>
-            ))}
-          </div>
+        <section aria-label="Ranking mensal" className="mx-6 rounded-2xl border border-[var(--buky-line)] bg-[#111] p-4">
+          <h2 className="buky-label text-[var(--buky-neon)]">Ranking de {new Date(`${ranking.period}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long" })}{ranking.city && <span className="text-[var(--buky-muted)]"> · {ranking.city}</span>}</h2>
           {ranking.top.length === 0 ? (
             <p className="mt-3 text-sm text-[var(--buky-muted)]">{I.rankingVazio}</p>
           ) : (
@@ -71,7 +61,7 @@ export default function HomeExtras({ cityCode }: { cityCode?: number | null }) {
           {ranking.me && !ranking.top.some((r) => r.me) && (
             <p className="mt-2 rounded-xl bg-[#111] px-3 py-2.5 text-[13px] text-[var(--buky-muted)]">Você · {ranking.me.pos}º · {ranking.me.bukys} Bukys</p>
           )}
-          <p className="mt-2 text-[12px] text-[var(--buky-faint)]">Bukys coletados correndo neste mês.</p>
+          <Link to="/app/ranking" className="mt-3 inline-block text-sm font-semibold text-[var(--buky-neon)]">{pt.ranking.verCompleto}</Link>
         </section>
       )}
     </div>

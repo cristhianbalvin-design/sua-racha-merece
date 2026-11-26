@@ -11,6 +11,7 @@ import EventCalendar from "../components/EventCalendar";
 import { apiGetDownloadStatus } from "@/lib/libraryApi";
 import { brl } from "@/lib/walletApi";
 import { downloadPhoto, listFotoEvents, searchMyPhotos, type FotoEvent, type FotoMatch } from "../lib/fotos";
+import { pageSlice } from "../lib/listPage";
 
 const DRIVE_URL = "https://drive.google.com/drive/folders/1fgjMr5gKO2aDpTvbeYVio_HtbF-IX4tI";
 
@@ -32,6 +33,7 @@ export default function Fotos() {
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [stage, setStage] = useState(0);
   const [matches, setMatches] = useState<FotoMatch[]>([]);
+  const [shown, setShown] = useState(25);
   const [open, setOpen] = useState<FotoMatch | null>(null);
   const [cpfPhoto, setCpfPhoto] = useState<FotoMatch | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -48,6 +50,7 @@ export default function Fotos() {
     if (!event || !selfie) return;
     let cancelled = false;
     setStatus("loading");
+    setShown(25);
     setStage(0);
     const timers = [3000, 8000].map((ms, i) => window.setTimeout(() => setStage(i + 1), ms));
     searchMyPhotos(selfie, event)
@@ -173,13 +176,14 @@ export default function Fotos() {
             <p className="text-sm font-semibold text-[var(--buky-neon)]">{pt.fotos.encontradas(matches.length)}</p>
           </div>
           <div className="grid grid-cols-3 gap-[2px]">
-            {matches.map((m) => (
+            {pageSlice(matches, shown).map((m) => (
               <button key={m.id} type="button" onClick={() => setOpen(m)} className="relative aspect-[3/4] overflow-hidden bg-[#1a1a1a]">
                 <img src={m.image_url} alt="" loading="lazy" className="h-full w-full object-cover" />
                 <span className="font-buky pointer-events-none absolute inset-0 flex items-center justify-center text-[15px] text-white/50">3BUK</span>
               </button>
             ))}
           </div>
+          {matches.length > shown && <button type="button" className="mx-6 mt-4 rounded-full border border-[var(--buky-line)] px-4 py-2 text-sm" onClick={() => setShown((n) => n + 25)}>Ver mais</button>}
         </>
       )}
 

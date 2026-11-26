@@ -15,6 +15,7 @@ export default function AdminPatrocinadores() {
   });
   const [team, setTeam] = useState<Sponsor | null>(null);
   const [edit, setEdit] = useState<Partial<Sponsor> | null>(null);
+  const [shown, setShown] = useState(25);
 
   const save = async () => {
     if (!edit?.name || edit.name.trim().length < 2)
@@ -132,7 +133,7 @@ export default function AdminPatrocinadores() {
           </p>
         ) : (
           <div className="divide-y divide-border">
-            {sponsors.map((s) => (
+            {[...sponsors].sort((a, b) => a.name.localeCompare(b.name, "pt-BR") || a.id.localeCompare(b.id)).slice(0, shown).map((s) => (
               <div
                 key={s.id}
                 className="flex items-center gap-3 px-4 py-3 text-sm"
@@ -180,6 +181,7 @@ export default function AdminPatrocinadores() {
           </div>
         )}
       </div>
+      {sponsors.length > shown && <button type="button" className={`${btnGhost} mt-3`} onClick={() => setShown((n) => n + 25)}>Ver mais</button>}
     </div>
   );
 }

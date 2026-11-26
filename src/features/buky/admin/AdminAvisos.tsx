@@ -50,7 +50,7 @@ export default function AdminAvisos() {
     queryFn: async () => {
       let request = supabase.from("notification_outbox")
         .select("id,kind,channel,status,attempts,last_error,created_at")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }).order("id");
       if (kind) request = request.eq("kind", kind);
       if (channel) request = request.eq("channel", channel);
       if (status) request = request.eq("status", status);

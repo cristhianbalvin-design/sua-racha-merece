@@ -13,7 +13,7 @@ export default function PlanBadge({ plan, until, showUpgrade = false }: { plan: 
   const premium = plan === "Premium" && (until === undefined || isPremiumActive(true, until));
   return <span className="inline-flex flex-wrap items-center gap-2 text-xs font-semibold">
     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 ${premium ? "bg-[#39ff14] text-black" : "bg-[#333] text-[#ddd]"}`}>
-      {premium && <Crown size={14} />}{premium ? until ? `Premium at? ${new Date(until).toLocaleDateString("pt-BR")}` : "Premium" : "Freemium"}
+      {premium && <Crown size={14} />}{premium ? until ? `Premium até ${new Date(until).toLocaleDateString("pt-BR")}` : "Premium" : "Freemium"}
     </span>
     {!premium && showUpgrade && PAYMENTS_ENABLED && <Link className="text-[#39ff14] underline" to="/app/perfil/saldo">Virar Premium</Link>}
   </span>;

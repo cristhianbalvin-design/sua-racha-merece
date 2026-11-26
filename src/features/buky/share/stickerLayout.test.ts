@@ -6,7 +6,7 @@ describe("sticker", () => {
     expect(stickerLayout("sticker")).toMatchObject({ width: 1080, height: 1080, sticker: { x: 0, y: 0, size: 1080 } });
     expect(stickerLayout("story")).toMatchObject({ width: 1080, height: 1920, sticker: { x: 0, y: 270, size: 1080 } });
   });
-  it("ajusta o percurso ? ?rea sem deform?-lo", () => {
+  it("ajusta o percurso à área sem deformá-lo", () => {
     const points = fitRoute(
       [
         { lat: 0, lon: 0 },

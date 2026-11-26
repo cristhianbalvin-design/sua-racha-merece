@@ -3,6 +3,15 @@
  * Centralizados para que el cliente los revise en un solo lugar.
  */
 export const pt = {
+  ranking: {
+    titulo: "Ranking completo",
+    cidade: "Cidade",
+    nacional: "Nacional",
+    mes: "Mês",
+    vazio: "Ainda não há Bukys neste mês.",
+    suaPosicao: (pos: number, bukys: number) => `Você · ${pos}º · ${bukys} Bukys`,
+    verCompleto: "Ver ranking completo →",
+  },
   loja: {
     erroSalvar: "Não foi possível salvar o carrinho neste aparelho.",
     erroLoja: "Não foi possível carregar a loja.",

@@ -1,5 +1,5 @@
 -- Bloque 3: celdas de 0,0003 grados. Los atletas distintos se calculan a partir
--- de contribuciones por sesi?n; ning?n cliente recibe contribuciones individuales.
+-- de contribuciones por sesión; ningún cliente recibe contribuciones individuales.
 BEGIN;
 CREATE INDEX IF NOT EXISTS buky_sessions_live_idx ON public.buky_sessions(last_seen_at DESC) WHERE status = 'running';
 CREATE INDEX IF NOT EXISTS buky_sessions_seen_idx ON public.buky_sessions(last_seen_at DESC);
@@ -27,7 +27,7 @@ ALTER TABLE public.buky_heat_ingested ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.buky_heat_contributions ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.buky_heat_cells, public.buky_heat_ingested, public.buky_heat_contributions FROM PUBLIC, anon, authenticated;
 
--- La sesi?n determina ciudad, atleta y fecha; no se conf?a en esos datos del cliente.
+-- La sesión determina ciudad, atleta y fecha; no se confía en esos datos del cliente.
 CREATE OR REPLACE FUNCTION public.buky_heat_add(p_city_code integer, p_cells jsonb)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS $$
 DECLARE sid uuid; s public.buky_sessions%ROWTYPE;
@@ -108,9 +108,9 @@ DECLARE result jsonb; today timestamptz := date_trunc('day',now() AT TIME ZONE p
 BEGIN
  IF NOT coalesce(public.is_admin(),false) THEN RAISE EXCEPTION 'forbidden' USING ERRCODE='42501'; END IF;
  WITH active AS (SELECT s.*,c.name city,st.uf,st.name state FROM public.buky_sessions s LEFT JOIN public.users u ON u.id=s.user_id LEFT JOIN public.br_cities c ON c.code=coalesce(s.start_city_code,u.city_code) LEFT JOIN public.br_states st ON st.code=c.state_code WHERE s.status='running' AND s.last_seen_at >= now()-interval '2 minutes'),
- states AS (SELECT coalesce(uf::text,'?') uf,coalesce(state,'N?o informada') name,count(*) count FROM active GROUP BY uf,state),
- cities AS (SELECT coalesce(city,'N?o informada') name,coalesce(uf::text,'?') uf,count(*) count FROM active GROUP BY city,uf),
- recent AS (SELECT coalesce(c.name,'N?o informada') city,s.mode,s.started_at,s.status,concat('Atleta ', upper(left(coalesce(u.name,''),1))) athlete FROM public.buky_sessions s LEFT JOIN public.users u ON u.id=s.user_id LEFT JOIN public.br_cities c ON c.code=coalesce(s.start_city_code,u.city_code) ORDER BY s.started_at DESC LIMIT 10)
+ states AS (SELECT coalesce(uf::text,'?') uf,coalesce(state,'Não informada') name,count(*) count FROM active GROUP BY uf,state),
+ cities AS (SELECT coalesce(city,'Não informada') name,coalesce(uf::text,'?') uf,count(*) count FROM active GROUP BY city,uf),
+ recent AS (SELECT coalesce(c.name,'Não informada') city,s.mode,s.started_at,s.status,concat('Atleta ', upper(left(coalesce(u.name,''),1))) athlete FROM public.buky_sessions s LEFT JOIN public.users u ON u.id=s.user_id LEFT JOIN public.br_cities c ON c.code=coalesce(s.start_city_code,u.city_code) ORDER BY s.started_at DESC LIMIT 10)
  SELECT jsonb_build_object('now',jsonb_build_object('total',(SELECT count(*) FROM active),'route',(SELECT count(*) FROM active WHERE mode='route'),'free',(SELECT count(*) FROM active WHERE mode='free'),'country','BR'),
  'states',coalesce((SELECT jsonb_agg(to_jsonb(states) ORDER BY count DESC) FROM states),'[]'::jsonb),
  'cities',coalesce((SELECT jsonb_agg(to_jsonb(cities) ORDER BY count DESC) FROM cities),'[]'::jsonb),

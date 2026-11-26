@@ -392,16 +392,19 @@ export async function closeSession(
   return data as CloseResult;
 }
 
-export async function listMySessions(userId: string, limit = 20): Promise<SessionHistoryItem[]> {
-  const { data, error } = await supabase
+export async function listMySessions(userId: string, limit = 25, offset = 0, month?: string | null): Promise<SessionHistoryItem[]> {
+  if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error("Mês inválido");
+  const nextMonth = month ? new Date(`${month}-01T12:00:00Z`) : null;
+  nextMonth?.setUTCMonth(nextMonth.getUTCMonth() + 1);
+  const range = supabase
     .from("buky_sessions")
     .select(
       "id, status, mode, route_polyline, started_at, ended_at, bukys_awarded, passes_valid, distance_m, invalid_reason, duration_s, avg_speed_kmh, start_city:br_cities!buky_sessions_start_city_code_fkey(name), buky_routes(name, path, buky_points(lat, lon, seq), br_cities(name))",
     )
     .eq("user_id", userId)
-    .in("status", ["valid", "invalid"])
-    .order("started_at", { ascending: false })
-    .limit(limit);
+    .in("status", ["valid", "invalid"]);
+  const filtered = month ? range.gte("started_at", `${month}-01T00:00:00-03:00`).lt("started_at", `${nextMonth!.toISOString().slice(0, 7)}-01T00:00:00-03:00`) : range;
+  const { data, error } = await filtered.order("started_at", { ascending: false }).order("id").range(offset, offset + limit - 1);
   if (error) fail(error);
   return ((data ?? []) as unknown as SessionRow[]).map((s) => ({
     id: s.id,
@@ -571,6 +574,25 @@ export async function getMyRaffles(pos?: { lat: number; lon: number } | null): P
   return (data ?? { here: null, open: [], upcoming: [], past: [], my_prizes: [] }) as MyRaffles;
 }
 
+export interface RaffleHistory {
+  months: { month: string; count: number }[];
+  items: PastRaffle[];
+  total: number;
+  my_prizes: MyPrize[];
+}
+
+export async function getRaffleHistory(month: string | null, offset = 0): Promise<RaffleHistory> {
+  const { data, error } = await supabase.rpc("buky_my_raffle_history", { p_month: month, p_limit: 12, p_offset: offset });
+  if (error) fail(error);
+  return (data ?? { months: [], items: [], total: 0, my_prizes: [] }) as RaffleHistory;
+}
+
+export async function getRaffleCalendar(from: string, to: string): Promise<import("./raffleCalendar").CalendarPeriod[]> {
+  const { data, error } = await supabase.rpc("buky_raffle_calendar", { p_from: from, p_to: to });
+  if (error) fail(error);
+  return (data ?? []) as import("./raffleCalendar").CalendarPeriod[];
+}
+
 /** Premio por canjear: ganador (o suplente activado) con el plazo corriendo. */
 export const isToRedeem = (p: Pick<MyPrize, "delivery_status">) => p.delivery_status === "pending" || p.delivery_status === "notified";
 
@@ -673,6 +695,17 @@ export async function getNationalRanking(): Promise<CityRanking | null> {
   const { data, error } = await supabase.rpc("buky_national_ranking");
   if (error) fail(error);
   return (data as CityRanking) ?? null;
+}
+
+export interface RankingPage extends Omit<CityRanking, "top"> {
+  months: string[];
+  items: CityRanking["top"];
+}
+
+export async function getRankingPage(scope: "city" | "national", cityCode: number | null, month: string | null, offset: number): Promise<RankingPage> {
+  const { data, error } = await supabase.rpc("buky_ranking_page", { p_scope: scope, p_city_code: cityCode, p_month: month, p_limit: 25, p_offset: offset });
+  if (error) fail(error);
+  return data as RankingPage;
 }
 
 export interface SponsorWinner {
