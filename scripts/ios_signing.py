@@ -138,7 +138,7 @@ def check():
 
 
 def push_capability_enabled(bundle_resource_id):
-    res = call("GET", f"/bundleIds/{bundle_resource_id}/bundleIdCapabilities", params={"limit": 200})
+    res = call("GET", f"/bundleIds/{bundle_resource_id}/bundleIdCapabilities")
     if not res.ok:
         explain(res, "Capacidad Push")
         if res.status_code == 403:
