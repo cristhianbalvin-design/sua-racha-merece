@@ -1,6 +1,6 @@
 import { isPremiumActive } from "@/components/PlanBadge";
 import { useQuery } from "@tanstack/react-query";
-import { apiGetMyWallet, brl } from "@/lib/walletApi";
+import { apiGetMyWallet } from "@/lib/walletApi";
 import { IS_NATIVE } from "@/lib/platform";
 import { OpenInApp } from "../components/OpenInApp";
 import { useEffect, useMemo, useState } from "react";
@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { haversineMeters } from "@/features/buky/engine";
 import { pt } from "../i18n";
 import BukyMap from "../components/BukyMap";
+import PlanSeal from "../components/PlanSeal";
 import StartSheet from "../components/StartSheet";
 import CouponList from "../components/CouponList";
 import HomeExtras from "../components/HomeExtras";
@@ -27,6 +28,7 @@ import {
   useBukyProfile,
   useCity,
   useMyStatus,
+  useMyPassedPointsToday,
   useRoutes,
   useSummary,
   useCouponsHere,
@@ -86,6 +88,8 @@ export default function Inicio() {
   const [starting, setStarting] = useState(false);
 
   const route = routes.find((r) => r.id === routeId) ?? routes[0] ?? null;
+  const { data: passedPoints = [] } = useMyPassedPointsToday(route?.id);
+  const passedPointIds = useMemo(() => new Set(passedPoints), [passedPoints]);
   const official = routes.filter((r) => r.kind === "official");
   const mine = routes.filter((r) => r.kind === "athlete");
 
@@ -162,7 +166,7 @@ export default function Inicio() {
           zoom={13.4}
           points={
             mode === "route" && route
-              ? route.points.map((p) => ({ ...p, state: "idle" as const }))
+              ? route.points.map((p) => ({ ...p, state: passedPointIds.has(p.id) ? "collected" as const : "idle" as const }))
               : []
           }
           path={mode === "route" ? route?.path : null}
@@ -174,25 +178,18 @@ export default function Inicio() {
         {/* degradé del mapa al negro */}
         <div className="pointer-events-none absolute inset-x-0 top-[48%] h-[22%] bg-gradient-to-b from-transparent to-[var(--buky-bg)]" />
 
-        {/* saldo + avatar */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[230px] bg-gradient-to-b from-[rgba(5,5,5,0.94)] via-[rgba(5,5,5,0.6)] to-transparent" />
+
         <div className="absolute inset-x-0 top-0 flex items-start justify-between px-6 pt-[calc(env(safe-area-inset-top,0px)+28px)]">
           <div>
-          <img src="/brand/logo-3buk-horizontal-dark.png" alt="3buk" className="mb-1 h-[20px] w-auto" />
-          {wallet && <Link to="/app/perfil/saldo" className="mb-1 inline-flex max-w-[230px] items-center gap-1 rounded-full bg-[var(--buky-neon)] px-2.5 py-1 text-xs font-semibold text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-white" aria-label={`Saldo / Premium: ${brl(wallet.balance_cents)}, ${isPremiumActive(wallet.premium?.active, wallet.premium?.until) ? "Premium" : "Freemium"}`}>
-            <span>Saldo / Premium</span><span>·</span><span>{brl(wallet.balance_cents)}</span><span>·</span><span>{isPremiumActive(wallet.premium?.active, wallet.premium?.until) ? "Premium" : "Freemium"}</span>
-          </Link>}
-          <Link
-            to="/app/bolsa"
-            className="flex items-baseline gap-2"
-            aria-label="Ver bolsa"
-          >
-            <span className="font-buky-xcond text-[44px] drop-shadow">
-              {summary?.balance ?? 0}
-            </span>
-            <span className="buky-label text-[var(--buky-neon)]">
-              {pt.inicio.bukys}
-            </span>
-          </Link>
+            <PlanSeal premium={isPremiumActive(wallet?.premium?.active, wallet?.premium?.until)} />
+            <Link to="/app/bolsa" className="mt-6 flex items-end gap-2.5 text-white" aria-label={`Ver bolsa: ${summary?.balance ?? 0} Bukys`}>
+              <span className="font-buky-xcond text-[104px] leading-[0.82] drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">{summary?.balance ?? 0}</span>
+              <span className="flex flex-col gap-1 pb-1.5">
+                <span className="buky-label text-[var(--buky-neon)]">{pt.inicio.bukys}</span>
+                {status?.bukys_today != null && <span className="text-[13px] font-medium text-[#e6e6e6]">+{status.bukys_today} hoje</span>}
+              </span>
+            </Link>
           </div>
           <ProfileAvatar />
         </div>
