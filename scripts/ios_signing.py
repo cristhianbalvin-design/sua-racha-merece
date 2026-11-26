@@ -7,6 +7,7 @@ llavero del runner y, al terminar, los revoca/borra.
 
 Uso (variables de entorno ASC_KEY_ID, ASC_ISSUER_ID, ASC_API_KEY_P8, APPLE_TEAM_ID):
   python ios_signing.py check            # valida la clave y la configuración
+  python ios_signing.py push-check      # consulta la capacidad Push del Bundle ID
   python ios_signing.py setup <workdir>  # crea certificado + perfil
   python ios_signing.py cleanup <workdir>
 Escribe anotaciones ::notice / ::error para leerlas desde la API de GitHub.
@@ -136,6 +137,43 @@ def check():
     return found[0]["id"]
 
 
+def push_capability_enabled(bundle_resource_id):
+    res = call("GET", f"/bundleIds/{bundle_resource_id}/bundleIdCapabilities", params={"limit": 200})
+    if not res.ok:
+        explain(res, "Capacidad Push")
+        if res.status_code == 403:
+            error("Capacidad Push", "La clave API no tiene permiso para consultar las capacidades del Bundle ID en Apple Developer.")
+        sys.exit(1)
+    return any(item.get("attributes", {}).get("capabilityType") == "PUSH_NOTIFICATIONS" for item in res.json().get("data", []))
+
+
+def ensure_push_capability(bundle_resource_id):
+    """Activa Push Notifications una sola vez antes de crear el perfil de firma."""
+    if push_capability_enabled(bundle_resource_id):
+        notice("Capacidad Push", "PUSH_NOTIFICATIONS ya está activada en el Bundle ID.")
+        return
+    res = call("POST", "/bundleIdCapabilities", json={"data": {
+        "type": "bundleIdCapabilities",
+        "attributes": {"capabilityType": "PUSH_NOTIFICATIONS"},
+        "relationships": {"bundleId": {"data": {"type": "bundleIds", "id": bundle_resource_id}}},
+    }})
+    if not res.ok:
+        explain(res, "Capacidad Push")
+        if res.status_code == 403:
+            error("Capacidad Push", "La clave API no tiene permiso para activar Push Notifications en el Bundle ID. Revise el rol de la clave de equipo en App Store Connect.")
+        sys.exit(1)
+    notice("Capacidad Push", "PUSH_NOTIFICATIONS activada en el Bundle ID.")
+
+
+def push_check():
+    bundle_resource_id = check()
+    if push_capability_enabled(bundle_resource_id):
+        notice("Capacidad Push", "PUSH_NOTIFICATIONS está activada en el Bundle ID.")
+    else:
+        error("Capacidad Push", "PUSH_NOTIFICATIONS no está activada en el Bundle ID.")
+        sys.exit(1)
+
+
 def revoke_previous_ci_signing():
     """Borra perfiles "3BUK CI *" de compilaciones anteriores y revoca sus certificados.
 
@@ -164,6 +202,7 @@ def setup(workdir):
     workdir = pathlib.Path(workdir)
     workdir.mkdir(parents=True, exist_ok=True)
     bundle_resource_id = check()
+    ensure_push_capability(bundle_resource_id)
     revoke_previous_ci_signing()
 
     # 1) Certificado Apple Distribution temporal (clave privada generada aquí).
@@ -442,6 +481,8 @@ if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "check"
     if cmd == "check":
         check()
+    elif cmd == "push-check":
+        push_check()
     elif cmd == "setup":
         setup(sys.argv[2])
     elif cmd == "write-key":
