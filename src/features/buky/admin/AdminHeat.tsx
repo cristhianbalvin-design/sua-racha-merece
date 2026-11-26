@@ -205,7 +205,7 @@ export default function AdminHeat() {
             : (
               <>
                 <HeatMap city={city} heat={heat.data} />
-                <p className="text-xs">Intensidade: baixa ?? ? alta ??</p>
+                <p className="flex items-center gap-2 text-xs">Intensidade: baixa <span aria-hidden="true" className="inline-block h-2 w-24 rounded-full bg-gradient-to-r from-[#166534] via-[#84cc16] to-[#facc15]" /> alta</p>
               </>
             )}
           <p className="text-xs text-muted-foreground">

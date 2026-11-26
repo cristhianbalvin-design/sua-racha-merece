@@ -18,7 +18,7 @@ DO $$ BEGIN
  IF (SELECT visible FROM public.my_notification_visibility() WHERE kind='new_campaign') THEN RAISE EXCEPTION 'legado visible'; END IF;
  BEGIN
    PERFORM public.admin_set_notification_type('premium_activated',false,false,false);
-   RAISE EXCEPTION 'atleta alterou cat?logo';
+   RAISE EXCEPTION 'atleta alterou catálogo';
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 RESET ROLE;
