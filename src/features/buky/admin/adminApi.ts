@@ -489,7 +489,7 @@ export async function listResults(periodId: string): Promise<RaffleResult[]> {
   for (let offset = 0; ; offset += 200) {
   const { data, error } = await supabase
     .from("buky_raffle_results")
-    .select("*, buky_coupons(title, draw_order, buky_sponsors(name)), users(name, nickname, email, instagram, phone)")
+    .select("*, buky_coupons(title, draw_order, buky_sponsors(name)), users!buky_raffle_results_user_id_fkey(name, nickname, email, instagram, phone)")
     .eq("period_id", periodId)
     .order("drawn_at", { ascending: false })
     .order("id")
