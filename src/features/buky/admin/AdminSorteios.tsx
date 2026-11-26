@@ -33,6 +33,7 @@ import {
   type RaffleResult,
 } from "./adminApi";
 import { AdminCityPicker, Badge, btnDanger, btnGhost, btnPrimary, card, downloadCsv, dt, Field, fromLocalInput, inputCls, toLocalInput } from "./ui";
+import { summarizeResults } from "./resultSummary";
 
 const STATUS: Record<Period["status"], { label: string; tone: "muted" | "green" | "yellow" | "red" | "blue" }> = {
   scheduled: { label: "programado", tone: "blue" },
@@ -97,6 +98,26 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
   const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const visiblePeriods = periods.filter((p) => showArchived || !p.archived_at);
+  const drawnIds = periods.filter((p) => p.status === "drawn").map((p) => p.id);
+  const { data: winnerCounts } = useQuery({
+    queryKey: ["admin-buky", "winner-counts", drawnIds],
+    enabled: drawnIds.length > 0,
+    queryFn: async (): Promise<Record<string, number> | null> => {
+      const { data, count, error } = await supabase
+        .from("buky_raffle_results")
+        .select("period_id", { count: "exact" })
+        .in("period_id", drawnIds)
+        .eq("role", "winner")
+        .not("user_id", "is", null);
+      if (error) throw error;
+      // PostgREST pode limitar as linhas retornadas; nesse caso, não exibir um total parcial.
+      if (count !== null && count > (data?.length ?? 0)) return null;
+      return (data ?? []).reduce<Record<string, number>>((counts, row) => {
+        counts[row.period_id] = (counts[row.period_id] ?? 0) + 1;
+        return counts;
+      }, {});
+    },
+  });
   const start = nextMonday();
   const [f, setF] = useState({
     name: `Sorteio semanal ${start.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })}`,
@@ -260,6 +281,12 @@ function PeriodList({ periods, loading, onOpen }: { periods: Period[]; loading: 
                         <AlertTriangle size={12} /> sem o mínimo · decidir
                       </span>
                     )}
+                    {p.status === "drawn" && (
+                      <span className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+                        <button type="button" className="rounded-full bg-primary/15 px-2 py-0.5 font-bold text-primary" onClick={(e) => { e.stopPropagation(); onOpen(p.id); }}>Ver ganhadores</button>
+                        {winnerCounts && <span className="text-muted-foreground">{winnerCounts[p.id] ?? 0} ganhadores</span>}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -275,7 +302,7 @@ function PeriodDetail({ period, periods, onBack }: { period: Period; periods: Pe
   const qc = useQueryClient();
   const editable = (period.status === "scheduled" || period.status === "open") && !period.drawn_at && !period.archived_at;
   const { data: coupons = [] } = useQuery({ queryKey: ["admin-buky", "coupons", period.id], queryFn: () => listCoupons(period.id) });
-  const { data: results = [] } = useQuery({ queryKey: ["admin-buky", "results", period.id], queryFn: () => listResults(period.id), enabled: period.status === "drawn" });
+  const { data: results = [], isLoading: resultsLoading, isError: resultsError } = useQuery({ queryKey: ["admin-buky", "results", period.id], queryFn: () => listResults(period.id), enabled: period.status === "drawn" });
   const [editing, setEditing] = useState<Partial<Coupon> | null>(null);
   const [busy, setBusy] = useState(false);
   const [isTest, setIsTest] = useState(period.is_test);
@@ -378,6 +405,11 @@ function PeriodDetail({ period, periods, onBack }: { period: Period; periods: Pe
         {canDelete && <button type="button" className={btnDanger} onClick={remove} disabled={busy}><Trash2 size={14} /> EXCLUIR</button>}
       </div>
 
+      {period.status === "drawn" && (resultsLoading
+        ? <p className={`${card} mb-4 p-4 text-sm text-muted-foreground`}>Carregando resultado…</p>
+        : resultsError
+          ? <p className={`${card} mb-4 p-4 text-sm text-red-400`} role="alert">Não foi possível carregar o resultado.</p>
+          : <Results period={period} results={results} onChange={refresh} />)}
       {period.needs_review && <ReviewPanel period={period} periods={periods} onDraw={async () => {
         if (!confirm(`Sortear "${period.name}" mesmo sem o mínimo? O resultado é definitivo.`)) return;
         setBusy(true);
@@ -483,7 +515,6 @@ function PeriodDetail({ period, periods, onBack }: { period: Period; periods: Pe
         )}
       </div>
 
-      {period.status === "drawn" && <Results period={period} results={results} onChange={refresh} />}
     </div>
   );
 }
@@ -508,6 +539,7 @@ function ReviewPanel({ period, periods, onDraw, busy, onDone }: { period: Period
       <p className="flex items-center gap-2 font-bold text-yellow-400">
         <AlertTriangle size={16} /> Não atingiu o mínimo de participantes ({period.review_note})
       </p>
+      <p className="mt-1 text-sm">Ainda não há ganhadores: sorteio aguardando decisão do administrador.</p>
       <p className="mt-1 text-sm text-muted-foreground">O sorteio não roda sozinho. Escolha: sortear mesmo assim com quem participou, ou unir com outro sorteio.</p>
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <button type="button" className={btnPrimary} onClick={onDraw} disabled={busy}>
@@ -869,6 +901,7 @@ function Results({
   onChange: () => void;
 }) {
   const [audit, setAudit] = useState<RaffleResult | null>(null);
+  const summary = summarizeResults(results);
   const [confirmRedeem, confirmDialog] = useConfirm();
   const qc = useQueryClient();
   const periods = qc.getQueryData<Period[]>(["admin-buky", "periods"]) ?? [];
@@ -958,7 +991,7 @@ function Results({
       ]),
     ]);
   return (
-    <section>
+    <section className="mb-6">
       {confirmDialog}
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-bold italic">RESULTADO</h3>
@@ -966,6 +999,10 @@ function Results({
           <Download size={14} /> CSV
         </button>
       </div>
+      <p className={`${card} mb-3 px-4 py-3 text-sm font-semibold`}>
+        {summary.winners} ganhadores · {summary.substitutes} suplentes · {summary.pendingDelivery} pendentes de entrega · {summary.delivered} entregues
+        {summary.withoutEligibleParticipants > 0 && ` · ${summary.withoutEligibleParticipants} sem participantes elegíveis`}
+      </p>
       <div className={`${card} overflow-hidden`}>
         <table className="w-full text-sm">
           <thead className="text-left text-[11px] uppercase text-muted-foreground">
