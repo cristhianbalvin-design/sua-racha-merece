@@ -98,7 +98,7 @@ export default function AdminLive() {
     <div className="space-y-4">
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span>
-          Atualizado h?{" "}
+          Atualizado há{" "}
           {Math.max(0, Math.floor((now - q.dataUpdatedAt) / 1000))}s
         </span>
         <button className={btnGhost} onClick={() => q.refetch()}>

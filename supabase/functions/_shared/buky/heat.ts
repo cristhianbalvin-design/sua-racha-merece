@@ -1,5 +1,5 @@
 /** Grid in degrees: floor(longitude / 0.0003), floor(latitude / 0.0003).
- * A cell is approximately 33 m north?south; longitude width varies with latitude.
+ * A cell is approximately 33 m north-south; longitude width varies with latitude.
  * Only fixes accurate to 25 m or better are included. */
 export const HEAT_CELL_DEGREES = 0.0003;
 export const HEAT_MAX_ACCURACY_M = 25;
