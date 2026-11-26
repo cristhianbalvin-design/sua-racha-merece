@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import maplibregl, { type GeoJSONSource, type Map as MlMap } from "maplibre-gl";
+import maplibregl, { type FitBoundsOptions, type GeoJSONSource, type Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { BUKY_RADIUS, VERTEX_OPACITY, VERTEX_RADIUS } from "../lib/mapLayerStyles";
 import { loadDarkStyle } from "../lib/mapStyle";
@@ -17,6 +17,7 @@ interface Props {
   center: { lat: number; lon: number } | null;
   zoom?: number;
   points: MapPoint[];
+  compactPoints?: boolean;
   user?: { lat: number; lon: number; accuracy?: number } | null;
   /** Radio (m) del círculo punteado "cerca de ti" alrededor del atleta. */
   nearRadiusM?: number;
@@ -28,8 +29,12 @@ interface Props {
   showPath?: boolean;
   /** Trazo del recorrido (rutas dibujadas): se dibuja como línea. */
   path?: { lat: number; lon: number }[] | null;
-  /** Encuadra el mapa para que entren todos estos puntos (historial). */
+  /** Encuadra el mapa para que entren todos estos puntos. */
   fitTo?: { lat: number; lon: number }[];
+  fitPadding?: FitBoundsOptions["padding"];
+  fitMaxZoom?: number;
+  /** Identifica la ruta para encuadrarla al cambiar de selección. */
+  fitKey?: string;
   /** Recorrido ya hecho por el atleta (entrenamiento): línea blanca sobre la ruta. */
   trail?: { lat: number; lon: number }[];
   /** Editor: vértices del trazo (puntos blancos que se tocan y arrastran). */
@@ -91,6 +96,7 @@ export default function BukyMap({
   center,
   zoom = 14,
   points,
+  compactPoints = false,
   user,
   nearRadiusM,
   follow,
@@ -100,6 +106,9 @@ export default function BukyMap({
   path,
   trail,
   fitTo,
+  fitPadding = 48,
+  fitMaxZoom = 17,
+  fitKey,
   vertices,
   showRadius,
   recenterKey,
@@ -119,16 +128,17 @@ export default function BukyMap({
   editRef.current = { editable, onPointTap, onPointDrag };
   const latest = useRef({ points, user, nearRadiusM, showPath, selected, path, vertices, showRadius, trail });
   latest.current = { points, user, nearRadiusM, showPath, selected, path, vertices, showRadius, trail };
-  const fitRef = useRef(fitTo);
-  fitRef.current = fitTo;
+  const fitRef = useRef({ fitTo, fitPadding, fitMaxZoom, fitKey });
+  fitRef.current = { fitTo, fitPadding, fitMaxZoom, fitKey };
 
   const fit = () => {
     const m = map.current;
-    const pts = fitRef.current;
-    if (!m || !ready.current || !pts || pts.length < 2) return;
+    const { fitTo: pts, fitPadding: padding, fitMaxZoom: maxZoom, fitKey: key } = fitRef.current;
+    const minPoints = key === undefined ? 2 : 1;
+    if (!m || !ready.current || !pts || pts.length < minPoints) return;
     const b = new maplibregl.LngLatBounds([pts[0].lon, pts[0].lat], [pts[0].lon, pts[0].lat]);
     for (const p of pts) b.extend([p.lon, p.lat]);
-    m.fitBounds(b, { padding: 48, maxZoom: 17, duration: 0 });
+    m.fitBounds(b, { padding, maxZoom, duration: 0 });
   };
 
   // Crear el mapa una sola vez
@@ -199,6 +209,7 @@ export default function BukyMap({
           id: "points-glow",
           type: "circle",
           source: "points",
+          layout: { visibility: compactPoints ? "none" : "visible" },
           paint: {
             "circle-radius": ["match", ["get", "state"], "visited", 16, 10],
             "circle-color": NEON,
@@ -211,10 +222,10 @@ export default function BukyMap({
           type: "circle",
           source: "points",
           paint: {
-            "circle-radius": ["match", ["get", "state"], "collected", 9, "visited", 10, "pending", BUKY_RADIUS, BUKY_RADIUS],
+            "circle-radius": ["match", ["get", "state"], "collected", compactPoints ? 5 : 9, "visited", 10, compactPoints ? 6.5 : BUKY_RADIUS],
             "circle-color": ["match", ["get", "state"], "collected", "#17361a", NEON],
             "circle-stroke-color": ["match", ["get", "state"], "collected", "#2f6b26", "#050505"],
-            "circle-stroke-width": ["match", ["get", "state"], "collected", 2, "pending", 1.4, 0],
+            "circle-stroke-width": ["match", ["get", "state"], "collected", compactPoints ? 1.5 : 2, "pending", 1.4, 0],
           },
         });
         // Editor: vértices del trazo (blancos), el elegido con anillo y una zona de toque amplia e invisible
@@ -245,7 +256,7 @@ export default function BukyMap({
             id: "points-number",
             type: "symbol",
             source: "points",
-            layout: { "text-field": ["to-string", ["get", "n"]], "text-size": 11, "text-offset": [0, -1.4], "text-font": ["Noto Sans Bold"] },
+            layout: { "text-field": ["to-string", ["get", "n"]], "text-size": compactPoints ? 9 : 11, "text-offset": [0, compactPoints ? -1.6 : -1.4], "text-font": ["Noto Sans Bold"] },
             paint: { "text-color": ["match", ["get", "state"], "collected", "#7d8f7a", "#ffffff"], "text-halo-color": "#050505", "text-halo-width": 1.5 },
           });
         }
@@ -345,7 +356,7 @@ export default function BukyMap({
   };
 
   useEffect(sync, [points, user, nearRadiusM, showPath, selected, path, vertices, showRadius, trail]);
-  useEffect(fit, [fitTo?.length, fitTo?.[0]?.lat]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(fit, [fitTo?.length, fitTo?.[0]?.lat, fitKey, fitPadding, fitMaxZoom]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Centrar cuando cambia el centro pedido o al seguir al atleta
   useEffect(() => {

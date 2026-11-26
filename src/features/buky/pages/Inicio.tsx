@@ -40,6 +40,7 @@ import { getGpsSource } from "../training/gpsSource";
 import { useShopEnabled } from "../components/loja/shared";
 
 const NEAR_M = 1000;
+const ROUTE_FIT_PADDING = { top: 165, bottom: 210, left: 28, right: 28 };
 
 export default function Inicio() {
   const shop = useShopEnabled();
@@ -71,11 +72,8 @@ export default function Inicio() {
     if (status && !status.free_enabled) setMode("route");
   }, [status]);
   const [pickRoute, setPickRoute] = useState(false);
-  // Al elegir una ruta a mano, el mapa va a ella (aunque estés lejos, p. ej. probando desde otro país)
-  const [focusRoute, setFocusRoute] = useState(false);
   const setRouteId = (id: string) => {
     setRouteIdState(id);
-    setFocusRoute(true);
     setPickRoute(false);
     try {
       localStorage.setItem("buky.route", id);
@@ -110,11 +108,10 @@ export default function Inicio() {
       lon: pts.reduce((a, p) => a + p.lon, 0) / pts.length,
     };
   }, [route]);
-  const center =
-    (focusRoute && routeCenter) ||
-    pos ||
-    routeCenter ||
-    (city ? { lat: city.lat, lon: city.lon } : null);
+  const mapRoute = mode === "route" ? route : null;
+  const fitTo = mapRoute?.path?.length ? mapRoute.path : mapRoute?.points;
+  // Com a rota selecionada, a posição atualiza o marcador sem mover a câmera.
+  const center = mapRoute ? null : pos ?? routeCenter ?? (city ? { lat: city.lat, lon: city.lon } : null);
   const zone = [profile?.neighborhood, city?.name].filter(Boolean).join(" · ");
 
   const start = async () => {
@@ -164,12 +161,17 @@ export default function Inicio() {
         <BukyMap
           center={center}
           zoom={13.4}
+          fitTo={fitTo}
+          fitKey={mapRoute?.id}
+          fitPadding={ROUTE_FIT_PADDING}
+          fitMaxZoom={16}
+          compactPoints
           points={
-            mode === "route" && route
-              ? route.points.map((p) => ({ ...p, state: passedPointIds.has(p.id) ? "collected" as const : "idle" as const }))
+            mapRoute
+              ? mapRoute.points.map((p) => ({ ...p, state: passedPointIds.has(p.id) ? "collected" as const : "idle" as const }))
               : []
           }
-          path={mode === "route" ? route?.path : null}
+          path={mapRoute?.path}
           showPath
           user={pos}
           nearRadiusM={pos ? NEAR_M : undefined}
@@ -178,17 +180,14 @@ export default function Inicio() {
         {/* degradé del mapa al negro */}
         <div className="pointer-events-none absolute inset-x-0 top-[48%] h-[22%] bg-gradient-to-b from-transparent to-[var(--buky-bg)]" />
 
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[230px] bg-gradient-to-b from-[rgba(5,5,5,0.94)] via-[rgba(5,5,5,0.6)] to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[140px] bg-gradient-to-b from-[rgba(5,5,5,0.85)] to-transparent" />
 
         <div className="absolute inset-x-0 top-0 flex items-start justify-between px-6 pt-[calc(env(safe-area-inset-top,0px)+28px)]">
-          <div>
+          <div className="flex flex-col items-start">
             <PlanSeal premium={isPremiumActive(wallet?.premium?.active, wallet?.premium?.until)} />
-            <Link to="/app/bolsa" className="mt-6 flex items-end gap-2.5 text-white" aria-label={`Ver bolsa: ${summary?.balance ?? 0} Bukys`}>
-              <span className="font-buky-xcond text-[104px] leading-[0.82] drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]">{summary?.balance ?? 0}</span>
-              <span className="flex flex-col gap-1 pb-1.5">
-                <span className="buky-label text-[var(--buky-neon)]">{pt.inicio.bukys}</span>
-                {status?.bukys_today != null && <span className="text-[13px] font-medium text-[#e6e6e6]">+{status.bukys_today} hoje</span>}
-              </span>
+            <Link to="/app/bolsa" className="mt-4 inline-flex items-baseline gap-2.5 text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.8)]" aria-label={`Ver bolsa: ${summary?.balance ?? 0} Bukys`}>
+              <span className="font-buky-xcond text-[44px] !leading-[0.85]">{summary?.balance ?? 0}</span>
+              <span className="buky-label !text-[14px] text-[var(--buky-neon)]">{pt.inicio.bukys}</span>
             </Link>
           </div>
           <ProfileAvatar />
