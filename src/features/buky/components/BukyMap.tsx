@@ -10,7 +10,7 @@ export interface MapPoint {
   lon: number;
   radiusM?: number;
   /** "idle": punto por recoger (Início); "pending" / "visited": durante el entrenamiento. */
-  state?: "idle" | "pending" | "visited";
+  state?: "idle" | "pending" | "visited" | "collected";
 }
 
 interface Props {
@@ -202,7 +202,7 @@ export default function BukyMap({
           paint: {
             "circle-radius": ["match", ["get", "state"], "visited", 16, 10],
             "circle-color": NEON,
-            "circle-opacity": 0.18,
+            "circle-opacity": ["match", ["get", "state"], "collected", 0, 0.18],
             "circle-blur": 0.4,
           },
         });
@@ -211,10 +211,10 @@ export default function BukyMap({
           type: "circle",
           source: "points",
           paint: {
-            "circle-radius": ["match", ["get", "state"], "visited", 10, "pending", BUKY_RADIUS, BUKY_RADIUS],
-            "circle-color": NEON,
-            "circle-stroke-color": "#050505",
-            "circle-stroke-width": ["match", ["get", "state"], "pending", 1.4, 0],
+            "circle-radius": ["match", ["get", "state"], "collected", 9, "visited", 10, "pending", BUKY_RADIUS, BUKY_RADIUS],
+            "circle-color": ["match", ["get", "state"], "collected", "#17361a", NEON],
+            "circle-stroke-color": ["match", ["get", "state"], "collected", "#2f6b26", "#050505"],
+            "circle-stroke-width": ["match", ["get", "state"], "collected", 2, "pending", 1.4, 0],
           },
         });
         // Editor: vértices del trazo (blancos), el elegido con anillo y una zona de toque amplia e invisible
@@ -246,7 +246,7 @@ export default function BukyMap({
             type: "symbol",
             source: "points",
             layout: { "text-field": ["to-string", ["get", "n"]], "text-size": 11, "text-offset": [0, -1.4], "text-font": ["Noto Sans Bold"] },
-            paint: { "text-color": "#ffffff", "text-halo-color": "#050505", "text-halo-width": 1.5 },
+            paint: { "text-color": ["match", ["get", "state"], "collected", "#7d8f7a", "#ffffff"], "text-halo-color": "#050505", "text-halo-width": 1.5 },
           });
         }
         ready.current = true;

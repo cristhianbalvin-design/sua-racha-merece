@@ -91,6 +91,17 @@ export function useMyStatus() {
   return useQuery({ queryKey: qk.status, queryFn: api.getMyStatus, enabled: Boolean(user), staleTime: 15_000 });
 }
 
+export function useMyPassedPointsToday(routeId?: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["buky", "passed-points-today", user?.id, routeId],
+    queryFn: () => api.listMyPassedPointsToday(user!.id, routeId!),
+    enabled: Boolean(user?.id && routeId),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+}
+
 export function useRoutes(cityCode?: number | null) {
   return useQuery({
     queryKey: qk.routes(cityCode),

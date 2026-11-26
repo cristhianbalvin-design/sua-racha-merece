@@ -1,3 +1,4 @@
+import { saoPauloDay } from "./raffleCalendar";
 /**
  * Capa de datos de Buky: todas las llamadas a Supabase de la app del atleta.
  * Las reglas viven en el servidor (SQL 15–17 y la Edge Function buky-close-session);
@@ -344,6 +345,22 @@ export async function getSettings(keys: string[]): Promise<Record<string, number
     if (Number.isFinite(v)) out[row.key] = v;
   }
   return out;
+}
+
+export async function listMyPassedPointsToday(userId: string, routeId: string): Promise<string[]> {
+  const day = saoPauloDay(new Date().toISOString());
+  const points = new Set<string>();
+  const pageSize = 1000;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.from("buky_passes").select("point_id")
+      .eq("user_id", userId).eq("route_id", routeId).eq("valid", true).eq("local_day", day)
+      .order("id").range(offset, offset + pageSize - 1);
+    if (error) fail(error);
+    const rows = (data ?? []) as { point_id: string }[];
+    for (const row of rows) points.add(row.point_id);
+    if (rows.length < pageSize) break;
+  }
+  return [...points];
 }
 
 // ------------------------------------------------------------------ entrenamiento
