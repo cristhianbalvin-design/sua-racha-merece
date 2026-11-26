@@ -139,21 +139,29 @@ const AnimatedRoutes = () => {
 let oneSignalReady: Promise<void> | undefined;
 let identityQueue: Promise<void> = Promise.resolve();
 let nativeOneSignalReady = false;
+let nativePermissionRequested = false;
 function PushIdentity() {
   const { user, loading } = useAuth();
   useEffect(() => {
     if (loading) return;
     let cancelled = false;
     if (IS_NATIVE) {
-      if (!nativeOneSignalReady) {
-        NativeOneSignal.initialize("f4c2d37d-d6a4-4209-9814-cf2c9cce92e1");
-        nativeOneSignalReady = true;
-        void NativeOneSignal.Notifications.requestPermission(false).catch(console.error);
-      }
+      if (!user?.id && !nativeOneSignalReady) return;
       identityQueue = identityQueue.catch(console.error).then(async () => {
         if (cancelled) return;
-        if (user?.id) await NativeOneSignal.login(user.id);
-        else await NativeOneSignal.logout();
+        if (!nativeOneSignalReady) {
+          await NativeOneSignal.initialize("f4c2d37d-d6a4-4209-9814-cf2c9cce92e1");
+          nativeOneSignalReady = true;
+        }
+        if (user?.id) {
+          await NativeOneSignal.login(user.id);
+          if (!nativePermissionRequested) {
+            await NativeOneSignal.Notifications.requestPermission(false);
+            nativePermissionRequested = true;
+          }
+        } else {
+          await NativeOneSignal.logout();
+        }
       }).catch(console.error);
       return () => { cancelled = true; };
     }
