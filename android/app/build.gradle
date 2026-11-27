@@ -19,7 +19,16 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    def releaseSigningAvailable = ["ANDROID_KEYSTORE_PATH", "ANDROID_KEYSTORE_PASSWORD", "ANDROID_KEY_ALIAS", "ANDROID_KEY_PASSWORD"].every { System.getenv(it) }
     signingConfigs {
+        if (releaseSigningAvailable) {
+            release {
+                storeFile file(System.getenv("ANDROID_KEYSTORE_PATH"))
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
         // Llave SOLO de depuración para la prueba de GPS (contraseña pública "android").
         // Se versiona para que todas las compilaciones tengan la misma firma.
         // La app de producción usará otra llave, que nunca se sube al repositorio.
@@ -35,6 +44,7 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
+            if (releaseSigningAvailable) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import { privacidade } from './privacidade';
 
 export type Testimonial = { img: string; quote: string; name: string; meta: string };
 // Solo se deben cargar testimonios reales con autorización de imagen.
@@ -23,6 +24,7 @@ export const FAQS = [
   ],
 ];
 export const PAGINAS = {
+  privacidade,
   sobre: {
     title: 'Sobre a 3buk',
     intro:
@@ -70,7 +72,8 @@ export const PAGINAS = {
           'Fotos e reconhecimento facial usados apenas para a busca de fotos do próprio atleta.',
         ],
       },
-      { title: 'Contato', items: ['contato@3buk.com'] },
+      { title: 'Sorteios', items: ['A participação é gratuita e não exige compra. O Premium não altera diretamente o peso de cada Buky no sorteio; a quantidade de Bukys enviados determina as chances, e os limites de acúmulo podem variar conforme o plano.', 'Os vencedores são definidos conforme as regras de cada sorteio; data, prazo de entrada e prêmio são informados no app. A organização ? responsabilidade da 3buk e dos patrocinadores.', 'A Apple Inc. não ? patrocinadora, não apoia e não est? envolvida de nenhuma forma neste sorteio ou promoção. O Google LLC também não.'] },
+      { title: 'Contato', items: ['Dúvidas: contato@3buk.com'] },
     ],
   },
   contato: {

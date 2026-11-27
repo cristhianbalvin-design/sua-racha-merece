@@ -3,7 +3,7 @@ import { PAYMENTS_ENABLED } from "@/config/features";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Footprints, LogOut, Pencil, Route, SlidersHorizontal } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGetMyWallet, brl } from "@/lib/walletApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -21,6 +21,30 @@ import { appendUniquePage } from "../lib/listPage";
 /** Perfil (mockup 5): datos, 4 indicadores e historial de entrenamientos. */
 export default function Perfil() {
   const shop = useShopEnabled();
+  const queryClient = useQueryClient();
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [confirmation, setConfirmation] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const deleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke("delete-account", { body: { confirm: "EXCLUIR" } });
+      if (error) {
+        let code = "";
+        try { code = (await error.context?.json())?.error ?? ""; } catch { /* generic error */ }
+        if (["blocked_admin", "blocked_sponsor_member", "blocked_open_order"].includes(code)) {
+          const reason = code === "blocked_admin" ? "Contas administradoras" : code === "blocked_sponsor_member" ? "Contas de patrocinador" : "Contas com pedido em aberto";
+          toast.error(`${reason} precisam de atendimento. Fale com contato@3buk.com.`);
+        } else toast.error("Não foi possível excluir sua conta. Tente novamente ou fale com contato@3buk.com.");
+        return;
+      }
+      try { await logout(); } catch { /* A conta já foi removida; limpar o estado local mesmo assim. */ }
+      queryClient.clear();
+      navigate("/", { replace: true });
+      toast.success("Sua conta foi excluída.");
+    } catch { toast.error("Não foi possível excluir sua conta. Tente novamente ou fale com contato@3buk.com."); }
+    finally { setDeleting(false); }
+  };
   const navigate = useNavigate();
   const { logout, user } = useAuth();
   const sponsors = useSponsors();
@@ -203,6 +227,17 @@ export default function Perfil() {
         {sessionPage.length === 25 && <button type="button" disabled={loadingMore} onClick={() => setSessionOffset((n) => n + 25)} className="mt-4 rounded-full border border-[var(--buky-line)] px-4 py-2 text-sm">{loadingMore ? "Carregando…" : "Ver mais"}</button>}
       </section>
 
+      <section className="mt-8 space-y-3 pb-8 text-sm">
+        <h2 className="font-semibold">Ajuda e legal</h2>
+        <div className="flex flex-wrap gap-4"><Link to="/privacidade">Privacidade</Link><Link to="/regulamento">Regulamento</Link><Link to="/termos-premium">Termos Premium</Link><a href="mailto:contato@3buk.com">Suporte</a></div>
+        <button type="button" className="text-[var(--buky-danger)]" onClick={() => setDeleteOpen(true)}>Excluir minha conta</button>
+      </section>
+      <Sheet open={deleteOpen} onClose={() => { if (!deleting) { setDeleteOpen(false); setConfirmation(""); } }} label="Excluir minha conta">
+        <h2 className="text-2xl font-bold">Excluir minha conta</h2>
+        <p className="mt-4">Seus treinos, Bukys, associações às fotos e perfil serão apagados. Fotos de eventos e registros de pedidos e sorteios podem ser mantidos por obrigação legal ou prevenção a fraudes. O Premium ser? perdido sem reembolso automático. Esta ação ? irreversível.</p>
+        <label className="mt-4 block">Digite EXCLUIR para confirmar<input className="mt-2 block w-full rounded border bg-transparent p-2" value={confirmation} onChange={e => setConfirmation(e.target.value)} /></label>
+        <button type="button" className="mt-5 w-full rounded bg-red-700 p-3 text-white disabled:opacity-50" disabled={confirmation !== "EXCLUIR" || deleting} onClick={() => void deleteAccount()}>{deleting ? "Excluindo?" : "Excluir minha conta"}</button>
+      </Sheet>
       <Sheet open={menu} onClose={() => setMenu(false)} label="Configurações">
         <ul className="text-[16px]">
           <li>
