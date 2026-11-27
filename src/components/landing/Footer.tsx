@@ -26,6 +26,9 @@ export function Footer() {
             <strong>CAMPANHAS</strong>
             <Link to="/campanhas">Campanhas atuais</Link>
             <Link to="/regulamento">Regulamento</Link>
+            <Link to="/privacidade">Privacidade</Link>
+            <Link to="/termos-premium">Termos Premium</Link>
+            <a href="mailto:contato@3buk.com">Suporte</a>
           </div>
           <div>
             <strong>CONTATO</strong>

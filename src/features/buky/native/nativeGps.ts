@@ -9,6 +9,7 @@
  */
 import { registerPlugin } from "@capacitor/core";
 import type { BackgroundGeolocationPlugin, CallbackError, Location } from "@capacitor-community/background-geolocation";
+import { requestLocationDisclosure } from "../training/locationDisclosure";
 import type { GpsSource } from "../training/gpsSource";
 
 const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation");
@@ -20,6 +21,7 @@ export const nativeGpsSource: GpsSource = {
   kind: "native",
   background: true,
   async start(onFix, onError) {
+    if (!(await requestLocationDisclosure())) { onError("permission_denied"); return async () => {}; }
     const id = await BackgroundGeolocation.addWatcher(
       {
         // intervalMs lo agrega el parche de patches/ (el plugin original fija 1 s).

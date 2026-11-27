@@ -11,6 +11,7 @@ import Patrocinador from "./pages/Patrocinador";
 import PatrocinadorAcesso from "./pages/PatrocinadorAcesso";
 import { getAuthRedirectFromLocation } from './lib/authRedirect';
 import { legacyRedirects } from './lib/legacyRedirects';
+import LocationDisclosure from "./features/buky/components/LocationDisclosure";
 import { NativeDeepLinks } from './features/buky/components/NativeDeepLinks';
 import { parseLinkError } from "./lib/sponsorAccess";
 import { initializeMockData } from "./lib/mockApi";
@@ -70,6 +71,8 @@ const AnimatedRoutes = () => {
   const location = useLocation();
 
   return (
+    <>
+    <LocationDisclosure />
     <Routes location={location}>
       {/* App del atleta (Buky dentro de 3BUK). Con SHOW_BUKY_APP pasa a ser la entrada principal. */}
       {bukyRoutes}
@@ -77,6 +80,7 @@ const AnimatedRoutes = () => {
       {/* Public */}
       <Route path="/" element={IS_NATIVE ? <Navigate to="/app" replace /> : <PageTransition><Landing /></PageTransition>} />
       <Route path="/sobre" element={<Institucional page="sobre" />} />
+      <Route path="/privacidade" element={<Institucional page="privacidade" />} />
       <Route path="/regulamento" element={<Institucional page="regulamento" />} />
       <Route path="/contato" element={<Institucional page="contato" />} />
       <Route path="/login" element={<LoginRedirect />} />
@@ -133,6 +137,7 @@ const AnimatedRoutes = () => {
 
       <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
     </Routes>
+    </>
   );
 };
 
